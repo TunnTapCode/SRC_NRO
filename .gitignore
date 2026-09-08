@@ -1,0 +1,23 @@
+# Java build output
+**/build/
+**/dist/
+**/*.class
+
+# NetBeans private and generated metadata
+**/nbproject/private/
+**/nbbuild/
+**/nbdist/
+**/.nb-gradle/
+
+# Local IDE settings
+.vscode/
+
+# Runtime and temporary files
+*.log
+*.tmp
+*.temp
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
