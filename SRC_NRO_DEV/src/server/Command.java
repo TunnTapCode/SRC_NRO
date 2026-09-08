@@ -57,7 +57,7 @@ public class Command {
 
     private void initParameterizedCommands() {
     parameterizedCommands.put("m", (player, text) -> {
-            int mapId = Integer.parseInt(text.replace("m", ""));
+            int mapId = Integer.parseInt(text.replace("m", "").trim());
             ChangeMapService.gI().changeMapInYard(player, mapId, -1, -1);
         });
 
@@ -65,13 +65,13 @@ public class Command {
             Service.gI().sendThongBaoOK(player, "x: " + player.location.x + " - y: " + player.location.y);
         });
     parameterizedCommands.put("n", (player, text) -> {
-                    int idTask = Integer.parseInt(text.replaceAll("n", ""));
+                    int idTask = Integer.parseInt(text.replaceAll("n", "").trim());
                     player.playerTask.taskMain.id = idTask - 1;
                     player.playerTask.taskMain.index = 0;
                     TaskService.gI().sendNextTaskMain(player);
             });
         parameterizedCommands.put("i", (player, text) -> {
-            int itemId = Integer.parseInt(text.replace("i", ""));
+            int itemId = Integer.parseInt(text.replace("i", "").trim());
             Item item = ItemService.gI().createNewItem(((short) itemId));
             List<Item.ItemOption> ops = ItemService.gI().getListOptionItemShop((short) itemId);
             if (!ops.isEmpty()) {
