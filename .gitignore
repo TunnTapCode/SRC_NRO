@@ -11,6 +11,7 @@
 
 # Local IDE settings
 .vscode/
+**/*.iml
 
 # Runtime and temporary files
 *.log
