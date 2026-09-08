@@ -17,6 +17,15 @@
 *.tmp
 *.temp
 
+# Game assets generated or supplied outside source control
+SRC_NRO_DEV/data/icon/x4/
+SRC_NRO_DEV/data/img_by_name/
+SRC_NRO_DEV/data/item_bg_temp/
+SRC_NRO_DEV/data/map/
+SRC_NRO_DEV/data/mob/
+SRC_NRO_DEV/data/res/
+SRC_NRO_DEV/data/update_data/
+
 # Operating system files
 .DS_Store
 Thumbs.db
