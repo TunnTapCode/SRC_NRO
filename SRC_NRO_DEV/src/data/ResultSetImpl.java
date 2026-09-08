@@ -5,6 +5,8 @@ import java.sql.ResultSetMetaData;
 import java.util.HashMap;
 import java.sql.ResultSet;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import database.DatabaseResultSet;
 
 public class ResultSetImpl implements DatabaseResultSet
@@ -16,28 +18,26 @@ public class ResultSetImpl implements DatabaseResultSet
     public ResultSetImpl(final ResultSet rs) throws Exception {
         this.indexData = -1;
         try {
-            rs.last();
-            final int nRow = rs.getRow();
-            rs.beforeFirst();
             final ResultSetMetaData rsmd = rs.getMetaData();
             final int nColumn = rsmd.getColumnCount();
-            this.data = new HashMap[nRow];
-            for (int i = 0; i < this.data.length; ++i) {
-                this.data[i] = new HashMap<>();
-            }
-            this.values = new Object[nRow][nColumn];
-            int index = 0;
+            final List<Map<String, Object>> rows = new ArrayList<>();
+            final List<Object[]> rowValues = new ArrayList<>();
             while (rs.next()) {
+                final Map<String, Object> row = new HashMap<>();
+                final Object[] values = new Object[nColumn];
                 for (int j = 1; j <= nColumn; ++j) {
                     final String tableName = rsmd.getTableName(j);
                     final String columnName = rsmd.getColumnName(j);
                     final Object columnValue = rs.getObject(j);
-                    this.data[index].put(columnName.toLowerCase(), columnValue);
-                    this.data[index].put(tableName.toLowerCase() + "." + columnName.toLowerCase(), columnValue);
-                    this.values[index][j - 1] = columnValue;
+                    row.put(columnName.toLowerCase(), columnValue);
+                    row.put(tableName.toLowerCase() + "." + columnName.toLowerCase(), columnValue);
+                    values[j - 1] = columnValue;
                 }
-                ++index;
+                rows.add(row);
+                rowValues.add(values);
             }
+            this.data = rows.toArray(new Map[0]);
+            this.values = rowValues.toArray(new Object[0][]);
         }
         catch (final Exception e) {
             throw e;

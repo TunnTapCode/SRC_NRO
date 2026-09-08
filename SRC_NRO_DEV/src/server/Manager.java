@@ -297,7 +297,7 @@ public final class Manager {
 
             ps = ConnectionDatabase.prepareStatement("select id from clan order by id desc limit 1");
             rs = ps.executeQuery();
-            if (rs.first()) {
+            if (rs.next()) {
                 Clan.NEXT_ID = rs.getInt("id") + 1;
             }
             ps = ConnectionDatabase.prepareStatement("select * from skill_template order by nclass_id, slot");
@@ -641,7 +641,7 @@ public final class Manager {
             }
             ps = ConnectionDatabase.prepareStatement("select count(id) from map_template");
             rs = ps.executeQuery();
-            if (rs.first()) {
+            if (rs.next()) {
                 int countRow = rs.getShort(1);
                 MAP_TEMPLATES = new MapTemplate[countRow];
                 ps = ConnectionDatabase.prepareStatement("select * from map_template");

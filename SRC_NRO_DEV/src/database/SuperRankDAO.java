@@ -20,7 +20,7 @@ public class SuperRankDAO {
 
         List<SuperRankBuilder> list = new ArrayList<>();
         try {
-            DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT * FROM super_rank WHERE rank <= ? AND rank > 0 ORDER BY rank DESC LIMIT ?", Math.max(rank, 10), limit);
+                DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT * FROM super_rank WHERE `rank` <= ? AND `rank` > 0 ORDER BY `rank` DESC LIMIT ?", Math.max(rank, 10), limit);
             while (rs.next()) {
                 list.add(readData(rs));
             }
@@ -29,7 +29,7 @@ public class SuperRankDAO {
         try {
             int rand = random(rank);
             if (rand != -1) {
-                DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT * FROM super_rank WHERE rank = ? LIMIT 1", rand);
+                DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT * FROM super_rank WHERE `rank` = ? LIMIT 1", rand);
                 if (rs.first()) {
                     list.add(readData(rs));
                 }
@@ -44,7 +44,7 @@ public class SuperRankDAO {
     public static List<SuperRankBuilder> getPlayerListInRank(int rank, int limit) {
         List<SuperRankBuilder> list = new ArrayList<>();
         try {
-            DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT * FROM super_rank WHERE rank > 0 ORDER BY rank ASC LIMIT ?", limit);
+                DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT * FROM super_rank WHERE `rank` > 0 ORDER BY `rank` ASC LIMIT ?", limit);
             while (rs.next()) {
                 list.add(readData(rs));
             }
@@ -52,7 +52,7 @@ public class SuperRankDAO {
         }
         try {
             if (rank > 100) {
-                DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT * FROM super_rank WHERE rank > ? AND rank < ? ORDER BY rank ASC LIMIT 4", rank - 3, rank + 2);
+                DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT * FROM super_rank WHERE `rank` > ? AND `rank` < ? ORDER BY `rank` ASC LIMIT 4", rank - 3, rank + 2);
                 while (rs.next()) {
                     list.add(readData(rs));
                 }
@@ -188,7 +188,7 @@ public class SuperRankDAO {
 
     public static int getRank(int playerId) {
         try {
-            DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT rank FROM super_rank WHERE player_id = " + playerId);
+            DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT `rank` FROM super_rank WHERE player_id = " + playerId);
             if (rs.first()) {
                 return rs.getInt("rank");
             }
@@ -199,7 +199,7 @@ public class SuperRankDAO {
 
     public static int getCurrentHighestRank() {
         try {
-            DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT rank FROM super_rank ORDER BY rank DESC LIMIT 1");
+            DatabaseResultSet rs = DatabaseManager.executeQuery("SELECT `rank` FROM super_rank ORDER BY `rank` DESC LIMIT 1");
             if (rs.first()) {
                 return rs.getInt("rank");
             }
