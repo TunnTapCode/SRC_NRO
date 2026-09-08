@@ -28,6 +28,7 @@ import player.Service.ClanService;
 import map.Service.ChangeMapService;
 import player.Service.PlayerService;
 import utils.Util;
+import managers.GiftCodeManager;
 
 public class Input {
 
@@ -49,6 +50,7 @@ public class Input {
     public static final int DISSOLUTION_CLAN = 513;
     public static final int TANG_NGOC_HONG = 514;
     public static final int SELECT_LUCKYNUMBER = 514;
+    public static final int CREATE_GIFT_CODE = 515;
 
     public static final byte NUMERIC = 0;
     public static final byte ANY = 1;
@@ -150,6 +152,35 @@ public class Input {
                     break;
                 case GIFT_CODE:
                     GiftCodeService.gI().giftCode(player, text[0]);
+                    break;
+                case CREATE_GIFT_CODE:
+                    if (!player.isAdmin()) {
+                        Service.gI().sendThongBao(player, "Không đủ quyền hạn!");
+                        break;
+                    }
+                    String giftCode = text[0].trim();
+                    int giftCodeCount = Integer.parseInt(text[1]);
+                    String[] giftCodeItemTexts = text[2].split(",");
+                    String[] giftCodeQuantityTexts = text[3].split(",");
+                    int[] giftCodeItemIds = new int[giftCodeItemTexts.length];
+                    int[] giftCodeQuantities = new int[giftCodeQuantityTexts.length];
+                    for (int i = 0; i < giftCodeItemTexts.length; i++) {
+                        giftCodeItemIds[i] = Integer.parseInt(giftCodeItemTexts[i].trim());
+                    }
+                    for (int i = 0; i < giftCodeQuantityTexts.length; i++) {
+                        giftCodeQuantities[i] = Integer.parseInt(giftCodeQuantityTexts[i].trim());
+                    }
+                    boolean validGiftCodeItems = giftCodeItemIds.length == giftCodeQuantities.length;
+                    for (int quantity : giftCodeQuantities) {
+                        validGiftCodeItems &= quantity > 0;
+                    }
+                    if (giftCode.isEmpty() || giftCodeCount <= 0 || !validGiftCodeItems) {
+                        Service.gI().sendThongBao(player, "Thông tin giftcode không hợp lệ");
+                    } else if (GiftCodeManager.gI().createGiftCode(giftCode, giftCodeCount, giftCodeItemIds, giftCodeQuantities)) {
+                        Service.gI().sendThongBao(player, "Tạo giftcode thành công: " + giftCode);
+                    } else {
+                        Service.gI().sendThongBao(player, "Giftcode đã tồn tại hoặc tạo thất bại");
+                    }
                     break;
                 case FIND_PLAYER:
                     Player pl = Client.gI().getPlayer(text[0]);
@@ -404,6 +435,12 @@ public class Input {
 
     public void createFormGiftCode(Player pl) {
         createForm(pl, GIFT_CODE, "Giftcode", new SubInput("Gift-code", ANY));
+    }
+
+    public void createFormCreateGiftCode(Player pl) {
+        createForm(pl, CREATE_GIFT_CODE, "Tạo giftcode", new SubInput("Mã giftcode", ANY),
+                new SubInput("Số lượt sử dụng", NUMERIC), new SubInput("ID vật phẩm (cách nhau bằng dấu phẩy)", ANY),
+                new SubInput("Số lượng tương ứng (cách nhau bằng dấu phẩy)", ANY));
     }
 
     public void createFormMBV(Player pl) {

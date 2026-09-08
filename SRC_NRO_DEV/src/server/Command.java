@@ -43,6 +43,7 @@ public class Command {
     private void initAdminCommands() {
     adminCommands.put("is", player -> Input.gI().createFormGiveItem(player));
     adminCommands.put("i", player -> Input.gI().createFormGetItem(player));
+    adminCommands.put("gcode", player -> Input.gI().createFormCreateGiftCode(player));
     adminCommands.put("hoiskill", player -> Service.gI().releaseCooldownSkill(player));
     adminCommands.put("d", player -> Service.gI().setPos(player, player.location.x, player.location.y + 10));
     adminCommands.put("b", player -> NpcService.gI().createMenuConMeo(player, ConstNpc.MENU_ADMIN, -1,

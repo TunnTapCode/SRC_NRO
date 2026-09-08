@@ -1,10 +1,13 @@
 package managers;
 import database.DatabaseManager;
+import database.DatabaseResultSet;
 import player.GiftCodeSystem;
 import player.Player;
 import map.Service.NpcService;
 import services.Service;
 import java.util.ArrayList;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import player.Service.InventoryService;
 
 public class GiftCodeManager {
@@ -49,6 +52,49 @@ public class GiftCodeManager {
             DatabaseManager.executeUpdate("update giftcode set count_left = ? where id = ?", giftcode.countLeft, giftcode.id);
         } catch (Exception e) {
         }
+    }
+
+    public boolean createGiftCode(String code, int count, int[] itemIds, int[] quantities) throws Exception {
+        if (itemIds.length == 0 || itemIds.length != quantities.length) {
+            return false;
+        }
+        for (GiftCodeSystem giftCode : listGiftCode) {
+            if (giftCode.code.equalsIgnoreCase(code)) {
+                return false;
+            }
+        }
+
+        JSONArray detail = new JSONArray();
+        for (int i = 0; i < itemIds.length; i++) {
+            JSONObject item = new JSONObject();
+            item.put("id", itemIds[i]);
+            item.put("quantity", quantities[i]);
+            item.put("options", new JSONArray());
+            detail.add(item);
+        }
+
+        DatabaseManager.executeUpdate(
+                "insert into giftcode (code, count_left, detail) values (?, ?, ?)",
+                code, count, detail.toJSONString());
+
+        DatabaseResultSet rs = DatabaseManager.executeQuery(
+                "select * from giftcode where code = ? order by id desc limit 1", code);
+        if (!rs.next()) {
+            return false;
+        }
+
+        GiftCodeSystem giftCode = new GiftCodeSystem();
+        giftCode.id = rs.getInt("id");
+        giftCode.code = rs.getString("code");
+        giftCode.countLeft = rs.getInt("count_left");
+        giftCode.datecreate = rs.getTimestamp("datecreate");
+        giftCode.dateexpired = rs.getTimestamp("expired");
+        for (int i = 0; i < itemIds.length; i++) {
+            giftCode.detail.put(itemIds[i], quantities[i]);
+            giftCode.option.put(itemIds[i], new ArrayList<>());
+        }
+        listGiftCode.add(giftCode);
+        return true;
     }
 
     public void checkInfomationGiftCode(Player p) {

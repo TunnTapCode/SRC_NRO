@@ -825,7 +825,9 @@ public final class Manager {
         if ((value = properties.get("server.ip")) != null) {
             ServerManager.IP = String.valueOf(value);
             linkServer += ServerManager.NAME + ":" + ServerManager.IP + ":" + ServerManager.PORT + ":0,";
+            
         }
+        System.out.println("Server " + linkServer );
         for (int i = 1; i <= 10; i++) {
             value = properties.get("server.sv" + i);
             if (value != null) {
