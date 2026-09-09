@@ -776,6 +776,9 @@ public final class Manager {
                         if (option != null) {
                             for (int u = 0; u < option.size(); u++) {
                                 JSONObject jsonobject = (JSONObject) option.get(u);
+                                if (jsonobject == null || jsonobject.get("id") == null || jsonobject.get("param") == null) {
+                                    continue;
+                                }
                                 int optionId = Integer.parseInt(jsonobject.get("id").toString());
                                 int param = Integer.parseInt(jsonobject.get("param").toString());
                                 optionList.add(new Item.ItemOption(optionId, param));

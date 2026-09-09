@@ -1,2 +1,2 @@
-java -server -jar SRC_NRO.jar
+java -server -jar NgocRongOnline.jar
 pause
