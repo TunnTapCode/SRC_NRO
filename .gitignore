@@ -13,6 +13,14 @@
 .vscode/
 **/*.iml
 
+# Local server configuration and image assets
+SRC_NRO_DEV/Config.properties
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+
 # Runtime and temporary files
 *.log
 *.tmp
