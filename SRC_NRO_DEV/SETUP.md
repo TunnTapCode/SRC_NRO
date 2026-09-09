@@ -103,7 +103,23 @@ Luon chay lenh trong thu muc co file `build.xml`:
 
 ```powershell
 cd SRC_NRO_DEV
-ant clean jar
+D:\Documents\SRC_NRO\SRC_NRO_DEV>java -server -cp "lib/*;dist\NgocRongOnline.jar" server.ServerManager
+Server Black Goku:14.225.205.216:14445:0,
+←[0;32m←[31m███╗   ███╗███████╗██╗    ██╗ ██████╗
+←[32m████╗ ████║██╔════╝██║    ██║██╔═══██╗
+←[33m██╔████╔██║█████╗  ██║ █╗ ██║██║   ██║
+←[34m██║╚██╔╝██║██╔══╝  ██║███╗██║██║   ██║
+←[35m██║ ╚═╝ ██║███████╗╚███╔███╔╝╚██████╔╝
+←[36m╚═╝     ╚═╝╚══════╝ ╚══╝╚══╝  ╚═════╝
+←[0m←[0mLoading class `com.mysql.jdbc.Driver'. This is deprecated. The new driver class is `com.mysql.cj.jdbc.Driver'. The driver is automatically registered via the SPI and manual loading of the driver class is generally unnecessary.
+←[0;32mSuccessfully loaded all database src_nro
+←[0m←[0;32mTotal database loading time -> 1016 (ms)
+←[0m←[0;31mError initializing server at port 14445
+←[0m
+D:\Documents\SRC_NRO\SRC_NRO_DEV>pause
+Press any key to continue . . .
+
+
 ```
 
 Neu build thanh cong se co file:
@@ -122,7 +138,7 @@ ant run
 Hoac:
 
 ```powershell
-java -server -jar SRC_NRO.jar
+java -server -cp "lib/*;dist\NgocRongOnline.jar" server.ServerManager
 ```
 
 Khuyen nghi dung `ant run` vi lenh nay dung classpath va cac thu vien trong `lib`.
