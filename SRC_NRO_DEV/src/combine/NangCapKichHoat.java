@@ -61,15 +61,15 @@ public class NangCapKichHoat {
                     trangbiThanLinh = item;
                 }
             }
-            int gender = trangbiThanLinh.template.gender;
-            int playerGender = player.gender;
+            int itemGender = trangbiThanLinh.template.gender;
+            int gender = itemGender == 3 ? player.gender : itemGender;
             int[] maleOptions = {129, 141, 127, 139, 128, 140};
             int[] femaleOptions = {132, 144, 131, 143, 130, 142};
             int[] otherOptions = {135, 138, 133, 136, 134, 137};
             int[] selectedOptions;
-            if (gender == 0 || gender == 3 && playerGender == 0) {
+            if (gender == 0) {
                 selectedOptions = maleOptions;
-            } else if (gender == 1 || gender == 3 && playerGender == 1) {
+            } else if (gender == 1) {
                 selectedOptions = femaleOptions;
             } else {
                 selectedOptions = otherOptions;

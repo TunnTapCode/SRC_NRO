@@ -9,6 +9,7 @@ import network.SessionManager;
 import services.ItemService;
 import services.PetService;
 import services.Service;
+import shop.ShopService;
 import services.func.Input;
 import map.Service.ChangeMapService;
 import map.Service.NpcService;
@@ -81,6 +82,25 @@ public class Command {
             InventoryService.gI().sendItemBags(player);
             Service.gI().sendThongBao(player, "GET " + item.template.name + " [" + item.template.id + "] SUCCESS !");
         });
+        parameterizedCommands.put("food", (player, text) -> {
+            try {
+                int itemId = Integer.parseInt(text.replace("food", "").trim());
+                if (itemId < 663 || itemId > 667) {
+                    Service.gI().sendThongBao(player, "ID thức ăn hợp lệ: 663 đến 667");
+                    return;
+                }
+                Item item = ItemService.gI().createNewItem((short) itemId);
+                item.quantity = 99999;
+                if (InventoryService.gI().addItemBag(player, item)) {
+                    InventoryService.gI().sendItemBags(player);
+                    Service.gI().sendThongBao(player, "GET 99999 " + item.template.name + " SUCCESS !");
+                }
+            } catch (Exception e) {
+                Service.gI().sendThongBao(player, "Sai cú pháp: food <663-667>");
+            }
+        });
+        parameterizedCommands.put("dhd", (player, text) -> ShopService.gI().autoExchangeBill(player));
+        parameterizedCommands.put("dhdxd", (player, text) -> ShopService.gI().autoExchangeBillXayda(player));
         // dmg <value>
 parameterizedCommands.put("dm", (player, text) -> {
     try {

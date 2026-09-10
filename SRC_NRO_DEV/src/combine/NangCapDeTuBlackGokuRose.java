@@ -13,7 +13,7 @@ import utils.Util;
 public class NangCapDeTuBlackGokuRose {
     private static final int GOLD_TAO_DA = 500_000_000;
     private static final int ITEM_ID_DAMAI = 1439;
-    private static final int SUCCESS_RATIO_MIN = 1; 
+    private static final int SUCCESS_RATIO_MIN = 100; 
     private static final int SUCCESS_RATIO_MAX = 100; 
     private static final int PET_TYPE_BLACK_GOKU = 3;
     private static final int FAILURE_PENALTY_GOLD = 500_000_000;

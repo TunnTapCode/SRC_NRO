@@ -37,10 +37,10 @@ public class BaHatMit extends Npc {
                     this.createOtherMenu(player, ConstNpc.BASE_MENU,
                             "Ngươi tìm ta có việc gì?",
                             "Chức năng\npha lê",
-                            // "Chức năng\nđệ tử",
-                            // "Chức năng\nSét Kích Hoạt",
+                            "Chức năng\nđệ tử",
+                            "Chức năng\nSét Kích Hoạt"
                             // "Chức năng\nItem cấp 2",
-                            "võ dài sinh tử"
+                            // "võ dài sinh tử"
                     );
 
                 case 112 -> {
@@ -109,22 +109,22 @@ public class BaHatMit extends Npc {
                                         // "Tạo\nDùi Đục",
                                         // "Tạo\nđá mài"
                                     );
-                            // case 1 ->
-                            //     createOtherMenu(player, 4,
-                            //             "Ta có thể giúp gì cho ngươi ?",
-                            //             "Nâng cấp\nđệ blackgoku",
-                            //             "Nâng cấp\nđệ blackgoku rose");
-                            // case 2 ->
-                            //     createOtherMenu(player, 5,
-                            //             "Ta có thể giúp gì cho ngươi ?",
-                            //             "Nâng cấp\nSét Kích Hoạt",
-                            //             "Nâng cấp\nSét Kích Hoạt Vip");
+                            case 1 ->
+                                createOtherMenu(player, 4,
+                                        "Ta có thể giúp gì cho ngươi ?",
+                                        "Nâng cấp\nđệ blackgoku",
+                                        "Nâng cấp\nđệ blackgoku rose");
+                            case 2 ->
+                                createOtherMenu(player, 5,
+                                        "Ta có thể giúp gì cho ngươi ?",
+                                        "Nâng cấp\nSét Kích Hoạt",
+                                        "Nâng cấp\nSét Kích Hoạt Vip");
                             // case 3 ->
                             //     createOtherMenu(player, 6,
                             //             "Ta có thể giúp gì cho ngươi ?",
                             //             "Nâng cấp\nItem Cấp 2");
-                            case 1 ->
-                                ChangeMapService.gI().changeMapNonSpaceship(player, 112, 200 + Util.nextInt(-100, 100), 408);
+                            // case 3 ->
+                            //     ChangeMapService.gI().changeMapNonSpaceship(player, 112, 200 + Util.nextInt(-100, 100), 408);
                         }
                     } else if (player.idMark.getIndexMenu() == 3) {
                         switch (select) {

@@ -40,6 +40,7 @@ SRC_NRO_DEV/data/map/
 SRC_NRO_DEV/data/mob/
 SRC_NRO_DEV/data/res/
 SRC_NRO_DEV/data/update_data/
+SRC_NRO_DEV/data/effdata/
 
 # Operating system files
 .DS_Store

@@ -20,8 +20,8 @@ public class Bill extends Npc {
             TaskService.gI().checkDoneTaskTalkNpc(player, this);
             if (mapId == 154) {
                 createOtherMenu(player, ConstNpc.BASE_MENU,
-                        "...",
-                        "Về\nthánh địa\nKaio", "Từ chối");
+                        "Ngươi tìm ta có việc gì?",
+                        "Đổi thức ăn", "Về\nthánh địa\nKaio", "Hướng\ndẫn\nthêm");
             } else {
                 createOtherMenu(player, ConstNpc.BASE_MENU,
                         "Chưa tới giờ thi đấu, xem hướng dẫn để biết thêm chi tiết",
@@ -34,7 +34,7 @@ public class Bill extends Npc {
     public void confirmMenu(Player player, int select) {
         if (canOpenNpc(player)) {
             switch (this.mapId) {
-                case 48 -> {
+                case 154 -> {
                     switch (player.idMark.getIndexMenu()) {
                         case ConstNpc.BASE_MENU -> {
                             switch (select) {
@@ -45,7 +45,8 @@ public class Bill extends Npc {
                                         createOtherMenu(player, 2, "Ngươi trang bị đủ bộ 5 món trang bị Thần\nvà mang 99 phần đồ ăn tới đây...\nrồi ta nói chuyện tiếp.", "OK");
                                     }
                                 }
-                                case 1 ->
+                                case 1 -> ChangeMapService.gI().changeMap(player, 50, -1, 318, 336);
+                                case 2 ->
                                     NpcService.gI().createTutorial(player, tempId, this.avartar, ConstNpc.HUONG_DAN_BILL);
                             }
                         }
@@ -55,12 +56,6 @@ public class Bill extends Npc {
                                 break;
                             }
                         }
-                    }
-                }
-                case 154 -> {
-                    if (select == 0) {
-                        ChangeMapService.gI().changeMap(player, 50, -1, 318, 336);
-                        break;
                     }
                 }
             }
