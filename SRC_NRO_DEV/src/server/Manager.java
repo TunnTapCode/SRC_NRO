@@ -63,7 +63,7 @@ public final class Manager {
     public static byte SECOND_WAIT_LOGIN = 5;
     public static int MAX_PER_IP = 10;
     public static int MAX_PLAYER = 2000;
-    public static byte RATE_EXP_SERVER = 1;
+    public static byte RATE_EXP_SERVER = 5;
     public static boolean LOCAL = false;
     public static boolean TEST = false;
     public static boolean DAO_AUTO_UPDATER = false;
