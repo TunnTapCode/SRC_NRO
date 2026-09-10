@@ -86,22 +86,27 @@ public class IntrinsicService {
 
     public void showConfirmOpenVip(Player player) {
         NpcService.gI().createMenuConMeo(player, ConstNpc.CONFIRM_OPEN_INTRINSIC_VIP, -1,
-                "Bạn có muốn mở Nội Tại\nvới giá là 200 ngọc và\ntái lập giá vàng quay lại ban đầu không?", "Mở\nNội VIP", "Từ chối");
+                "Bạn có muốn mở Nội Tại\nvới giá là 100 ngọc và\ntái lập giá vàng quay lại ban đầu không?", "Mở\nNội VIP", "Từ chối");
     }
 
-    private void changeIntrinsic(Player player) {
+    private void changeIntrinsic(Player player , boolean isVip) {
         List<Intrinsic> listIntrinsic = getIntrinsics(player.gender);
         player.playerIntrinsic.intrinsic = new Intrinsic(listIntrinsic.get(Util.nextInt(1, listIntrinsic.size() - 1)));
-        player.playerIntrinsic.intrinsic.param1 = (short) Util.nextInt(player.playerIntrinsic.intrinsic.paramFrom1, player.playerIntrinsic.intrinsic.paramTo1);
-        player.playerIntrinsic.intrinsic.param2 = (short) Util.nextInt(player.playerIntrinsic.intrinsic.paramFrom2, player.playerIntrinsic.intrinsic.paramTo2);
+        if (isVip) {
+            player.playerIntrinsic.intrinsic.param1 = randomParamVip(player.playerIntrinsic.intrinsic.paramFrom1, player.playerIntrinsic.intrinsic.paramTo1);
+            player.playerIntrinsic.intrinsic.param2 = randomParamVip(player.playerIntrinsic.intrinsic.paramFrom2, player.playerIntrinsic.intrinsic.paramTo2);
+        } else {
+            player.playerIntrinsic.intrinsic.param1 = (short) Util.nextInt(player.playerIntrinsic.intrinsic.paramFrom1, player.playerIntrinsic.intrinsic.paramTo1);
+            player.playerIntrinsic.intrinsic.param2 = (short) Util.nextInt(player.playerIntrinsic.intrinsic.paramFrom2, player.playerIntrinsic.intrinsic.paramTo2);
+        }
         Service.gI().sendThongBao(player, "Bạn nhận được Nội tại:\n" + player.playerIntrinsic.intrinsic.getName().substring(0, player.playerIntrinsic.intrinsic.getName().indexOf(" [")));
         sendInfoIntrinsic(player);
     }
- public void doinoitai(Player player) {
+    public void doinoitai(Player player) {
         List<Intrinsic> listIntrinsic = getIntrinsics(player.gender);
         player.playerIntrinsic.intrinsic = new Intrinsic(listIntrinsic.get(Util.nextInt(1, listIntrinsic.size() - 1)));
-        player.playerIntrinsic.intrinsic.param1 = (short) Util.nextInt(player.playerIntrinsic.intrinsic.paramFrom1, player.playerIntrinsic.intrinsic.paramTo1);
-        player.playerIntrinsic.intrinsic.param2 = (short) Util.nextInt(player.playerIntrinsic.intrinsic.paramFrom2, player.playerIntrinsic.intrinsic.paramTo2);
+        player.playerIntrinsic.intrinsic.param1 = randomParamVip(player.playerIntrinsic.intrinsic.paramFrom1, player.playerIntrinsic.intrinsic.paramTo1);
+        player.playerIntrinsic.intrinsic.param2 = randomParamVip(player.playerIntrinsic.intrinsic.paramFrom2, player.playerIntrinsic.intrinsic.paramTo2);
         Service.gI().sendThongBao(player, "Bạn nhận được Nội tại:\n" + player.playerIntrinsic.intrinsic.getName().substring(0, player.playerIntrinsic.intrinsic.getName().indexOf(" [")));
         sendInfoIntrinsic(player);
     }
@@ -111,7 +116,7 @@ public class IntrinsicService {
             if (player.inventory.gold >= goldRequire) {
                 player.inventory.gold -= goldRequire;
                 PlayerService.gI().sendInfoHpMpMoney(player);
-                changeIntrinsic(player);
+                changeIntrinsic(player, false   );
                 if (player.playerIntrinsic.countOpen < COST_OPEN.length - 1) {
                     player.playerIntrinsic.countOpen++;
                 }
@@ -126,11 +131,11 @@ public class IntrinsicService {
 
     public void openVip(Player player) {
         if (player.nPoint.power >= 10000000000L) {
-            int gemRequire = 200;
-            if (player.inventory.gem >= 200) {
+            int gemRequire = 100;
+            if (player.inventory.gem >= 100) {
                 player.inventory.gem -= gemRequire;
                 PlayerService.gI().sendInfoHpMpMoney(player);
-                changeIntrinsic(player);
+                changeIntrinsic(player, true);
                 player.playerIntrinsic.countOpen = 0;
             } else {
                 Service.gI().sendThongBao(player, "Bạn không có đủ ngọc, còn thiếu "
@@ -139,6 +144,18 @@ public class IntrinsicService {
         } else {
             Service.gI().sendThongBao(player, "Yêu cầu sức mạnh tối thiểu 10 tỷ");
         }
+    }
+    // update thêm cho vip, 30% cơ hội cộng thêm 10% khoảng giá trị
+    private short randomParamVip(int from, int to) {
+        int value = Util.nextInt(from, to);
+
+        // 30% cơ hội cộng thêm 10% khoảng giá trị
+        if (Util.isTrue(30, 100)) {
+            int bonus = Math.max(1, (to - from) / 10);
+            value += bonus;
+        }
+
+        return (short) Math.min(value, to);
     }
 
 }

@@ -156,29 +156,57 @@ public class CombineSystem {
     }
 
     public static float getRatioPhaLeHoa(int star) {
+        // switch (star) {
+        //     case 0:
+        //         return 40f;
+        //     case 1:
+        //         return 25f;
+        //     case 2:
+        //         return 20f;
+        //     case 3:
+        //         return 15f;
+        //     case 4:
+        //         return 10f;
+        //     case 5:
+        //         return 5f;
+        //     case 6:
+        //         return 1f;
+        //     case 7:
+        //         return 0.5f;
+        //     case 8:
+        //         return 100f;
+        //     case 9:
+        //         return 0.5f;
+        //     case 10:
+        //         return 0.2f;
+        //     case 11:
+        //         return 0.1f;
+        //     case 12:
+        //         return 0.1f;
+        // }
         switch (star) {
             case 0:
-                return 40f;
+                return 80f;
             case 1:
-                return 25f;
+                return 50f;
             case 2:
-                return 20f;
+                return 40f;
             case 3:
-                return 15f;
+                return 25f;
             case 4:
                 return 10f;
             case 5:
                 return 5f;
             case 6:
-                return 1f;
+                return 3f;
             case 7:
-                return 0.5f;
+                return 1f;
             case 8:
                 return 100f;
             case 9:
                 return 0.5f;
             case 10:
-                return 0.2f;
+                return 0.3f;
             case 11:
                 return 0.1f;
             case 12:
@@ -203,17 +231,22 @@ public class CombineSystem {
             case 5:
                 return 1;
             case 6:
-                return 7;
+                // return 7;
+                return 1;
             case 7:
-                return 8;
+                // return 8;
+                return 1;
             case 8:
-                return 9;
+                // return 9;
+                return 1;
             case 9:
-                return 280;
+                // return 280;
+                return 1;
             case 10:
-                return 560;
+                // return 560;
+                return 1;
             case 11:
-                return 1120;
+                return 1;
             case 12:
                 return 2240;
         }

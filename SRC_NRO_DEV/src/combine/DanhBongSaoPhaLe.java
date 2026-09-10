@@ -70,7 +70,7 @@ public class DanhBongSaoPhaLe {
                 Service.gI().sendThongBao(player, "Không đủ vàng để thực hiện");
                 return;
             }
-            if (player.inventory.gem < gem) {
+            if (!InventoryService.gI().hasGem(player, gem)) {
                 Service.gI().sendThongBao(player, "Không đủ ngọc để thực hiện");
                 return;
             }
@@ -88,7 +88,7 @@ public class DanhBongSaoPhaLe {
 
             if (saoPhaLe != null && daMai != null && saoPhaLe.quantity >= 2) {
                 player.inventory.gold -= gold;
-                player.inventory.gem -= gem;
+                InventoryService.gI().subGemPreferLocked(player, gem);
 
                 if (Util.isTrue(player.combineNew.ratioCombine, 100)) {
                     int saoPhaLeLapLanhId = ID_SAO_PHA_LE_LAP_LANH_START + (saoPhaLe.template.id - ID_SAO_PHA_LE_START);

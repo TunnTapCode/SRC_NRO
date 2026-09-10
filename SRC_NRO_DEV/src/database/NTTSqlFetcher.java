@@ -323,7 +323,7 @@ public class NTTSqlFetcher {
                 }
                 player.inventory.itemsBody.add(item);
             }
-            if (player.inventory.itemsBody.size() == 10) {
+            while (player.inventory.itemsBody.size() < 11) {
                 player.inventory.itemsBody.add(ItemService.gI().createItemNull());
             }
             dataArray.clear();

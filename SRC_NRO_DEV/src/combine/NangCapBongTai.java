@@ -54,7 +54,7 @@ public class NangCapBongTai {
                     npcSay += "|7|Thất bại -" + REQUIRED_MANH_VO_FAIL + " " + manhVo.template.name + "\n";
                     npcSay += "Còn thiếu " + (REQUIRED_MANH_VO_FULL - currentMvp) + " " + manhVo.template.name;
                     CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU, npcSay, "Đóng");
-                } else if (player.inventory.gem >= GEM_BONG_TAI && player.inventory.gold >= GOLD_BONG_TAI) {
+                } else if (InventoryService.gI().hasGem(player, GEM_BONG_TAI) && player.inventory.gold >= GOLD_BONG_TAI) {
                     npcSay += "|2|Cần " + REQUIRED_MANH_VO_FULL + " " + manhVo.template.name + "\n";
                     npcSay += "|2|Cần: " + GEM_BONG_TAI + " ngọc\n";
                     npcSay += "|2|Cần: " + Util.numberToMoney(GOLD_BONG_TAI) + " vàng\n";
@@ -63,7 +63,7 @@ public class NangCapBongTai {
                             "Nâng cấp\n"
                                     + Util.numberToMoney(GOLD_BONG_TAI) + " vàng\n"
                                     + Util.numberToMoney(GEM_BONG_TAI) + " ngọc\n", "Từ chối");
-                } else if (player.inventory.gem < GEM_BONG_TAI) {
+                } else if (!InventoryService.gI().hasGem(player, GEM_BONG_TAI)) {
                     npcSay += "|2|Cần " + REQUIRED_MANH_VO_FULL + " " + manhVo.template.name + "\n";
                     npcSay += "|7|Cần: " + GEM_BONG_TAI + " ngọc xanh\n";
                     npcSay += "|2|Cần: " + Util.numberToMoney(GOLD_BONG_TAI) + " vàng\n";
@@ -99,7 +99,7 @@ public class NangCapBongTai {
                 Service.gI().sendThongBao(player, "Không đủ vàng để thực hiện");
                 return;
             }
-            if (player.inventory.gem < gem) {
+            if (!InventoryService.gI().hasGem(player, gem)) {
                 Service.gI().sendThongBao(player, "Không đủ ngọc để thực hiện");
                 return;
             }
@@ -122,7 +122,7 @@ public class NangCapBongTai {
                 }
 
                 player.inventory.gold -= gold;
-                player.inventory.gem -= gem;
+                InventoryService.gI().subGemPreferLocked(player, gem);
 
                 if (Util.isTrue(RATIO_BONG_TAI, 100)) {
                     bongTai.template = ItemService.gI().getTemplate(ITEM_ID_BONG_TAI_C2);

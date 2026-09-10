@@ -12,7 +12,7 @@ import player.Service.InventoryService;
 
 public class CombineService {
 
-    public static final byte MAX_STAR_ITEM = 6;
+    public static final byte MAX_STAR_ITEM = 11;
     public static final byte MAX_LEVEL_ITEM = 6;
 
     private static final byte OPEN_TAB_COMBINE = 0;

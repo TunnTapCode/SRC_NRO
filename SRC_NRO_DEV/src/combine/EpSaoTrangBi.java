@@ -86,7 +86,7 @@ public class EpSaoTrangBi {
 
             int gem = player.combineNew.gemCombine;
 
-            if (player.inventory.gem < gem) {
+            if (!InventoryService.gI().hasGem(player, gem)) {
                 Service.gI().sendThongBao(player, "Không đủ ngọc để thực hiện");
                 return;
             }
@@ -123,7 +123,7 @@ public class EpSaoTrangBi {
                         return;
                     }
 
-                    player.inventory.subGem(gem);
+                    InventoryService.gI().subGemPreferLocked(player, gem);
 
                     int optionId = CombineSystem.getOptionDaPhaLe(daPhaLe);
                     int param = CombineSystem.getParamDaPhaLe(daPhaLe);

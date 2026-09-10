@@ -31,6 +31,14 @@ public class InventoryService {
         return InventoryService.I;
     }
 
+    public boolean hasGem(Player player, int quantity) {
+        return quantity >= 0 && (long) player.inventory.ruby + player.inventory.gem >= quantity;
+    }
+
+    public void subGemPreferLocked(Player player, int quantity) {
+        player.inventory.subGem(quantity);
+    }
+
     private void __________________Tìm_kiếm_item_____________________________() {
     }
 
@@ -349,7 +357,11 @@ public class InventoryService {
             //     index = 10;
             //     break;
         }
-        
+
+        if (index < 0 || index >= player.inventory.itemsBody.size()) {
+            Service.gI().sendThongBaoOK(player.isPet ? ((Pet) player).master : player, "Không thể trang bị vật phẩm này!");
+            return sItem;
+        }
 
         sItem = player.inventory.itemsBody.get(index);
         if (index == 8) {

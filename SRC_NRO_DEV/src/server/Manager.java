@@ -607,7 +607,7 @@ public final class Manager {
                 MOB_TEMPLATES.add(mobTemp);
             }
 
-            ps = ConnectionDatabase.prepareStatement("select * from npc_template");
+            ps = ConnectionDatabase.prepareStatement("select * from npc_template order by id asc");
             rs = ps.executeQuery();
             while (rs.next()) {
                 NpcTemplate npcTemp = new NpcTemplate();

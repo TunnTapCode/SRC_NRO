@@ -12,7 +12,7 @@ import services.TaskService;
 import utils.Util;
 
 public class PhaLeHoaTrangBi {
-    private static final int MIN_STAR_FOR_CRYSTALIZE = 7;
+    private static final int MIN_STAR_FOR_CRYSTALIZE = 11;
     private static final int COMBINE_COOLDOWN_TIME = 500;
 
     public static void showInfoCombine(Player player) {
@@ -65,7 +65,7 @@ public class PhaLeHoaTrangBi {
                 npcSay += io.getOptionString() + "\n";
             }
         }
-        npcSay += "|7|Tỉ lệ thành CONG: " + player.combineNew.ratioCombine + "%" + "\n";
+        npcSay += "|7|Tỉ lệ thành công: " + player.combineNew.ratioCombine + "%" + "\n";
 
         if (player.combineNew.goldCombine <= player.inventory.gold) {
             npcSay += "|1|Cần " + Util.numberToMoney(player.combineNew.goldCombine) + " vàng";
@@ -91,7 +91,7 @@ public class PhaLeHoaTrangBi {
             if (player.inventory.gold < gold) {
                 Service.gI().sendThongBao(player, "Không đủ vàng để thực hiện");
                 return;
-            } else if (player.inventory.gem < gem) {
+            } else if (!InventoryService.gI().hasGem(player, gem)) {
                 Service.gI().sendThongBao(player, "Không đủ ngọc để thực hiện");
                 return;
             }
@@ -107,7 +107,7 @@ public class PhaLeHoaTrangBi {
                 num = i;
                 gold = player.combineNew.goldCombine;
                 gem = player.combineNew.gemCombine;
-                if (player.inventory.gem < gem || player.inventory.gold < gold) {
+                if (!InventoryService.gI().hasGem(player, gem) || player.inventory.gold < gold) {
                     break;
                 }
 
@@ -121,7 +121,7 @@ public class PhaLeHoaTrangBi {
                         player.combineNew.gemCombine = CombineSystem.getGemPhaLeHoa(star);
                         player.combineNew.ratioCombine = CombineSystem.getRatioPhaLeHoa(star);
                         player.inventory.gold -= gold;
-                        player.inventory.gem -= gem;
+                        InventoryService.gI().subGemPreferLocked(player, gem);
 
                         int ratio = calculateRatio(optionStar);
                         if (Util.isTrue(player.combineNew.ratioCombine, 100 * ratio)) {

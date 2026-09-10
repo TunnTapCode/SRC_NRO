@@ -54,7 +54,9 @@ public class Inventory {
     }
     
     public void subGem(int num) {
-        this.gem -= num;
+        int lockedGem = Math.min(this.ruby, num);
+        this.ruby -= lockedGem;
+        this.gem -= num - lockedGem;
     }
      public void subGold(int num) {
         this.gold -= num;
