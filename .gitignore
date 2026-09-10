@@ -27,7 +27,13 @@ SRC_NRO_DEV/Config.properties
 *.temp
 
 # Game assets generated or supplied outside source control
+SRC_NRO_DEV/effdata/
+SRC_NRO_DEV/map/
+SRC_NRO_DEV/mob/
+SRC_NRO_DEV/res/
+SRC_NRO_DEV/update_data/
 SRC_NRO_DEV/data/icon/x4/
+SRC_NRO_DEV/data/effect/
 SRC_NRO_DEV/data/img_by_name/
 SRC_NRO_DEV/data/item_bg_temp/
 SRC_NRO_DEV/data/map/
