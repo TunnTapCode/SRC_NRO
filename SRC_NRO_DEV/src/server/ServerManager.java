@@ -67,7 +67,7 @@ public class ServerManager {
 
     public static final Map<Object, Object> CLIENTS = new HashMap<>();
     public static String NAME_SERVER = "NRO 1999"; // Tên Máy Chủ
-    public static String DOMAIN = "https://nro1999.online/"; // Domain Truy Cập
+    public static String DOMAIN = "http://127.0.0.1:8081/register"; // Domain Truy Cập
     public static String NAME = "NRO 1999"; // Name Khi Vào Giao Diện Game
     public static String IP = "NgocRongOnline"; // IPs - Không Cần Sửa
     private static final int HTTP_PORT = 8080;
@@ -101,6 +101,7 @@ public class ServerManager {
    public void run() {
     isRunning = true;
     activeServerSocket();
+        WebRegisterServer.start();
         new Thread(NgocRongNamecService.gI(), "Update NRNM").start();
         new Thread(SuperRankManager.gI(), "Update Super Rank").start();
         new Thread(The23rdMartialArtCongressManager.gI(), "Update DHVT23").start();

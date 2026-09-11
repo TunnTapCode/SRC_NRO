@@ -616,19 +616,24 @@ public class Service {
         
         addSMTN(master, type, param, true);
     } else {
-        if (player.nPoint == null || player.nPoint.power > player.nPoint.getPowerLimit()) {
+        if (player.nPoint == null) {
             return;
         }
+        boolean canGainPower = player.nPoint.power < player.nPoint.getPowerLimit();
         switch (type) {
             case 1:
                 player.nPoint.tiemNangUp(param);
                 break;
             case 2:
-                player.nPoint.powerUp(param);
+                if (canGainPower) {
+                    player.nPoint.powerUp(param);
+                }
                 player.nPoint.tiemNangUp(param);
                 break;
             default:
-                player.nPoint.powerUp(param);
+                if (canGainPower) {
+                    player.nPoint.powerUp(param);
+                }
                 break;
         }
         PlayerService.gI().sendTNSM(player, type, param);

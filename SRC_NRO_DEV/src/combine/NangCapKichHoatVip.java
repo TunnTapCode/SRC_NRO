@@ -89,14 +89,15 @@ public class NangCapKichHoatVip {
 
         short itemId;
         if (itemHD.template.gender == 3 || itemHD.template.type == 4) {
-            itemId = Manager.radaSKHVip[Util.nextInt(0, 5)];
+            itemId = Manager.radaSKHVip[Util.nextInt(0, 2)];
             if (player.getSession().bdPlayer > 0 && Util.isTrue(1, (int) (100 / player.getSession().bdPlayer))) {
-                itemId = Manager.radaSKHVip[6];
+                itemId = Manager.radaSKHVip[3]; // tỉ lệ ra nhẫn tl là 1%
             }
         } else {
-            itemId = Manager.doSKHVip[itemHD.template.gender][itemHD.template.type][Util.nextInt(0, 5)];
+
+            itemId = Manager.doSKHVip[player.gender][itemHD.template.type][Util.nextInt(4, 5)];
             if (player.getSession().bdPlayer > 0 && Util.isTrue(1, (int) (100 / player.getSession().bdPlayer))) {
-                itemId = Manager.doSKHVip[itemHD.template.gender][itemHD.template.type][6];
+                itemId = Manager.doSKHVip[player.gender][itemHD.template.type][6];
             }
         }
 

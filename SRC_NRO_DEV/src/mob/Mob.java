@@ -173,8 +173,9 @@ public class Mob {
                 if (plAtt.isPl() && plAtt.satellite != null && plAtt.satellite.isDefend) {
                     plAtt.satellite.isDefend = false;
                 }
-                Service.gI().addSMTN(plAtt, (byte) 2, getTiemNangForPlayer(plAtt, damage), true);
-                TrainingService.gI().tangTnsmLuyenTap(plAtt, getTiemNangForPlayer(plAtt, damage));
+                long tiemNang = getTiemNangForPlayer(plAtt, damage);
+                Service.gI().addSMTN(plAtt, (byte) 2, tiemNang, true);
+                TrainingService.gI().tangTnsmLuyenTap(plAtt, tiemNang);
             }
         }
     }

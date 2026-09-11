@@ -24,6 +24,7 @@ import data.DataGame;
 import network.MySession;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 import map.Service.ChangeMapService;
 import services.func.UseItem;
@@ -703,6 +704,9 @@ public class Controller implements IMessageHandler {
                     case 0:
                         session.login(msg.reader().readUTF(), msg.reader().readUTF());
                         break;
+                    case 1:
+                        registerAccount(session, msg);
+                        break;
                     case 2:
                         Service.gI().setClientType(session, msg);
                         break;
@@ -711,6 +715,45 @@ public class Controller implements IMessageHandler {
                 }
             } catch (IOException e) {
                 session.disconnect();
+            }
+        }
+    }
+
+    public void registerAccount(MySession session, Message msg) throws IOException {
+        String username = msg.reader().readUTF().trim().toLowerCase();
+        String password = msg.reader().readUTF();
+        String email = msg.reader().available() > 0 ? msg.reader().readUTF().trim() : "";
+
+        if (!Pattern.matches("[a-z0-9]{4,20}", username)) {
+            Service.gI().sendThongBaoOK(session, "Tên tài khoản chỉ gồm chữ thường và số, dài từ 4 đến 20 ký tự");
+            return;
+        }
+        if (password.length() < 4 || password.length() > 100) {
+            Service.gI().sendThongBaoOK(session, "Mật khẩu phải dài từ 4 đến 100 ký tự");
+            return;
+        }
+        if (email.length() > 255) {
+            Service.gI().sendThongBaoOK(session, "Email không hợp lệ");
+            return;
+        }
+
+        DatabaseResultSet rs = null;
+        try {
+            rs = DatabaseManager.executeQuery("select id from account where username = ?", username);
+            if (rs.first()) {
+                Service.gI().sendThongBaoOK(session, "Tên tài khoản đã tồn tại");
+                return;
+            }
+            DatabaseManager.executeUpdate(
+                    "insert into account (username, password, email, token, xsrf_token, newpass) values (?, ?, ?, '', '', '')",
+                    username, password, email);
+            Service.gI().sendThongBaoOK(session, "Đăng ký tài khoản thành công. Hãy đăng nhập lại");
+        } catch (Exception e) {
+            Logger.logException(Controller.class, e);
+            Service.gI().sendThongBaoOK(session, "Không thể tạo tài khoản, vui lòng thử lại");
+        } finally {
+            if (rs != null) {
+                rs.dispose();
             }
         }
     }
@@ -866,7 +909,8 @@ public class Controller implements IMessageHandler {
     }
 
     public void login2(MySession session, Message msg) {
-        Service.gI().sendThongBaoOK(session, "Truy Cập: " + ServerManager.DOMAIN + "\n Đề Đăng Ký & Tải Game");
+        Service.gI().sendThongBaoOK(session,
+                "Truy Cập: " + ServerManager.DOMAIN + "\nĐể đăng ký và tải game");
     }
 
     public void sendInfo(MySession session) {

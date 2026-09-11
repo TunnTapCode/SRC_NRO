@@ -8,11 +8,14 @@ import player.Service.InventoryService;
 import services.ItemService;
 import services.Service;
 import utils.Util;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class EpSaoTrangBi {
 
     // Constants
-    public static final int MAX_STAR = 9;
+    public static final int MAX_STAR = 11;
     public static final int STAR_8 = 8;
     public static final int STAR_9 = 9;
     public static final int MIN_GEM_REQUIRED = 1; 
@@ -34,6 +37,7 @@ public class EpSaoTrangBi {
             int star = 0;
             int starEmpty = 0;
             if (trangBi != null && daPhaLe != null) {
+                mergeDuplicateOptions(trangBi);
                 for (ItemOption io : trangBi.itemOptions) {
                     if (io.optionTemplate.id == OPTION_STAR_ID) {
                         star = io.param;
@@ -41,12 +45,15 @@ public class EpSaoTrangBi {
                         starEmpty = io.param;
                     }
                 }
+                if (star ==starEmpty) {
+                    Service.gI().sendThongBao(player, "Đã đạt tối đa số sao pha lê có thể ép vào trang bị");
+                }
                 if (starEmpty <= MAX_STAR) {
-                    if (starEmpty >= STAR_8 && !CombineService.gI().CheckSlot(trangBi, starEmpty)) {
-                        CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU,
-                                "Cần cường hóa lỗ sao pha lê thứ " + (starEmpty == STAR_8 ? "8" : "9") + " trước khi ép vào", "Đóng");
-                        return;
-                    }
+                    // if (starEmpty >= STAR_11 && !CombineService.gI().CheckSlot(trangBi, starEmpty)) {
+                    //     CombineService.gI().baHatMit.createOtherMenu(player, ConstNpc.IGNORE_MENU,
+                    //             "Cần cường hóa lỗ sao pha lê thứ " + (starEmpty == STAR_8 ? "8" : "9") + " trước khi ép vào", "Đóng");
+                    //     return;
+                    // }
 
                     player.combineNew.gemCombine = CombineSystem.getGemEpSao(star);
                     String npcSay = trangBi.template.name + "\n|2|";
@@ -106,6 +113,7 @@ public class EpSaoTrangBi {
             int starEmpty = 0;
 
             if (trangBi != null && daPhaLe != null) {
+                mergeDuplicateOptions(trangBi);
                 ItemOption optionStar = null;
 
                 for (ItemOption io : trangBi.itemOptions) {
@@ -115,14 +123,16 @@ public class EpSaoTrangBi {
                     } else if (io.optionTemplate.id == OPTION_SLOT_ID) {
                         starEmpty = io.param;
                     }
+                }   
+                if (star ==starEmpty) {
+                    Service.gI().sendThongBao(player, "Đã đạt tối đa số sao pha lê có thể ép vào trang bị");
                 }
-
                 if (star < starEmpty) {
-                    if (starEmpty >= STAR_8 && !CombineService.gI().CheckSlot(trangBi, starEmpty)) {
-                        Service.gI().sendThongBao(player, "Cần cường hóa lỗ sao pha lê thứ " + (starEmpty == STAR_8 ? "8" : "9") + " trước khi ép vào");
-                        return;
-                    }
-
+                    // if (starEmpty >= STAR_8 && !CombineService.gI().CheckSlot(trangBi, starEmpty)) {
+                    //     System.out.println("Tesst ti");
+                    //     Service.gI().sendThongBao(player, "Cần cường hóa lỗ sao pha lê thứ " + (starEmpty == STAR_8 ? "8" : "9") + " trước khi ép vào");
+                    //     return;
+                    // }
                     InventoryService.gI().subGemPreferLocked(player, gem);
 
                     int optionId = CombineSystem.getOptionDaPhaLe(daPhaLe);
@@ -136,29 +146,47 @@ public class EpSaoTrangBi {
                         }
                     }
 
-                    if (optionStar != null && starEmpty >= STAR_8) {
-                        ItemOption newOption = new ItemOption(optionId, param);
-                        trangBi.itemOptions.add(newOption);  
-                        if (starEmpty == STAR_8) {
-                            optionStar.param = STAR_8;
-                            Service.gI().sendThongBao(player, "Đã ép sao lên 8 thành công!");
-                        } else if (starEmpty == STAR_9) {
-                            optionStar.param = STAR_9;
-                            Service.gI().sendThongBao(player, "Đã ép sao lên 9 thành công!");
-                        }
+                    if (option != null) {
+                        option.param += param; 
                     } else {
-                        if (option != null) {
-                            option.param += param; 
-                        } else {
-                            trangBi.itemOptions.add(new ItemOption(optionId, param));
-                        }
-
-                        if (optionStar != null) {
-                            optionStar.param++;
-                        } else {
-                            trangBi.itemOptions.add(new ItemOption(OPTION_STAR_ID, 1));  
-                        }
+                        trangBi.itemOptions.add(new ItemOption(optionId, param));
                     }
+
+                    if (optionStar != null) {
+
+                        optionStar.param++;
+                    } else {
+                        trangBi.itemOptions.add(new ItemOption(OPTION_STAR_ID, 1));  
+                    }
+                    // if (optionStar != null && starEmpty >= STAR_8) {
+                    //     ItemOption newOption = new ItemOption(optionId, param);
+                    //     trangBi.itemOptions.add(newOption);  
+                    //     if (starEmpty == STAR_8) {
+                    //         optionStar.param = STAR_8;
+                    //         Service.gI().sendThongBao(player, "Đã ép sao lên 8 thành công!");
+                    //     } else if (starEmpty == STAR_9) {
+                    //         optionStar.param = STAR_9;
+                    //         Service.gI().sendThongBao(player, "Đã ép sao lên 9 thành công!");
+                    //     }
+                    // } else {
+                    //     System.out.println("Option ID: " + optionId + ", Param: " + param);
+                    //     if (option != null) {
+                    //         System.out.println("Existing option found. Current param: " + option.param);
+                    //         option.param += param; 
+                    //     } else {
+                    //         System.out.println("No existing option found. Adding new option.");
+                    //         trangBi.itemOptions.add(new ItemOption(optionId, param));
+                    //     }
+
+                    //     if (optionStar != null) {
+
+                    //         optionStar.param++;
+                    //         System.out.println("Incremented star. New star: " + optionStar.param);
+                    //     } else {
+                    //         trangBi.itemOptions.add(new ItemOption(OPTION_STAR_ID, 1));  
+                    //         System.out.println("Added new star option. New star: 1");
+                    //     }
+                    // }
 
                     InventoryService.gI().subQuantityItemsBag(player, daPhaLe, 1);
                     CombineService.gI().sendEffectSuccessCombine(player);
@@ -168,5 +196,18 @@ public class EpSaoTrangBi {
                 }
             }
         }
+    }
+
+    private static void mergeDuplicateOptions(Item item) {
+        Map<Integer, ItemOption> merged = new LinkedHashMap<>();
+        for (ItemOption option : item.itemOptions) {
+            ItemOption existing = merged.get(option.optionTemplate.id);
+            if (existing == null) {
+                merged.put(option.optionTemplate.id, option);
+            } else {
+                existing.param += option.param;
+            }
+        }
+        item.itemOptions = new ArrayList<>(merged.values());
     }
 }
