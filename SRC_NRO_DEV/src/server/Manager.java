@@ -56,6 +56,7 @@ import player.badges.BagesTemplate;
 import task.BadgesTaskTemplate;
 import task.ClanTaskTemplate;
 import matches.TOP;
+
 public final class Manager {
 
     private static Manager instance;
@@ -63,7 +64,7 @@ public final class Manager {
     public static byte SECOND_WAIT_LOGIN = 5;
     public static int MAX_PER_IP = 10;
     public static int MAX_PLAYER = 2000;
-    public static byte RATE_EXP_SERVER = 5;
+    public static int RATE_EXP_SERVER = 5;
     public static boolean LOCAL = false;
     public static boolean TEST = false;
     public static boolean DAO_AUTO_UPDATER = false;
@@ -94,42 +95,57 @@ public final class Manager {
     public static final List<String> NOTIFY = new ArrayList<>();
     public static final List<BadgesTaskTemplate> TASKS_BADGES_TEMPLATE = new ArrayList<>();
     public static final List<BagesTemplate> BAGES_TEMPLATES = new ArrayList<>();
-    public static final short[][] trangBiKichHoat = {{0, 6, 21, 27}, {1, 7, 22, 28}, {2, 8, 23, 29}};
-    public static final short[] aotd = {138, 139, 230, 231, 232, 233, 555};
-    public static final short[] quantd = {142, 143, 242, 243, 244, 245, 556};
-    public static final short[] gangtd = {146, 147, 254, 255, 256, 257, 562};
-    public static final short[] giaytd = {150, 151, 266, 267, 268, 269, 563};
-    public static final short[] aoxd = {170, 171, 238, 239, 240, 241, 559};
-    public static final short[] quanxd = {174, 175, 250, 251, 252, 253, 560};
-    public static final short[] gangxd = {178, 179, 262, 263, 264, 265, 566};
-    public static final short[] giayxd = {182, 183, 274, 275, 276, 277, 567};
-    public static final short[] aonm = {154, 155, 234, 235, 236, 237, 557};
-    public static final short[] quannm = {158, 159, 246, 247, 248, 249, 558};
-    public static final short[] gangnm = {162, 163, 258, 259, 260, 261, 564};
-    public static final short[] giaynm = {166, 167, 270, 271, 272, 273, 565};
-    public static final short[] radaSKHVip = {279, 280, 281, 561}; //{186, 187, 278, 279, 280, 281, 561};
-    public static final short[][][] doSKHVip = {{aotd, quantd, gangtd, giaytd}, {aonm, quannm, gangnm, giaynm},
-    {aoxd, quanxd, gangxd, giayxd}};
+    public static final short[][] trangBiKichHoat = { { 0, 6, 21, 27 }, { 1, 7, 22, 28 }, { 2, 8, 23, 29 } };
+    public static final short[] aotd = { 138, 139, 230, 231, 232, 233, 555 };
+    public static final short[] quantd = { 142, 143, 242, 243, 244, 245, 556 };
+    public static final short[] gangtd = { 146, 147, 254, 255, 256, 257, 562 };
+    public static final short[] giaytd = { 150, 151, 266, 267, 268, 269, 563 };
+    public static final short[] aoxd = { 170, 171, 238, 239, 240, 241, 559 };
+    public static final short[] quanxd = { 174, 175, 250, 251, 252, 253, 560 };
+    public static final short[] gangxd = { 178, 179, 262, 263, 264, 265, 566 };
+    public static final short[] giayxd = { 182, 183, 274, 275, 276, 277, 567 };
+    public static final short[] aonm = { 154, 155, 234, 235, 236, 237, 557 };
+    public static final short[] quannm = { 158, 159, 246, 247, 248, 249, 558 };
+    public static final short[] gangnm = { 162, 163, 258, 259, 260, 261, 564 };
+    public static final short[] giaynm = { 166, 167, 270, 271, 272, 273, 565 };
+    public static final short[] radaSKHVip = { 279, 280, 281, 561 }; // {186, 187, 278, 279, 280, 281, 561};
+    public static final short[][][] doSKHVip = { { aotd, quantd, gangtd, giaytd }, { aonm, quannm, gangnm, giaynm },
+            { aoxd, quanxd, gangxd, giayxd } };
     public static final int[][][] LIST_ITEM_CLOTHES = {
-        {{0, 33, 3, 34, 136, 137, 138, 139, 230, 231, 232, 233, 555}, {6, 35, 9, 36, 140, 141, 142, 143, 242, 243, 244, 245, 556}, {21, 24, 37, 38, 144, 145, 146, 147, 254, 255, 256, 257, 562}, {27, 30, 39, 40, 148, 149, 150, 151, 266, 267, 268, 269, 563}, {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561}},
-        {{1, 41, 4, 42, 152, 153, 154, 155, 234, 235, 236, 237, 557}, {7, 43, 10, 44, 156, 157, 158, 159, 246, 247, 248, 249, 558}, {22, 46, 25, 45, 160, 161, 162, 163, 258, 259, 260, 261, 564}, {28, 47, 31, 48, 164, 165, 166, 167, 270, 271, 272, 273, 565}, {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561}},
-        {{2, 49, 5, 50, 168, 169, 170, 171, 238, 239, 240, 241, 559}, {8, 51, 11, 52, 172, 173, 174, 175, 250, 251, 252, 253, 560}, {23, 53, 26, 54, 176, 177, 178, 179, 262, 263, 264, 265, 566}, {29, 55, 32, 56, 180, 181, 182, 183, 274, 275, 276, 277, 567}, {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561}}
+            { { 0, 33, 3, 34, 136, 137, 138, 139, 230, 231, 232, 233, 555 },
+                    { 6, 35, 9, 36, 140, 141, 142, 143, 242, 243, 244, 245, 556 },
+                    { 21, 24, 37, 38, 144, 145, 146, 147, 254, 255, 256, 257, 562 },
+                    { 27, 30, 39, 40, 148, 149, 150, 151, 266, 267, 268, 269, 563 },
+                    { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561 } },
+            { { 1, 41, 4, 42, 152, 153, 154, 155, 234, 235, 236, 237, 557 },
+                    { 7, 43, 10, 44, 156, 157, 158, 159, 246, 247, 248, 249, 558 },
+                    { 22, 46, 25, 45, 160, 161, 162, 163, 258, 259, 260, 261, 564 },
+                    { 28, 47, 31, 48, 164, 165, 166, 167, 270, 271, 272, 273, 565 },
+                    { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561 } },
+            { { 2, 49, 5, 50, 168, 169, 170, 171, 238, 239, 240, 241, 559 },
+                    { 8, 51, 11, 52, 172, 173, 174, 175, 250, 251, 252, 253, 560 },
+                    { 23, 53, 26, 54, 176, 177, 178, 179, 262, 263, 264, 265, 566 },
+                    { 29, 55, 32, 56, 180, 181, 182, 183, 274, 275, 276, 277, 567 },
+                    { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561 } }
     };
-    public static final short[] Ao_TraiDat = {0, 33, 3, 34, 136, 137, 138, 139, 230, 231, 232, 233, 555, 650};
-    public static final short[] Quan_TraiDat = {6, 35, 9, 36, 140, 141, 142, 143, 242, 243, 244, 245, 556, 651};
-    public static final short[] Gang_TraiDat = {21, 24, 37, 38, 144, 145, 146, 147, 254, 255, 256, 257, 562, 657};
-    public static final short[] Giay_TraiDat = {27, 30, 39, 40, 148, 149, 150, 151, 266, 267, 268, 269, 563, 658};
-    public static final short[] Ao_Namek = {1, 41, 4, 42, 152, 153, 154, 155, 234, 235, 236, 237, 557, 652};
-    public static final short[] Quan_Namek = {7, 43, 10, 44, 156, 157, 158, 159, 246, 247, 248, 249, 558, 653};
-    public static final short[] Gang_Namek = {22, 46, 25, 45, 160, 161, 162, 163, 258, 259, 260, 261, 564, 659};
-    public static final short[] Giay_Namek = {28, 47, 31, 48, 164, 165, 166, 167, 270, 271, 272, 273, 565, 660};
-    public static final short[] Ao_Xayda = {2, 49, 5, 50, 168, 169, 170, 171, 238, 239, 240, 241, 559, 654};
-    public static final short[] Quan_Xayda = {8, 51, 11, 52, 172, 173, 174, 175, 250, 251, 252, 253, 560, 655};
-    public static final short[] Gang_Xayda = {23, 53, 26, 54, 176, 177, 178, 179, 262, 263, 264, 265, 566, 661};
-    public static final short[] Giay_Xayda = {29, 55, 32, 56, 180, 181, 182, 183, 274, 275, 276, 277, 567, 662};
-    public static final short[] Rada_Gender = {12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561, 656};
-    public static final short[][][] TrangBiKichHoat = {{Ao_TraiDat, Ao_Namek, Ao_Xayda,}, {Quan_TraiDat, Quan_Namek, Quan_Xayda},
-    {Gang_TraiDat, Gang_Namek, Gang_Xayda}, {Giay_TraiDat, Giay_Namek, Giay_Xayda}, {Rada_Gender, Rada_Gender, Rada_Gender, Rada_Gender}};
+    public static final short[] Ao_TraiDat = { 0, 33, 3, 34, 136, 137, 138, 139, 230, 231, 232, 233, 555, 650 };
+    public static final short[] Quan_TraiDat = { 6, 35, 9, 36, 140, 141, 142, 143, 242, 243, 244, 245, 556, 651 };
+    public static final short[] Gang_TraiDat = { 21, 24, 37, 38, 144, 145, 146, 147, 254, 255, 256, 257, 562, 657 };
+    public static final short[] Giay_TraiDat = { 27, 30, 39, 40, 148, 149, 150, 151, 266, 267, 268, 269, 563, 658 };
+    public static final short[] Ao_Namek = { 1, 41, 4, 42, 152, 153, 154, 155, 234, 235, 236, 237, 557, 652 };
+    public static final short[] Quan_Namek = { 7, 43, 10, 44, 156, 157, 158, 159, 246, 247, 248, 249, 558, 653 };
+    public static final short[] Gang_Namek = { 22, 46, 25, 45, 160, 161, 162, 163, 258, 259, 260, 261, 564, 659 };
+    public static final short[] Giay_Namek = { 28, 47, 31, 48, 164, 165, 166, 167, 270, 271, 272, 273, 565, 660 };
+    public static final short[] Ao_Xayda = { 2, 49, 5, 50, 168, 169, 170, 171, 238, 239, 240, 241, 559, 654 };
+    public static final short[] Quan_Xayda = { 8, 51, 11, 52, 172, 173, 174, 175, 250, 251, 252, 253, 560, 655 };
+    public static final short[] Gang_Xayda = { 23, 53, 26, 54, 176, 177, 178, 179, 262, 263, 264, 265, 566, 661 };
+    public static final short[] Giay_Xayda = { 29, 55, 32, 56, 180, 181, 182, 183, 274, 275, 276, 277, 567, 662 };
+    public static final short[] Rada_Gender = { 12, 57, 58, 59, 184, 185, 186, 187, 278, 279, 280, 281, 561, 656 };
+    public static final short[][][] TrangBiKichHoat = { { Ao_TraiDat, Ao_Namek, Ao_Xayda, },
+            { Quan_TraiDat, Quan_Namek, Quan_Xayda },
+            { Gang_TraiDat, Gang_Namek, Gang_Xayda }, { Giay_TraiDat, Giay_Namek, Giay_Xayda },
+            { Rada_Gender, Rada_Gender, Rada_Gender, Rada_Gender } };
+
     public static Manager gI() {
         if (instance == null) {
             instance = new Manager();
@@ -149,50 +165,51 @@ public final class Manager {
         this.loadDatabase();
         NpcFactory.createNpcConMeo();
         NpcFactory.createNpcRongThieng();
-        this.initMap(); 
+        this.initMap();
     }
+
     private void initMap() {
-       int[][] tileTyleTop = readTileIndexTileType(ConstMap.TILE_TOP);
-       for (MapTemplate mapTemp : MAP_TEMPLATES) {
-        int[][] tileMap = readTileMap(mapTemp.id);
-        int[] tileTop = tileTyleTop[mapTemp.tileId - 1];
-        map.Map map = new map.Map(
-        mapTemp.id, mapTemp.name, mapTemp.planetId, mapTemp.tileId,
-        mapTemp.bgId, mapTemp.bgType, mapTemp.type, tileMap, tileTop,
-        mapTemp.zones, mapTemp.maxPlayerPerZone, mapTemp.wayPoints
-        );
-        MAPS.add(map);
-        map.initMob(mapTemp.mobTemp, mapTemp.mobLevel, mapTemp.mobHp, mapTemp.mobX, mapTemp.mobY);
-        map.initNpc(mapTemp.npcId, mapTemp.npcX, mapTemp.npcY);
-    }
-    new NonInteractiveNPC().initNonInteractiveNPC();
-    new Thread(() -> {
-        try {
-            while (!Maintenance.isRunning) {
-                long st = System.currentTimeMillis();
-                for (map.Map map : MAPS) {
-                    for (Zone zone : map.zones) {
-                        try {
-                            zone.update();
-                        } catch (Exception e) {
-                            Logger.log(Logger.RED, "Lỗi khi cập nhật zone: " + e.getMessage());
+        int[][] tileTyleTop = readTileIndexTileType(ConstMap.TILE_TOP);
+        for (MapTemplate mapTemp : MAP_TEMPLATES) {
+            int[][] tileMap = readTileMap(mapTemp.id);
+            int[] tileTop = tileTyleTop[mapTemp.tileId - 1];
+            map.Map map = new map.Map(
+                    mapTemp.id, mapTemp.name, mapTemp.planetId, mapTemp.tileId,
+                    mapTemp.bgId, mapTemp.bgType, mapTemp.type, tileMap, tileTop,
+                    mapTemp.zones, mapTemp.maxPlayerPerZone, mapTemp.wayPoints);
+            MAPS.add(map);
+            map.initMob(mapTemp.mobTemp, mapTemp.mobLevel, mapTemp.mobHp, mapTemp.mobX, mapTemp.mobY);
+            map.initNpc(mapTemp.npcId, mapTemp.npcX, mapTemp.npcY);
+        }
+        new NonInteractiveNPC().initNonInteractiveNPC();
+        new Thread(() -> {
+            try {
+                while (!Maintenance.isRunning) {
+                    long st = System.currentTimeMillis();
+                    for (map.Map map : MAPS) {
+                        for (Zone zone : map.zones) {
+                            try {
+                                zone.update();
+                            } catch (Exception e) {
+                                Logger.log(Logger.RED, "Lỗi khi cập nhật zone: " + e.getMessage());
+                            }
                         }
                     }
+                    long timeDo = System.currentTimeMillis() - st;
+                    long sleepTime = 1000 - timeDo;
+                    if (sleepTime > 0) {
+                        Thread.sleep(sleepTime);
+                    }
                 }
-                long timeDo = System.currentTimeMillis() - st;
-                long sleepTime = 1000 - timeDo;
-                if (sleepTime > 0) {
-                    Thread.sleep(sleepTime);
-                }
+            } catch (InterruptedException e) {
+                Logger.log(Logger.RED, "Thread cập nhật map bị gián đoạn: " + e.getMessage());
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                Logger.log(Logger.RED, "Lỗi không xác định trong thread cập nhật map: " + e.getMessage());
             }
-         } catch (InterruptedException e) {
-            Logger.log(Logger.RED, "Thread cập nhật map bị gián đoạn: " + e.getMessage());
-            Thread.currentThread().interrupt();
-         } catch (Exception e) {
-            Logger.log(Logger.RED, "Lỗi không xác định trong thread cập nhật map: " + e.getMessage());
-         }
-       }, "Update Maps").start();
-   }
+        }, "Update Maps").start();
+    }
+
     private void loadDatabase() {
         long st = System.currentTimeMillis();
         JSONArray dataArray;
@@ -330,8 +347,7 @@ public final class Manager {
                                 .replaceAll("\"\\[", "[")
                                 .replaceAll("\"\\]", "]")
                                 .replaceAll("\\]\"", "]")
-                                .replaceAll("\\}\",\"\\{", "},{")
-                );
+                                .replaceAll("\\}\",\"\\{", "},{"));
                 for (int j = 0; j < dataArray.size(); j++) {
                     JSONObject dts = (JSONObject) JSONValue.parse(String.valueOf(dataArray.get(j)));
                     Skill skill = new Skill();
@@ -488,7 +504,8 @@ public final class Manager {
             ps = ConnectionDatabase.prepareStatement("select * from achievement_template");
             rs = ps.executeQuery();
             while (rs.next()) {
-                ACHIEVEMENT_TEMPLATE.add(new AchievementTemplate(rs.getString("info1"), rs.getString("info2"), rs.getInt("money"), rs.getLong("max_count")));
+                ACHIEVEMENT_TEMPLATE.add(new AchievementTemplate(rs.getString("info1"), rs.getString("info2"),
+                        rs.getInt("money"), rs.getLong("max_count")));
             }
             int batchSize = 750;
             int offset = 0;
@@ -496,8 +513,8 @@ public final class Manager {
             try {
                 while (true) {
                     ps = ConnectionDatabase.prepareStatement("SELECT * FROM item_template LIMIT ? OFFSET ?");
-                    ps.setInt(1, batchSize);  
-                    ps.setInt(2, offset);     
+                    ps.setInt(1, batchSize);
+                    ps.setInt(2, offset);
                     rs = ps.executeQuery();
                     if (!rs.next()) {
                         break;
@@ -588,7 +605,8 @@ public final class Manager {
                     int param = Integer.parseInt(jso2.get("param").toString());
                     op.add(new Item.ItemOption(idOptions, param));
                 }
-                ConsignShopManager.gI().listItem.add(new ConsignItem(i, itemId, idPl, tab, gold, gem, quantity, isUp, op, isBuy));
+                ConsignShopManager.gI().listItem
+                        .add(new ConsignItem(i, itemId, idPl, tab, gold, gem, quantity, isUp, op, isBuy));
             }
 
             ps = ConnectionDatabase.prepareStatement("select * from mob_template");
@@ -628,7 +646,8 @@ public final class Manager {
                 template.idItem = rs.getInt("idItem");
                 template.NAME = rs.getString("NAME");
 
-                JSONArray option = (JSONArray) JSONValue.parse(rs.getString("Options"));;
+                JSONArray option = (JSONArray) JSONValue.parse(rs.getString("Options"));
+                ;
                 if (option != null) {
                     for (int u = 0; u < option.size(); u++) {
                         JSONObject jsonobject = (JSONObject) option.get(u);
@@ -663,8 +682,7 @@ public final class Manager {
                     dataArray = (JSONArray) JSONValue.parse(rs.getString("waypoints")
                             .replaceAll("\\[\"\\[", "[[")
                             .replaceAll("\\]\"\\]", "]]")
-                            .replaceAll("\",\"", ",")
-                    );
+                            .replaceAll("\",\"", ","));
                     for (int j = 0; j < dataArray.size(); j++) {
                         WayPoint wp = new WayPoint();
                         JSONArray dtwp = (JSONArray) JSONValue.parse(String.valueOf(dataArray.get(j)));
@@ -741,7 +759,9 @@ public final class Manager {
                 for (int i = 0; i < arr.size(); i++) {
                     JSONObject ob = (JSONObject) arr.get(i);
                     if (ob != null) {
-                        rd.Options.add(new OptionCard(Integer.parseInt(ob.get("id").toString()), Short.parseShort(ob.get("param").toString()), Byte.parseByte(ob.get("activeCard").toString())));
+                        rd.Options.add(new OptionCard(Integer.parseInt(ob.get("id").toString()),
+                                Short.parseShort(ob.get("param").toString()),
+                                Byte.parseByte(ob.get("activeCard").toString())));
                     }
                 }
                 rd.Require = rs.getShort("require");
@@ -776,7 +796,8 @@ public final class Manager {
                         if (option != null) {
                             for (int u = 0; u < option.size(); u++) {
                                 JSONObject jsonobject = (JSONObject) option.get(u);
-                                if (jsonobject == null || jsonobject.get("id") == null || jsonobject.get("param") == null) {
+                                if (jsonobject == null || jsonobject.get("id") == null
+                                        || jsonobject.get("param") == null) {
                                     continue;
                                 }
                                 int optionId = Integer.parseInt(jsonobject.get("id").toString());
@@ -828,9 +849,9 @@ public final class Manager {
         if ((value = properties.get("server.ip")) != null) {
             ServerManager.IP = String.valueOf(value);
             linkServer += ServerManager.NAME + ":" + ServerManager.IP + ":" + ServerManager.PORT + ":0,";
-            
+
         }
-        System.out.println("Server " + linkServer );
+        System.out.println("Server " + linkServer);
         for (int i = 1; i <= 10; i++) {
             value = properties.get("server.sv" + i);
             if (value != null) {
@@ -848,7 +869,7 @@ public final class Manager {
             MAX_PLAYER = Integer.parseInt(String.valueOf(value));
         }
         if ((value = properties.get("server.expserver")) != null) {
-            RATE_EXP_SERVER = Byte.parseByte(String.valueOf(value));
+            RATE_EXP_SERVER = Integer.parseInt(String.valueOf(value));
         }
         if ((value = properties.get("server.local")) != null) {
             LOCAL = String.valueOf(value).toLowerCase().equals("true");
@@ -915,6 +936,7 @@ public final class Manager {
         }
         return tileMap;
     }
+
     public static Clan getClanById(int id) throws Exception {
         for (Clan clan : CLANS) {
             if (clan.id == id) {

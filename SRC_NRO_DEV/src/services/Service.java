@@ -642,6 +642,7 @@ public class Service {
                 player.clan.addSMTNClan(player, param);
             }
         }
+        TaskService.gI().checkDoneTaskPower(player, player.nPoint.power);
     }
 }
 

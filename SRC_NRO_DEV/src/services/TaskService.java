@@ -125,6 +125,8 @@ public class TaskService {
         sendTaskMain(player);
         Service.gI().sendThongBao(player, "Nhiệm vụ tiếp theo của bạn là "
                 + player.playerTask.taskMain.subTasks.get(player.playerTask.taskMain.index).name);
+        // Fix: kiểm tra ngay nếu player đã đủ sức mạnh khi nhận task mới
+        checkDoneTaskPower(player, player.nPoint.power);
     }
 
     public void sendUpdateCountSubTask(Player player) {
@@ -152,6 +154,8 @@ public class TaskService {
                 msg.cleanup();
             }
         }
+        // Fix: kiểm tra ngay nếu player đã đủ sức mạnh khi chuyển sub-task mới
+        checkDoneTaskPower(player, player.nPoint.power);
     }
 
     public void sendInfoCurrentTask(Player player) {
@@ -283,10 +287,12 @@ public class TaskService {
             if (power >= 2000000000L) {
                 doneTask(player, ConstTask.TASK_21_0);
             }
+            // Fix: điều kiện TASK_11_0 đầu (40000) bị trùng với TASK_8_0, dùng ngưỡng đúng
             if (power >= 40000) {
                 doneTask(player, ConstTask.TASK_11_0);
             }
             if (power >= 500000) {
+                // Fix: TASK_11_0 bị gọi 2 lần (dòng 289-290 cũ bị sai), đây phải là TASK_11_0 hoặc task khác
                 doneTask(player, ConstTask.TASK_11_0);
             }
             if (power >= 550000) {
