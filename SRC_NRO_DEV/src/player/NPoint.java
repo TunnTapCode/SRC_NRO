@@ -1460,7 +1460,8 @@ public class NPoint {
                 tiemNang += ((long) tiemNang * this.intrinsic.param1 / 100);
             }
             if (this.power >= 60_000_000_000L) {
-                tiemNang -= ((long) tiemNang * 80 / 100);
+                // tiemNang -= ((long) tiemNang * 80 / 100);
+                tiemNang -= ((long) tiemNang * 30 / 100);
             }
             if (this.player.isPet) {
                 if (((Pet) this.player).master.itemTime.isUseBuaSanta) {
@@ -1494,12 +1495,15 @@ public class NPoint {
     }
 
     public long calSubTNSM(long tiemNang) {
-        if (power >= 80_000_000_000L) {
-            tiemNang /= 30;
+        if(power >= 90_000_000_000L){
+            tiemNang /= 15;
+        }
+        else if (power >= 80_000_000_000L) {
+            tiemNang /= 13;
         } else if (power >= 60_000_000_000L) {
-            tiemNang /= 20;
-        } else if (power >= 50_000_000_000L) {
             tiemNang /= 10;
+        } else if (power >= 50_000_000_000L) {
+            tiemNang /= 7;
         } else if (power >= 40_000_000_000L) {
             tiemNang /= 5;
         }
@@ -1551,7 +1555,14 @@ public class NPoint {
             case 7:
                 return 49999999999L; // Đã mở giới hạn lần 7
             case 8:
-                return 54999999999L; // Đã mở giới hạn lần 8
+                return 59999999999L; // Đã mở giới hạn lần 8
+            case 9:
+                return 69999999999L; // Đã mở giới hạn lần 9    70 ty
+            case 10:
+                return 89999999999L; // Đã mở giới hạn lần 10    90 ty
+            case 11:
+                return 119999999999L; // Đã mở giới hạn lần 11  120ty
+
             default:
                 return 0;
         }
@@ -1576,7 +1587,13 @@ public class NPoint {
             case 7:
                 return 49999999999L; // Đã mở giới hạn lần 7
             case 8:
-                return 54999999999L; // Đã mở giới hạn lần 8
+                return 59999999999L; // Đã mở giới hạn lần 8
+            case 9:
+                return 69999999999L; // Đã mở giới hạn lần 9    70 ty
+            case 10:
+                return 89999999999L; // Đã mở giới hạn lần 10    90 ty
+            case 11:
+                return 119999999999L; // Đã mở giới hạn lần 11  120 ty
             default:
                 return 0;
         }
@@ -1602,6 +1619,12 @@ public class NPoint {
                 return 551980; // Đã mở giới hạn lần 7
             case 8:
                 return 601980; // Đã mở giới hạn lần 8
+            case 9:
+                return 651980; // Đã mở giới hạn lần 9    70 ty
+            case 10:
+                return 701980; // Đã mở giới hạn lần 10    90 ty
+            case 11:
+                return 801980; // Đã mở giới hạn lần 11  120ty
             default:
                 return 0;
         }
@@ -1627,6 +1650,12 @@ public class NPoint {
                 return 22099; // Đã mở giới hạn lần 7
             case 8:
                 return 24099; // Đã mở giới hạn lần 8
+            case 9:
+                return 27099; // Đã mở giới hạn lần 9
+            case 10:
+                return 30099; // Đã mở giới hạn lần 10
+            case 11:
+                return 35099; // Đã mở giới hạn lần 11
             default:
                 return 0;
         }
@@ -1652,6 +1681,12 @@ public class NPoint {
                 return 1400; // Đã mở giới hạn lần 7
             case 8:
                 return 1500; // Đã mở giới hạn lần 8
+            case 9:
+                return 1600; // Đã mở giới hạn lần 9
+            case 10:
+                return 1700; // Đã mở giới hạn lần 10
+            case 11:
+                return 1800; // Đã mở giới hạn lần 11
             default:
                 return 0;
         }
@@ -1677,6 +1712,12 @@ public class NPoint {
                 return 11; // Đã mở giới hạn lần 7
             case 8:
                 return 12; // Đã mở giới hạn lần 8
+            case 9:
+                return 13; // Đã mở giới hạn lần 9
+            case 10:
+                return 14; // Đã mở giới hạn lần 10
+            case 11:
+                return 15; // Đã mở giới hạn lần 11
             default:
                 return 0;
         }
