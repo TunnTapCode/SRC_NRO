@@ -23,7 +23,8 @@ public class QuocVuong extends Npc {
 
     @Override
     public void confirmMenu(Player player, int select) {
-        if (!canOpenNpc(player)) return;
+        if (!canOpenNpc(player))
+            return;
 
         switch (player.idMark.getIndexMenu()) {
             case ConstNpc.BASE_MENU:
@@ -34,7 +35,8 @@ public class QuocVuong extends Npc {
                                     "Ta sẽ truyền năng lượng giúp con mở giới hạn sức mạnh của bản thân lên "
                                             + Util.numberToMoney(player.nPoint.getPowerNextLimit()),
                                     "Nâng\ngiới hạn\nsức mạnh",
-                                    "Nâng ngay\n" + Util.numberToMoney(OpenPowerService.COST_SPEED_OPEN_LIMIT_POWER) + " vàng",
+                                    "Nâng ngay\n" + Util.numberToMoney(OpenPowerService.COST_SPEED_OPEN_LIMIT_POWER)
+                                            + " vàng",
                                     "Đóng");
                         } else {
                             this.createOtherMenu(player, ConstNpc.IGNORE_MENU,
@@ -47,7 +49,9 @@ public class QuocVuong extends Npc {
                                 this.createOtherMenu(player, ConstNpc.OPEN_POWER_PET,
                                         "Ta sẽ truyền năng lượng giúp con mở giới hạn sức mạnh của đệ tử lên "
                                                 + Util.numberToMoney(player.pet.nPoint.getPowerNextLimit()),
-                                        "Nâng ngay\n" + Util.numberToMoney(OpenPowerService.COST_SPEED_OPEN_LIMIT_POWER) + " vàng", "Đóng");
+                                        "Nâng ngay\n" + Util.numberToMoney(OpenPowerService.COST_SPEED_OPEN_LIMIT_POWER)
+                                                + " vàng",
+                                        "Đóng");
                             } else {
                                 this.createOtherMenu(player, ConstNpc.IGNORE_MENU,
                                         "Sức mạnh của đệ con đã đạt tới giới hạn", "Đóng");
@@ -73,7 +77,9 @@ public class QuocVuong extends Npc {
                         } else {
                             Service.gI().sendThongBao(player,
                                     "Bạn không đủ vàng để mở, còn thiếu "
-                                            + Util.numberToMoney(OpenPowerService.COST_SPEED_OPEN_LIMIT_POWER - player.inventory.gold) + " vàng");
+                                            + Util.numberToMoney(OpenPowerService.COST_SPEED_OPEN_LIMIT_POWER
+                                                    - player.inventory.gold)
+                                            + " vàng");
                         }
                         break;
                 }
@@ -89,7 +95,9 @@ public class QuocVuong extends Npc {
                     } else {
                         Service.gI().sendThongBao(player,
                                 "Bạn không đủ vàng để mở, còn thiếu "
-                                        + Util.numberToMoney(OpenPowerService.COST_SPEED_OPEN_LIMIT_POWER - player.inventory.gold) + " vàng");
+                                        + Util.numberToMoney(
+                                                OpenPowerService.COST_SPEED_OPEN_LIMIT_POWER - player.inventory.gold)
+                                        + " vàng");
                     }
                 }
                 break;

@@ -27,7 +27,7 @@ import utils.TimeUtil;
 
 public class NPoint {
 
-    public static final byte MAX_LIMIT = 8;
+    public static final byte MAX_LIMIT = 11;
 
     @Setter
     private Player player;
@@ -1497,8 +1497,7 @@ public class NPoint {
     public long calSubTNSM(long tiemNang) {
         if(power >= 90_000_000_000L){
             tiemNang /= 15;
-        }
-        else if (power >= 80_000_000_000L) {
+        }else if (power >= 80_000_000_000L) {
             tiemNang /= 13;
         } else if (power >= 60_000_000_000L) {
             tiemNang /= 10;
