@@ -150,6 +150,12 @@ public class CombineSystem {
                 return 200000000;
             case 8:
                 return 300000000;
+            case 9:
+                return 400000000;
+            case 10:
+                return 500000000;
+            case 11:
+                return 600000000;
 
         }
         return 0;
@@ -186,31 +192,31 @@ public class CombineSystem {
         // }
         switch (star) {
             case 0:
-                return 80f;
-            case 1:
                 return 50f;
+            case 1:
+                return 30f;
             case 2:
-                return 40f;
+                return 15f;
             case 3:
-                return 25f;
-            case 4:
                 return 10f;
-            case 5:
+            case 4:
                 return 5f;
-            case 6:
+            case 5:
                 return 3f;
-            case 7:
+            case 6:
                 return 1f;
-            case 8:
-                return 100f;
-            case 9:
+            case 7:
                 return 0.5f;
-            case 10:
+            case 8:
                 return 0.3f;
+            case 9:
+                return 0.1f;
+            case 10:
+                return 0.05f;
             case 11:
-                return 0.1f;
+                return 0.01f;
             case 12:
-                return 0.1f;
+                return 0.005f;
         }
 
         return 0;
