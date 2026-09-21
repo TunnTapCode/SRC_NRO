@@ -102,6 +102,7 @@ public class ServerManager {
     isRunning = true;
     activeServerSocket();
         WebRegisterServer.start();
+        AdminApiServer.start();
         new Thread(NgocRongNamecService.gI(), "Update NRNM").start();
         new Thread(SuperRankManager.gI(), "Update Super Rank").start();
         new Thread(The23rdMartialArtCongressManager.gI(), "Update DHVT23").start();
