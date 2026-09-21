@@ -74,11 +74,11 @@ public class BaHatMit extends Npc {
                     List<String> menu = new ArrayList<>(Arrays.asList(
                         // "Sách\nTuyệt Kỹ", 
                     "Cửa hàng\nBùa", "Nâng cấp\nVật phẩm", "Làm phép\nNhập đá", "Nhập\nNgọc Rồng"));
-                    // if (InventoryService.gI().findItem(player, 454) || InventoryService.gI().findItem(player, 921)) {
-                    //     menu = new ArrayList<>(Arrays.asList(
-                    //         // "Sách\nTuyệt Kỹ", 
-                    //     "Cửa hàng\nBùa", "Nâng cấp\nVật phẩm", InventoryService.gI().findItemBongTaiCap2(player) ? "Mở chỉ số\nBông tai\nPorata cấp\n2" : "Nâng cấp\nBông tai\nPorata", "Làm phép\nNhập đá", "Nhập\nNgọc Rồng"));
-                    // }
+                    if (InventoryService.gI().findItem(player, 454) || InventoryService.gI().findItem(player, 921)) {
+                        menu = new ArrayList<>(Arrays.asList(
+                            // "Sách\nTuyệt Kỹ", 
+                            "Cửa hàng\nBùa", "Nâng cấp\nVật phẩm", InventoryService.gI().findItemBongTaiCap2(player) ? "Mở chỉ số\nBông tai\nPorata cấp\n2" : "Nâng cấp\nBông tai\nPorata", "Làm phép\nNhập đá", "Nhập\nNgọc Rồng"));
+                    }
                     // if (DailyGiftService.checkDailyGift(player, ConstDailyGift.NHAN_BUA_MIEN_PHI)) {
                     //     menu.add(0, "Thưởng\nBùa 1h\nngẫu nhiên");
                     // }
@@ -333,25 +333,25 @@ public class BaHatMit extends Npc {
                             case 0:
                                 createOtherMenu(player, ConstNpc.MENU_OPTION_SHOP_BUA, "Bùa của ta rất lợi hại, nhìn ngươi yếu đuối thế này, chắc muốn mua bùa để " + "mạnh mẽ à, mua không ta bán cho, xài rồi lại thích cho mà xem.",
                                         // "Bùa\n1 giờ",
-                                        "Bùa\n8 giờ"
+                                        // "Bùa\n8 giờ"
                                         // ,
-                                        // "Bùa\n1 tháng"
+                                        "Bùa\n1 tháng"
                                         , "Đóng");
                                 break;
                             case 1:
                                 CombineService.gI().openTabCombine(player, CombineService.NANG_CAP_VAT_PHAM);
                                 break;
-                            // case 3:
-                            //     if (InventoryService.gI().findItemBongTaiCap2(player)) {
-                            //         CombineService.gI().openTabCombine(player, CombineService.NANG_CHI_SO_BONG_TAI);
-                            //     } else {
-                            //         CombineService.gI().openTabCombine(player, CombineService.NANG_CAP_BONG_TAI);
-                            //     }
-                            //     break;
                             case 2:
-                                CombineService.gI().openTabCombine(player, CombineService.LAM_PHEP_NHAP_DA);
+                                if (InventoryService.gI().findItemBongTaiCap2(player)) {
+                                    CombineService.gI().openTabCombine(player, CombineService.NANG_CHI_SO_BONG_TAI);
+                                } else {
+                                    CombineService.gI().openTabCombine(player, CombineService.NANG_CAP_BONG_TAI);
+                                }
                                 break;
                             case 3:
+                                CombineService.gI().openTabCombine(player, CombineService.LAM_PHEP_NHAP_DA);
+                                break;
+                            case 4:
                                 CombineService.gI().openTabCombine(player, CombineService.NHAP_NGOC_RONG);
                                 break;
                         }
@@ -387,10 +387,10 @@ public class BaHatMit extends Npc {
                         switch (select) {
                             // case 0 ->
                             //     ShopService.gI().opendShop(player, "BUA_1H", true);
-                            case 0 ->
-                                ShopService.gI().opendShop(player, "BUA_8H", true);
-                            // case 2 ->
-                            //     ShopService.gI().opendShop(player, "BUA_1M", true);
+                            // case 1 ->
+                            //     ShopService.gI().opendShop(player, "BUA_8H", true);
+                            case 1 ->
+                                ShopService.gI().opendShop(player, "BUA_1M", true);
                         }
                     } else if (player.idMark.getIndexMenu() == ConstNpc.MENU_START_COMBINE) {
                         switch (player.combineNew.typeCombine) {
