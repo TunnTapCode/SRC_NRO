@@ -1725,12 +1725,12 @@ public class NPoint {
     public void powerUp(long power) {
         long before = this.power;
         this.power += power;
-        System.out.println("[PowerUp] Player: " + player.name
-                + " | Tăng: +" + power
-                + " | Trước: " + before
-                + " | Sau: " + this.power
-                + " | Task hiện tại ID=" + (player.playerTask != null ? player.playerTask.taskMain.id : -1)
-                + " Index=" + (player.playerTask != null ? player.playerTask.taskMain.index : -1));
+        // System.out.println("[PowerUp] Player: " + player.name
+        //         + " | Tăng: +" + power
+        //         + " | Trước: " + before
+        //         + " | Sau: " + this.power
+        //         + " | Task hiện tại ID=" + (player.playerTask != null ? player.playerTask.taskMain.id : -1)
+        //         + " Index=" + (player.playerTask != null ? player.playerTask.taskMain.index : -1));
         TaskService.gI().checkDoneTaskPower(player, this.power);
     }
 
