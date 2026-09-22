@@ -77,7 +77,7 @@ public class BaHatMit extends Npc {
                     if (InventoryService.gI().findItem(player, 454) || InventoryService.gI().findItem(player, 921)) {
                         menu = new ArrayList<>(Arrays.asList(
                             // "Sách\nTuyệt Kỹ", 
-                        "Cửa hàng\nBùa", "Nâng cấp\nVật phẩm", InventoryService.gI().findItemBongTaiCap2(player) ? "Mở chỉ số\nBông tai\nPorata cấp\n2" : "Nâng cấp\nBông tai\nPorata", "Làm phép\nNhập đá", "Nhập\nNgọc Rồng"));
+                            "Cửa hàng\nBùa", "Nâng cấp\nVật phẩm", InventoryService.gI().findItemBongTaiCap2(player) ? "Mở chỉ số\nBông tai\nPorata cấp\n2" : "Nâng cấp\nBông tai\nPorata", "Làm phép\nNhập đá", "Nhập\nNgọc Rồng"));
                     }
                     // if (DailyGiftService.checkDailyGift(player, ConstDailyGift.NHAN_BUA_MIEN_PHI)) {
                     //     menu.add(0, "Thưởng\nBùa 1h\nngẫu nhiên");
@@ -387,9 +387,9 @@ public class BaHatMit extends Npc {
                         switch (select) {
                             // case 0 ->
                             //     ShopService.gI().opendShop(player, "BUA_1H", true);
-                            // case 0 ->
+                            // case 1 ->
                             //     ShopService.gI().opendShop(player, "BUA_8H", true);
-                            case 0 ->
+                            case 1 ->
                                 ShopService.gI().opendShop(player, "BUA_1M", true);
                         }
                     } else if (player.idMark.getIndexMenu() == ConstNpc.MENU_START_COMBINE) {

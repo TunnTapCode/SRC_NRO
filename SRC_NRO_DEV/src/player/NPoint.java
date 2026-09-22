@@ -199,14 +199,14 @@ public class NPoint {
     /**
      * Tính toán mọi chỉ số sau khi có thay đổi
      */
-    public void calPoint() {
+    public synchronized void calPoint() {
         if (this.player.pet != null) {
             this.player.pet.nPoint.setPointWhenWearClothes();
         }
         this.setPointWhenWearClothes();
     }
 
-    private void setPointWhenWearClothes() {
+    private synchronized void setPointWhenWearClothes() {
         resetPoint();
         if (this.player.rewardBlackBall.timeOutOfDateReward[2] > System.currentTimeMillis()) {
             tlHutHp += RewardBlackBall.R3S_1;
@@ -666,7 +666,7 @@ public class NPoint {
         }
     }
 
-    public void setBasePoint() {
+    public synchronized void setBasePoint() {
         setHpMax();
         setHp();
         setMpMax();
@@ -739,7 +739,7 @@ public class NPoint {
         this.mpHoi += (((long) this.mpMax * this.tlMpHoiBanThanVaDongDoi) / 100);
     }
 
-    private void setHpMax() {
+    private synchronized void setHpMax() {
         long hpMax = this.hpg + this.hpAdd;
 
         for (Integer tl : this.tlHp) {
@@ -851,7 +851,7 @@ public class NPoint {
         this.hp = Math.min(this.hp, this.hpMax);
     }
 
-    private void setMpMax() {
+    private synchronized void setMpMax() {
         long mpMax = this.mpg + this.mpAdd;
 
         for (Integer tl : this.tlMp) {
@@ -954,7 +954,7 @@ public class NPoint {
         }
     }
 
-    private void setDame() {
+    private synchronized void setDame() {
         long dame = this.dameg + this.dameAdd;
 
         for (Integer tl : this.tlDame) {
@@ -1192,7 +1192,7 @@ public class NPoint {
         }
     }
 
-    public int getDameAttack(boolean isAttackMob) {
+    public synchronized int getDameAttack(boolean isAttackMob) {
         setIsCrit();
         long dameAttack = this.dame;
         intrinsic = this.player.playerIntrinsic.intrinsic;
@@ -1418,7 +1418,7 @@ public class NPoint {
         }
     }
 
-    public long calSucManhTiemNang(long tiemNang) {
+    public synchronized long calSucManhTiemNang(long tiemNang) {
         if (power < getPowerLimit()) {
             for (Integer tl : this.tlTNSM) {
                 tiemNang += ((long) tiemNang * tl / 100);
@@ -1731,7 +1731,7 @@ public class NPoint {
         //         + " | Sau: " + this.power
         //         + " | Task hiện tại ID=" + (player.playerTask != null ? player.playerTask.taskMain.id : -1)
         //         + " Index=" + (player.playerTask != null ? player.playerTask.taskMain.index : -1));
-        TaskService.gI().checkDoneTaskPower(player, this.power);
+        // TaskService.gI().checkDoneTaskPower(player, this.power);
     }
 
     public void tiemNangUp(long tiemNang) {
