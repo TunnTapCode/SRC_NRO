@@ -1,0 +1,25 @@
+/* ═══════════════════════════════════════════════════════
+   Accounts — CSS riêng, prefix .ac-
+   ═══════════════════════════════════════════════════════ */
+
+/* Keyframes */
+@keyframes ac-slide-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ac-row-in   { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+
+/* Section entrance */
+#accounts { animation: ac-slide-up 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+
+/* Staggered row entrance */
+#accounts tbody tr { animation: ac-row-in 0.3s ease both; }
+#accounts tbody tr:nth-child(1)  { animation-delay: .04s; }
+#accounts tbody tr:nth-child(2)  { animation-delay: .07s; }
+#accounts tbody tr:nth-child(3)  { animation-delay: .10s; }
+#accounts tbody tr:nth-child(4)  { animation-delay: .13s; }
+#accounts tbody tr:nth-child(5)  { animation-delay: .16s; }
+#accounts tbody tr:nth-child(6)  { animation-delay: .19s; }
+#accounts tbody tr:nth-child(7)  { animation-delay: .22s; }
+#accounts tbody tr:nth-child(8)  { animation-delay: .25s; }
+#accounts tbody tr:nth-child(9)  { animation-delay: .28s; }
+#accounts tbody tr:nth-child(10) { animation-delay: .31s; }
+
+/* Thêm style tuỳ chỉnh cho màn Accounts tại đây */

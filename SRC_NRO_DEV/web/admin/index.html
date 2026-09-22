@@ -5,11 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Panel - SRC NRO</title>
     <link rel="stylesheet" href="/admin/styles.css" />
-    <script src="/admin/app.js" defer></script>
+    <!-- Thứ tự load: config → state → api → loader → table → modal → crud → ui → main -->
+    <script src="/admin/js/config.js" defer></script>
+    <script src="/admin/js/state.js"  defer></script>
+    <script src="/admin/js/api.js"    defer></script>
+    <script src="/admin/js/loader.js" defer></script>
+    <script src="/admin/js/table.js"  defer></script>
+    <script src="/admin/js/modal.js"  defer></script>
+    <script src="/admin/js/crud.js"   defer></script>
+    <script src="/admin/js/ui.js"     defer></script>
+    <script src="/admin/js/main.js"   defer></script>
 </head>
 
 <body>
     <div class="app-shell">
+
+        <!-- ── Sidebar ── -->
         <aside class="sidebar" id="sidebar">
             <div class="brand">
                 <div class="brand-mark">S</div>
@@ -20,16 +31,42 @@
             </div>
 
             <nav class="menu">
-                <button class="menu-item active" data-target="accounts">Quản lý tài khoản</button>
-                <button class="menu-item" data-target="players">Quản lý player</button>
-                <button class="menu-item" data-target="giftcodes">Gift code</button>
-                <button class="menu-item" data-target="items">Quản lý vật phẩm</button>
-                <button class="menu-item" data-target="shops">Shop bán vật phẩm</button>
-                <button class="menu-item" data-target="npcs">Quản lý NPC</button>
+                <button class="menu-item active" data-target="dashboard">
+                    <span class="menu-icon">📊</span>
+                    <span class="menu-label">Dashboard</span>
+                </button>
+                <button class="menu-item" data-target="accounts">
+                    <span class="menu-icon">👤</span>
+                    <span class="menu-label">Tài khoản</span>
+                </button>
+                <button class="menu-item" data-target="players">
+                    <span class="menu-icon">⚔️</span>
+                    <span class="menu-label">Nhân vật</span>
+                </button>
+                <button class="menu-item" data-target="giftcodes">
+                    <span class="menu-icon">🎁</span>
+                    <span class="menu-label">Gift code</span>
+                </button>
+                <button class="menu-item" data-target="items">
+                    <span class="menu-icon">🎒</span>
+                    <span class="menu-label">Vật phẩm</span>
+                </button>
+                <button class="menu-item" data-target="shops">
+                    <span class="menu-icon">🏪</span>
+                    <span class="menu-label">Shop vật phẩm</span>
+                </button>
+                <button class="menu-item" data-target="npcs">
+                    <span class="menu-icon">🤖</span>
+                    <span class="menu-label">NPC</span>
+                </button>
             </nav>
         </aside>
 
+        <!-- ── Main panel ── -->
         <main class="main-panel">
+            <!-- Nút mở sidebar trên mobile — cố định góc trên phải -->
+            <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Mở menu">☰</button>
+
             <header class="topbar">
                 <div class="topbar-left">
                     <button id="sidebar-toggle" class="icon-btn" aria-label="Toggle sidebar">☰</button>
@@ -41,165 +78,15 @@
                 <button id="btn-add" class="primary-btn">+ Thêm mới</button>
             </header>
 
-            <section class="module active" id="accounts">
-                <div class="card">
-                    <div class="card-head">
-                        <h3>Danh sách tài khoản</h3>
-                    </div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Username</th>
-                                    <th>Email</th>
-                                    <th>Admin</th>
-                                    <th>Active</th>
-                                    <th>Ban</th>
-                                    <th>Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody id="accounts-table"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </section>
-
-            <section class="module" id="players">
-                <div class="card">
-                    <div class="card-head">
-                        <h3>Danh sách player</h3>
-                    </div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Account ID</th>
-                                    <th>Tên</th>
-                                    <th>Head</th>
-                                    <th>Gender</th>
-                                    <th>Clan ID</th>
-                                    <th>Rank</th>
-                                    <th>Power</th>
-                                    <th>Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody id="players-table"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </section>
-
-            <section class="module" id="giftcodes">
-                <div class="card">
-                    <div class="card-head">
-                        <h3>Danh sách gift code</h3>
-                    </div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Code</th>
-                                    <th>Số lượng còn</th>
-                                    <th>Detail</th>
-                                    <th>Expired</th>
-                                    <th>Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody id="giftcodes-table"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </section>
-
-            <section class="module" id="items">
-                <div class="card">
-                    <div class="card-head">
-                        <h3>Danh sách vật phẩm</h3>
-                    </div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>TYPE</th>
-                                    <th>NAME</th>
-                                    <th>Description</th>
-                                    <th>Level</th>
-                                    <th>Icon</th>
-                                    <th>Part</th>
-                                    <th>Up to up</th>
-                                    <th>Power req</th>
-                                    <th>Gold</th>
-                                    <th>Gem</th>
-                                    <th>Head</th>
-                                    <th>Body</th>
-                                    <th>Leg</th>
-                                    <th>Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody id="items-table"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </section>
-
-            <section class="module" id="shops">
-                <div class="card">
-                    <div class="card-head">
-                        <h3>Danh sách shop bán vật phẩm</h3>
-                    </div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>NPC ID</th>
-                                    <th>Tag name</th>
-                                    <th>Type shop</th>
-                                    <th>Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody id="shops-table"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </section>
-
-            <section class="module" id="npcs">
-                <div class="card">
-                    <div class="card-head">
-                        <h3>Danh sách NPC</h3>
-                    </div>
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>NAME</th>
-                                    <th>Head</th>
-                                    <th>Body</th>
-                                    <th>Leg</th>
-                                    <th>Avatar</th>
-                                    <th>Hành động</th>
-                                </tr>
-                            </thead>
-                            <tbody id="npcs-table"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </section>
+            <!--
+                Các section module được load động từ partials/*.html.
+                Mỗi file partial chứa một <section class="module" id="..."> độc lập.
+            -->
+            <div id="modules-container"></div>
         </main>
     </div>
 
+    <!-- ── Modal dùng chung cho mọi module ── -->
     <div id="entity-modal" class="modal hidden" aria-hidden="true">
         <div class="modal-backdrop" data-close="true"></div>
         <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">

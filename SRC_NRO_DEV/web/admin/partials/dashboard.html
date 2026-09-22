@@ -1,0 +1,238 @@
+<link rel="stylesheet" href="/admin/css/dashboard.css" />
+
+<section class="module" id="dashboard">
+
+    <!-- ── Greeting ── -->
+    <div class="db-greeting">
+        <div class="db-greeting-text">
+            <h2 class="db-greeting-title">Xin chào, Admin 👋</h2>
+            <p class="db-greeting-sub">Tổng quan hệ thống SRC NRO — cập nhật theo thời gian thực</p>
+        </div>
+        <button class="db-refresh-btn" onclick="dashboardLoad()">🔄 Làm mới</button>
+    </div>
+
+    <!-- ── Stat Cards ── -->
+    <div class="db-cards">
+        <div class="db-card db-card-accounts">
+            <div class="db-card-icon">👤</div>
+            <div class="db-card-body">
+                <p class="db-card-label">Tài khoản</p>
+                <h3 class="db-card-value" id="db-total-accounts">—</h3>
+            </div>
+            <div class="db-card-bg">👤</div>
+        </div>
+        <div class="db-card db-card-players">
+            <div class="db-card-icon">⚔️</div>
+            <div class="db-card-body">
+                <p class="db-card-label">Nhân vật</p>
+                <h3 class="db-card-value" id="db-total-players">—</h3>
+            </div>
+            <div class="db-card-bg">⚔️</div>
+        </div>
+        <div class="db-card db-card-items">
+            <div class="db-card-icon">🎒</div>
+            <div class="db-card-body">
+                <p class="db-card-label">Vật phẩm</p>
+                <h3 class="db-card-value" id="db-total-items">—</h3>
+            </div>
+            <div class="db-card-bg">🎒</div>
+        </div>
+        <div class="db-card db-card-giftcodes">
+            <div class="db-card-icon">🎁</div>
+            <div class="db-card-body">
+                <p class="db-card-label">Gift Code</p>
+                <h3 class="db-card-value" id="db-total-giftcodes">—</h3>
+            </div>
+            <div class="db-card-bg">🎁</div>
+        </div>
+        <div class="db-card db-card-npcs">
+            <div class="db-card-icon">🤖</div>
+            <div class="db-card-body">
+                <p class="db-card-label">NPC</p>
+                <h3 class="db-card-value" id="db-total-npcs">—</h3>
+            </div>
+            <div class="db-card-bg">🤖</div>
+        </div>
+        <div class="db-card db-card-shops">
+            <div class="db-card-icon">🏪</div>
+            <div class="db-card-body">
+                <p class="db-card-label">Shop</p>
+                <h3 class="db-card-value" id="db-total-shops">—</h3>
+            </div>
+            <div class="db-card-bg">🏪</div>
+        </div>
+    </div>
+
+    <!-- ── Hai cột dưới: Top players + Quick links ── -->
+    <div class="db-bottom">
+
+        <!-- Top 5 players mạnh nhất -->
+        <div class="db-panel">
+            <div class="db-panel-head">
+                <span class="db-panel-icon">🏆</span>
+                <h3>Top nhân vật mạnh nhất</h3>
+            </div>
+            <div id="db-top-players" class="db-top-list">
+                <div class="db-loading">Đang tải...</div>
+            </div>
+        </div>
+
+        <!-- Quick links -->
+        <div class="db-panel">
+            <div class="db-panel-head">
+                <span class="db-panel-icon">⚡</span>
+                <h3>Truy cập nhanh</h3>
+            </div>
+            <div class="db-quick-links">
+                <button class="db-quick-btn" onclick="showTab('accounts')">
+                    <span>👤</span> Quản lý tài khoản
+                </button>
+                <button class="db-quick-btn" onclick="showTab('players')">
+                    <span>⚔️</span> Quản lý nhân vật
+                </button>
+                <button class="db-quick-btn" onclick="showTab('giftcodes')">
+                    <span>🎁</span> Tạo Gift Code
+                </button>
+                <button class="db-quick-btn" onclick="showTab('items')">
+                    <span>🎒</span> Quản lý vật phẩm
+                </button>
+                <button class="db-quick-btn" onclick="showTab('shops')">
+                    <span>🏪</span> Cấu hình Shop
+                </button>
+                <button class="db-quick-btn" onclick="showTab('npcs')">
+                    <span>🤖</span> Quản lý NPC
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+</section>
+
+<script>
+(function () {
+
+    function fmtNum(n) {
+        if (n === null || n === undefined) return '—';
+        const v = Number(n);
+        if (v >= 1e9)  return (v / 1e9).toFixed(1).replace(/\.0$/, '') + ' Tỷ';
+        if (v >= 1e6)  return (v / 1e6).toFixed(1).replace(/\.0$/, '') + ' Tr';
+        if (v >= 1e3)  return (v / 1e3).toFixed(1).replace(/\.0$/, '') + ' K';
+        return v.toLocaleString('vi-VN');
+    }
+
+    async function fetchCount(resource) {
+        try {
+            const res = await fetch(`/api/${resource}`);
+            if (!res.ok) return 0;
+            const data = await res.json();
+            return Array.isArray(data) ? data.length : 0;
+        } catch (_) { return 0; }
+    }
+
+    async function fetchTopPlayers() {
+        try {
+            const res = await fetch('/api/players');
+            if (!res.ok) return [];
+            const data = await res.json();
+            return [...data]
+                .sort((a, b) => Number(b.power) - Number(a.power))
+                .slice(0, 5);
+        } catch (_) { return []; }
+    }
+
+    function animateCount(el, target) {
+        const duration = 900;
+        const start    = performance.now();
+        const from     = 0;
+        function step(now) {
+            const pct   = Math.min((now - start) / duration, 1);
+            const ease  = 1 - Math.pow(1 - pct, 3);
+            const value = Math.round(from + (target - from) * ease);
+            el.textContent = value.toLocaleString('vi-VN');
+            if (pct < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
+    function setCard(id, value) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        animateCount(el, value);
+    }
+
+    function renderTopPlayers(players) {
+        const container = document.getElementById('db-top-players');
+        if (!container) return;
+        if (!players.length) {
+            container.innerHTML = '<p class="db-empty">Không có dữ liệu</p>';
+            return;
+        }
+        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+        container.innerHTML = players.map((p, i) => `
+            <div class="db-top-row" style="animation-delay:${i * 80}ms">
+                <span class="db-top-medal">${medals[i] || (i + 1)}</span>
+                <div class="db-top-info">
+                    <span class="db-top-name">${p.name ?? '?'}</span>
+                    <span class="db-top-rank">Rank ${p.rank ?? 0}</span>
+                </div>
+                <span class="db-top-power">⚔️ ${fmtNum(parseDataPoint(p.data_point).power)}</span>
+            </div>
+        `).join('');
+    }
+    function parseDataPoint(raw) {
+        try {
+            const arr = JSON.parse(raw || '[]');
+            return {
+                mghsm:    arr[0]  ?? 0 ,
+                power:    arr[1]  ?? 0,
+                tiemNang: arr[2]  ?? 0,
+                hpg:      arr[5]  ?? 0,
+                mpg:      arr[6]  ?? 0,
+                dameg:    arr[7]  ?? 0,
+                defg:     arr[8]  ?? 0,
+                hp:       arr[12] ?? 0,
+                mp:       arr[13] ?? 0,
+            };
+        } catch (_) {
+            return { mghsm: 0, power: 0, tiemNang: 0, hpg: 0, mpg: 0, dameg: 0, defg: 0, hp: 0, mp: 0 };
+        }
+    }
+    window.dashboardLoad = async function () {
+        // Reset về loading
+        ['db-total-accounts','db-total-players','db-total-items',
+         'db-total-giftcodes','db-total-npcs','db-total-shops'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '…';
+        });
+        document.getElementById('db-top-players').innerHTML =
+            '<div class="db-loading">Đang tải...</div>';
+
+        const [accounts, players, items, giftcodes, npcs, shops, top] = await Promise.all([
+            fetchCount('accounts'),
+            fetchCount('players'),
+            fetchCount('items'),
+            fetchCount('giftcodes'),
+            fetchCount('npcs'),
+            fetchCount('shops'),
+            fetchTopPlayers(),
+        ]);
+
+        setCard('db-total-accounts',  accounts);
+        setCard('db-total-players',   players);
+        setCard('db-total-items',     items);
+        setCard('db-total-giftcodes', giftcodes);
+        setCard('db-total-npcs',      npcs);
+        setCard('db-total-shops',     shops);
+        renderTopPlayers(top);
+    };
+
+    // Load khi module được kích hoạt lần đầu
+    document.addEventListener('dashboardActivated', window.dashboardLoad, { once: false });
+    // Cũng load ngay nếu đang active
+    if (document.getElementById('dashboard')?.classList.contains('active')) {
+        window.dashboardLoad();
+    }
+
+})();
+</script>
