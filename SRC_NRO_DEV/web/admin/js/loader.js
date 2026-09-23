@@ -1,5 +1,5 @@
 // Danh sách các module cần load, theo đúng thứ tự menu
-const MODULES = ['dashboard', 'accounts', 'players', 'giftcodes', 'items', 'shops', 'npcs'];
+const MODULES = ['dashboard', 'accounts', 'players', 'giftcodes', 'items', 'shops', 'npcs', 'maps'];
 
 /**
  * Parse chuỗi HTML thành các node thực thi được:

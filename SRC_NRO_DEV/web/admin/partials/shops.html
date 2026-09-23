@@ -54,7 +54,6 @@
             <button class="sh-back-btn" id="sh-back-btn">← Trở về</button>
             <h3 class="sh-toolbar-title" id="sh-toolbar-title"></h3>
             <div class="sh-toolbar-right">
-                <button class="sh-tool-btn sh-tool-add sh-hidden" id="sh-add-item-btn">+ Thêm vật phẩm</button>
                 <button class="sh-tool-btn sh-tool-refresh sh-hidden" id="sh-reload-btn">🔄 Tải lại</button>
             </div>
         </div>
@@ -69,69 +68,7 @@
         </div>
     </div>
 
-    <!-- ══ MODAL THÊM / SỬA ══ -->
-    <div id="sh-item-modal" class="sh-modal-overlay sh-hidden">
-        <div class="sh-modal-dialog">
-            <div class="sh-modal-header">
-                <h3 id="sh-modal-title">Thêm vật phẩm</h3>
-                <button class="sh-modal-close" id="sh-modal-close">✕</button>
-            </div>
-            <div class="sh-modal-body">
-                <input type="hidden" id="sh-modal-id" />
-                <div class="sh-modal-row">
-                    <label>Vật phẩm</label>
-                    <div class="sh-modal-item-pick" id="sh-modal-item-pick">
-                        <div class="sh-modal-item-preview" id="sh-modal-item-preview">
-                            <span class="sh-modal-no-item">Nhấn để chọn...</span>
-                        </div>
-                    </div>
-                    <input type="hidden" id="sh-modal-temp-id" />
-                </div>
-                <div class="sh-modal-row">
-                    <label>Giá bán</label>
-                    <input class="sh-modal-input" type="number" id="sh-modal-cost" min="0" placeholder="0" />
-                </div>
-                <div class="sh-modal-row">
-                    <label>Loại tiền</label>
-                    <select class="sh-modal-input" id="sh-modal-type-sell">
-                        <option value="0">🪙 Vàng</option>
-                        <option value="1">💎 Ngọc</option>
-                        <option value="2">🥇 Thỏi vàng</option>
-                        <option value="3">🎫 Phiếu</option>
-                    </select>
-                </div>
-                <div class="sh-modal-row">
-                    <label>Hàng mới?</label>
-                    <select class="sh-modal-input" id="sh-modal-is-new">
-                        <option value="0">Không</option>
-                        <option value="1">Có</option>
-                    </select>
-                </div>
-                <div class="sh-modal-section-title">Chỉ số đi kèm</div>
-                <div id="sh-modal-opts" class="sh-modal-opts"></div>
-                <button class="sh-add-opt-btn" id="sh-modal-add-opt">+ Thêm chỉ số</button>
-            </div>
-            <div class="sh-modal-footer">
-                <button class="sh-tool-btn sh-tool-add" id="sh-modal-save">💾 Lưu</button>
-                <button class="sh-back-btn" id="sh-modal-cancel">Hủy</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ══ ITEM PICKER ══ -->
-    <div id="sh-picker" class="sh-picker-overlay sh-hidden">
-        <div class="sh-picker-dialog">
-            <div class="sh-picker-header">
-                <h3>🎒 Chọn vật phẩm</h3>
-                <div class="sh-picker-search-wrap">
-                    <span>🔍</span>
-                    <input id="sh-picker-search" type="text" placeholder="Tìm tên / ID..." autocomplete="off" />
-                </div>
-                <button id="sh-picker-close">✕</button>
-            </div>
-            <div id="sh-picker-grid" class="sh-picker-grid"></div>
-        </div>
-    </div>
+    <!-- Modal và Picker được inject vào body khi mở (tránh bị clip bởi section) -->
 
 </section>
 
@@ -201,7 +138,6 @@
         hide('sh-v1');
         show('sh-v2');
         document.getElementById('sh-toolbar-title').textContent = title || '';
-        hide('sh-add-item-btn');
         hide('sh-reload-btn');
         hide('sh-shop-detail');
     }
@@ -278,8 +214,20 @@
         );
     }
 
-    /* ── Click NPC → hiện tabs + items bên dưới ── */
+    /* ── Click NPC → hiện tabs + items bên dưới, click lại → ẩn ── */
     async function openShop(shopId) {
+        // Nếu click đúng shop đang mở → toggle ẩn
+        if (_activeShop && _activeShop.id === shopId) {
+            _activeShop = null;
+            _activeTabId = null;
+            document.querySelectorAll('.sh-npc-card').forEach(c => c.classList.remove('sh-npc-active'));
+            hide('sh-shop-detail');
+            hide('sh-reload-btn');
+            document.getElementById('sh-toolbar-title').textContent =
+                SHOP_TYPES[_activeType] || 'Shop';
+            return;
+        }
+
         _activeShop = _allShops.find(s => s.id === shopId) || null;
         if (!_activeShop) return;
 
@@ -292,8 +240,7 @@
         document.getElementById('sh-toolbar-title').textContent =
             `${SHOP_TYPES[_activeType] || 'Shop'} — ${name}`;
 
-        // Hiện nút + shop detail
-        show('sh-add-item-btn');
+        // Hiện shop detail và nút reload
         show('sh-reload-btn');
         show('sh-shop-detail');
 
@@ -345,8 +292,13 @@
                     : ''}
                 <span class="sh-tab-label">${label}</span>
             </button>`;
-        }).join('');
-        bar.querySelectorAll('.sh-tab-btn').forEach(b =>
+        }).join('')
+        // Nút thêm vật phẩm nằm ngay sau các tab
+        + `<button class="sh-tab-btn sh-tab-add-btn" id="sh-add-item-btn" title="Thêm vật phẩm vào tab này">
+               ＋ Thêm
+           </button>`;
+
+        bar.querySelectorAll('.sh-tab-btn:not(.sh-tab-add-btn)').forEach(b =>
             b.addEventListener('click', () => loadTab(Number(b.dataset.tabId)))
         );
     }
@@ -415,17 +367,19 @@
 
     /* ── Modal ── */
     function openAddModal() {
+        openModal(); // tạo DOM trước
         document.getElementById('sh-modal-title').textContent = 'Thêm vật phẩm';
         document.getElementById('sh-modal-id').value = '';
         document.getElementById('sh-modal-temp-id').value = '';
         document.getElementById('sh-modal-cost').value = '';
         document.getElementById('sh-modal-type-sell').value = '0';
         document.getElementById('sh-modal-is-new').value = '0';
-        setPreview(null); _modalOpts = []; renderOpts(); openModal();
+        setPreview(null); _modalOpts = []; renderOpts();
     }
 
     async function openEditModal(id) {
         const item = _items.find(i => i.id === id); if (!item) return;
+        openModal(); // tạo DOM trước
         document.getElementById('sh-modal-title').textContent = 'Sửa vật phẩm';
         document.getElementById('sh-modal-id').value     = item.id;
         document.getElementById('sh-modal-temp-id').value = item.temp_id;
@@ -434,7 +388,7 @@
         document.getElementById('sh-modal-is-new').value = item.is_new ? '1' : '0';
         setPreview(item.temp_id);
         _modalOpts = (item._opts || []).map(o => ({ id: o.id, option_id: o.option_id, param: o.param }));
-        renderOpts(); openModal();
+        renderOpts();
     }
 
     function setPreview(tempId) {
@@ -458,7 +412,10 @@
                 <button class="sh-opt-del" data-i="${i}">✕</button>
             </div>`).join('');
         el.querySelectorAll('.sh-opt-sel').forEach(s =>
-            s.addEventListener('change', () => { _modalOpts[+s.dataset.i].option_id = +s.value; })
+            // Dùng null cho "chưa chọn", số cho option_id thực (kể cả 0)
+            s.addEventListener('change', () => {
+                _modalOpts[+s.dataset.i].option_id = s.value === '' ? null : +s.value;
+            })
         );
         el.querySelectorAll('.sh-opt-val').forEach(inp =>
             inp.addEventListener('input', () => { _modalOpts[+inp.dataset.i].param = +inp.value; })
@@ -468,8 +425,69 @@
         );
     }
 
-    function openModal()  { show('sh-item-modal'); document.body.style.overflow = 'hidden'; }
-    function closeModal() { hide('sh-item-modal'); document.body.style.overflow = ''; }
+    function openModal() {
+        let modal = document.getElementById('sh-item-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'sh-item-modal';
+            modal.className = 'sh-modal-overlay sh-hidden';
+            modal.innerHTML = `
+                <div class="sh-modal-dialog">
+                    <div class="sh-modal-header">
+                        <h3 id="sh-modal-title">Thêm vật phẩm</h3>
+                        <button class="sh-modal-close" id="sh-modal-close">✕</button>
+                    </div>
+                    <div class="sh-modal-body">
+                        <input type="hidden" id="sh-modal-id" />
+                        <div class="sh-modal-row">
+                            <label>Vật phẩm</label>
+                            <div class="sh-modal-item-pick" id="sh-modal-item-pick">
+                                <div class="sh-modal-item-preview" id="sh-modal-item-preview">
+                                    <span class="sh-modal-no-item">Nhấn để chọn...</span>
+                                </div>
+                            </div>
+                            <input type="hidden" id="sh-modal-temp-id" />
+                        </div>
+                        <div class="sh-modal-row">
+                            <label>Giá bán</label>
+                            <input class="sh-modal-input" type="number" id="sh-modal-cost" min="0" placeholder="0" />
+                        </div>
+                        <div class="sh-modal-row">
+                            <label>Loại tiền</label>
+                            <select class="sh-modal-input" id="sh-modal-type-sell">
+                                <option value="0">🪙 Vàng</option>
+                                <option value="1">💎 Ngọc</option>
+                                <option value="2">🥇 Thỏi vàng</option>
+                                <option value="3">🎫 Phiếu</option>
+                            </select>
+                        </div>
+                        <div class="sh-modal-row">
+                            <label>Hàng mới?</label>
+                            <select class="sh-modal-input" id="sh-modal-is-new">
+                                <option value="0">Không</option>
+                                <option value="1">Có</option>
+                            </select>
+                        </div>
+                        <div class="sh-modal-section-title">Chỉ số đi kèm</div>
+                        <div id="sh-modal-opts" class="sh-modal-opts"></div>
+                        <button class="sh-add-opt-btn" id="sh-modal-add-opt">+ Thêm chỉ số</button>
+                    </div>
+                    <div class="sh-modal-footer">
+                        <button class="sh-tool-btn sh-tool-add" id="sh-modal-save">💾 Lưu</button>
+                        <button class="sh-back-btn" id="sh-modal-cancel">Hủy</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+        }
+        modal.classList.remove('sh-hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('sh-item-modal');
+        if (modal) modal.classList.add('sh-hidden');
+        document.body.style.overflow = '';
+    }
 
     /* ── Save / Delete ── */
     async function saveItem() {
@@ -497,7 +515,7 @@
                 const old = await api('item-shop-options', `item_shop_id=${savedId}`);
                 for (const o of old) await fetch(`/api/item-shop-options/${o.id}`, { method:'DELETE' });
                 for (const o of _modalOpts) {
-                    if (!o.option_id) continue;
+                    if (o.option_id === null || o.option_id === undefined || o.option_id === '') continue;
                     await fetch('/api/item-shop-options', { method:'POST', headers:{'Content-Type':'application/json'},
                         body: JSON.stringify({ item_shop_id: savedId, option_id: o.option_id, param: o.param }) });
                 }
@@ -517,12 +535,37 @@
 
     /* ── Picker ── */
     function openPicker() {
+        let picker = document.getElementById('sh-picker');
+        if (!picker) {
+            picker = document.createElement('div');
+            picker.id = 'sh-picker';
+            picker.className = 'sh-picker-overlay sh-hidden';
+            picker.innerHTML = `
+                <div class="sh-picker-dialog">
+                    <div class="sh-picker-header">
+                        <h3>🎒 Chọn vật phẩm</h3>
+                        <div class="sh-picker-search-wrap">
+                            <span>🔍</span>
+                            <input id="sh-picker-search" type="text" placeholder="Tìm tên / ID..." autocomplete="off" />
+                        </div>
+                        <button id="sh-picker-close">✕</button>
+                    </div>
+                    <div id="sh-picker-grid" class="sh-picker-grid"></div>
+                </div>`;
+            document.body.appendChild(picker);
+        }
         renderPickerGrid('');
-        show('sh-picker'); document.body.style.overflow = 'hidden';
+        picker.classList.remove('sh-hidden');
+        document.body.style.overflow = 'hidden';
         const inp = document.getElementById('sh-picker-search');
         if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 80); }
     }
-    function closePicker() { hide('sh-picker'); document.body.style.overflow = ''; }
+
+    function closePicker() {
+        const picker = document.getElementById('sh-picker');
+        if (picker) picker.classList.add('sh-hidden');
+        document.body.style.overflow = '';
+    }
 
     function renderPickerGrid(q) {
         const grid  = document.getElementById('sh-picker-grid');

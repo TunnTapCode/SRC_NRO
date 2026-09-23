@@ -132,7 +132,9 @@ button, input, select { font: inherit; }
 /* ── Sidebar ── */
 .sidebar {
     width: var(--sidebar-w);
-    min-height: 100vh;
+    height: 100vh;
+    position: sticky;
+    top: 0;
     padding: 24px 16px;
     background: linear-gradient(160deg, #ffffff 0%, #eff6ff 100%);
     border-right: 1px solid var(--line);
@@ -147,9 +149,9 @@ button, input, select { font: inherit; }
         box-shadow  var(--dur-normal) ease;
     box-shadow: 2px 0 20px rgba(37,99,235,0.06);
     animation: slideInLeft var(--dur-slow) var(--ease-out) both;
-    position: relative;
     z-index: 10;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     flex-shrink: 0;
 }
 
@@ -762,11 +764,6 @@ input:focus, select:focus {
     animation: shimmer 1.4s infinite linear;
     border-radius: var(--radius-lg);
 }
-
-/* ══════════════════════════════════════════════════
-   SCROLLABLE SIDEBAR
-   ══════════════════════════════════════════════════ */
-.sidebar { overflow-y: auto; }
 
 /* ══════════════════════════════════════════════════
    FOCUS VISIBLE (accessibility)

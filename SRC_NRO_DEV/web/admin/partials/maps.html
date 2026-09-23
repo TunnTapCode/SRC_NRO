@@ -1,0 +1,807 @@
+<link rel="stylesheet" href="/admin/css/maps.css" />
+
+<section class="module" id="maps">
+
+    <!-- Banner -->
+    <div class="mp-banner">
+        <div class="mp-banner-left">
+            <img class="mp-banner-avatar" src="/data/effect/x1/ImgEffect_4.png"
+                 onerror="this.src=''" alt="maps" />
+            <div class="mp-banner-info">
+                <h2 class="mp-banner-title">
+                    Bản Đồ
+                    <span class="mp-badge" id="mp-total-badge">Tổng: 0</span>
+                </h2>
+                <div class="mp-banner-actions">
+                    <button class="mp-btn mp-btn-panel"   onclick="showTab('dashboard')">🏠 Go Panel</button>
+                    <button class="mp-btn mp-btn-refresh" onclick="mpLoad()">🔄 Làm Mới</button>
+                    <button class="mp-btn mp-btn-add"     id="mp-add-btn">＋ Thêm Bản Đồ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="mp-toolbar">
+        <div class="mp-toolbar-left">
+            <div class="mp-search-wrap">
+                <span>🔍</span>
+                <input id="mp-search" class="mp-search-input" type="text"
+                       placeholder="Tìm tên bản đồ hoặc ID..." />
+            </div>
+            <select id="mp-filter-planet" class="mp-filter-select">
+                <option value="">🌍 Tất cả hành tinh</option>
+                <option value="0">🌍 Trái Đất</option>
+                <option value="1">🟢 Namếc</option>
+                <option value="2">🟡 Xayda</option>
+            </select>
+        </div>
+        <div class="mp-toolbar-right">
+            <div class="mp-stat-chips" id="mp-chips"></div>
+        </div>
+    </div>
+
+    <!-- Pagination top -->
+    <div class="mp-pagination" id="mp-pagination-top"></div>
+
+    <!-- Table -->
+    <div class="mp-table-card">
+        <table class="mp-table">
+            <thead>
+                <tr>
+                    <th style="width:52px">ID</th>
+                    <th>Tên bản đồ</th>
+                    <th style="width:110px">Loại</th>
+                    <th style="width:100px">Hành tinh</th>
+                    <th style="width:60px;text-align:center">Zone</th>
+                    <th style="width:70px;text-align:center">Max NV</th>
+                    <th style="min-width:140px">Danh Sách Quái</th>
+                    <th style="min-width:160px">Danh Sách NPC</th>
+                    <th style="width:60px;text-align:center">Cổng</th>
+                    <th style="width:110px;text-align:center">Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="mp-table-body">
+                <tr><td colspan="10" class="mp-empty">Đang tải...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination bottom -->
+    <div class="mp-pagination" id="mp-pagination-bot" style="margin-top:14px;margin-bottom:0"></div>
+
+    <!-- Drawer được inject vào body khi mở (tránh bị clip bởi parent) -->
+
+</section>
+
+<script>
+(function () {
+
+    /* ═══════════════ json helpers ═══════════════ */
+
+    /**
+     * Parse chuỗi JSON lồng nhau từ DB (escape ký tự) thành mảng JS.
+     * Dùng để hiển thị đẹp trong textarea.
+     */
+    function parseDbJson(raw) {
+        if (!raw || raw === '[]') return [];
+        try {
+            // Thử parse trực tiếp trước
+            const parsed = JSON.parse(raw);
+            // Nếu phần tử là chuỗi lồng (format DB cũ) → parse tiếp từng phần tử
+            if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
+                return parsed.map(s => { try { return JSON.parse(s); } catch (_) { return s; } });
+            }
+            return parsed;
+        } catch (_) {
+            try {
+                const cleaned = raw
+                    .replace(/\[\"\[/g, '[[').replace(/\]\"\]/g, ']]').replace(/\",\"/g, ',');
+                return JSON.parse(cleaned);
+            } catch (_) { return []; }
+        }
+    }
+
+    /** Hiển thị JSON đẹp trong textarea — mỗi phần tử trên 1 dòng */
+    function prettyJsonField(raw) {
+        try {
+            const arr = parseDbJson(raw);
+            if (!arr.length) return '[]';
+            const lines = arr.map(item => '  ' + JSON.stringify(item));
+            return '[\n' + lines.join(',\n') + '\n]';
+        } catch (_) {
+            return raw || '[]';
+        }
+    }
+
+    /**
+     * Compact lại từ textarea (pretty) về format DB cũ dạng
+     * mảng chuỗi lồng: ["[0,1,100,...]","[1,2,200,...]"]
+     * Waypoints dùng format lồng tương tự.
+     */
+    function compactToDbFormat(value) {
+        try {
+            const arr = JSON.parse(value);
+            if (!Array.isArray(arr) || arr.length === 0) return '[]';
+            // Nếu phần tử đã là mảng → wrap lại thành chuỗi lồng (format DB)
+            if (Array.isArray(arr[0])) {
+                return JSON.stringify(arr.map(item => JSON.stringify(item)));
+            }
+            // Đã là mảng phẳng / format mới → giữ nguyên
+            return JSON.stringify(arr);
+        } catch (_) {
+            return value; // giữ nguyên nếu parse lỗi
+        }
+    }
+
+    /** Nút Format bấm vào → làm đẹp textarea */
+    document.addEventListener('click', e => {
+        const btn = e.target.closest('.mp-json-fmt-btn');
+        if (!btn) return;
+        const ta = document.getElementById(btn.dataset.target);
+        if (!ta) return;
+        ta.value = prettyJsonField(ta.value);
+        ta.style.minHeight = Math.min(400, Math.max(90, ta.value.split('\n').length * 20)) + 'px';
+    });
+    const PAGE_SIZE = 25;
+
+    const TYPE_LABELS = {
+        0: { icon:'🌿', label:'Bình thường',   cls:'mp-type-0' },
+        1: { icon:'🏠', label:'Offline / Nhà', cls:'mp-type-1' },
+        2: { icon:'⚔️', label:'Doanh trại',    cls:'mp-type-2' },
+        3: { icon:'🔮', label:'Chiến trận',     cls:'mp-type-3' },
+        4: { icon:'🗺️', label:'Kho báu',        cls:'mp-type-4' },
+        5: { icon:'👹', label:'Majin Buu',      cls:'mp-type-5' },
+        6: { icon:'🐍', label:'Rắn độc',        cls:'mp-type-6' },
+    };
+
+    const PLANET_LABELS = {
+        0: { icon:'🌍', label:'Trái Đất' },
+        1: { icon:'🟢', label:'Namếc'   },
+        2: { icon:'🟡', label:'Xayda'   },
+    };
+
+    /* ═══════════════ state ═══════════════ */
+    let _all      = [];   // toàn bộ maps từ API
+    let _filtered = [];   // sau filter/search
+    let _page     = 1;
+    let _npcCache = {};   // { npcId: npcRow }
+    let _mobCache = {};   // { mobId: { id, NAME, TYPE } }
+    let _current  = null; // map đang mở drawer
+
+    let _filterType   = null;
+    let _filterPlanet = '';
+    let _searchQ      = '';
+
+    /* ═══════════════ helpers ═══════════════ */
+    function parseJsonSafe(raw) {
+        if (!raw || raw === '[]' || raw === '{}') return [];
+        try {
+            // Xử lý escape lồng nhau giống server Java
+            const cleaned = raw
+                .replace(/\[\"\[/g, '[[')
+                .replace(/\]\"\]/g, ']]')
+                .replace(/\",\"/g, ',')
+                .replace(/\\"/g, '"');
+            return JSON.parse(cleaned);
+        } catch (_) {
+            try { return JSON.parse(raw); } catch (_) { return []; }
+        }
+    }
+
+    function parseNpcs(raw) {
+        if (!raw) return [];
+        try {
+            const outer = JSON.parse(raw.replace(/\\"/g, '"'));
+            return outer.map(entry => {
+                try {
+                    const inner = typeof entry === 'string' ? JSON.parse(entry) : entry;
+                    return { id: inner[0], x: inner[1], y: inner[2] };
+                } catch (_) { return null; }
+            }).filter(Boolean);
+        } catch (_) { return []; }
+    }
+
+    function parseMobs(raw) {
+        if (!raw) return [];
+        try {
+            const outer = JSON.parse(raw.replace(/\\"/g, '"').replace(/\"\[/g,'[').replace(/\]\"/g,']'));
+            return outer.map(entry => {
+                try {
+                    const inner = typeof entry === 'string' ? JSON.parse(entry) : entry;
+                    return { tempId: inner[0], level: inner[1], hp: inner[2], x: inner[3], y: inner[4] };
+                } catch (_) { return null; }
+            }).filter(Boolean);
+        } catch (_) { return []; }
+    }
+
+    function parseWaypoints(raw) {
+        if (!raw) return [];
+        try {
+            const cleaned = raw
+                .replace(/\[\"\[/g,'[[').replace(/\]\"\]/g,']]').replace(/\",\"/g,',');
+            const outer = JSON.parse(cleaned);
+            return outer.map(entry => {
+                try {
+                    const inner = typeof entry === 'string' ? JSON.parse(entry) : entry;
+                    return {
+                        name:    inner[0], minX: inner[1], minY: inner[2],
+                        maxX:    inner[3], maxY: inner[4],
+                        isEnter:   inner[5], isOffline: inner[6],
+                        goMap: inner[7], goX: inner[8], goY: inner[9]
+                    };
+                } catch (_) { return null; }
+            }).filter(Boolean);
+        } catch (_) { return []; }
+    }
+
+    function typeBadge(type) {
+        const t = TYPE_LABELS[type] || { icon:'❓', label:`Type ${type}`, cls:'mp-type-other' };
+        return `<span class="mp-type-badge ${t.cls}">${t.icon} ${t.label}</span>`;
+    }
+
+    function planetLabel(pid) {
+        const p = PLANET_LABELS[pid];
+        return p ? `<span class="mp-planet">${p.icon} ${p.label}</span>` : `<span class="mp-planet">🪐 #${pid}</span>`;
+    }
+
+    /* ═══════════════ load ═══════════════ */
+    async function mpLoad() {
+        document.getElementById('mp-table-body').innerHTML =
+            '<tr><td colspan="10" class="mp-empty">⏳ Đang tải...</td></tr>';
+
+        const [maps, npcs, mobsData] = await Promise.all([
+            fetch('/api/maps').then(r => r.json()).catch(() => []),
+            fetch('/api/npcs').then(r => r.json()).catch(() => []),
+            fetch('/api/mobs').then(r => r.json()).catch(() => []),
+        ]);
+
+        _all = Array.isArray(maps) ? maps : [];
+        _npcCache = {};
+        (Array.isArray(npcs) ? npcs : []).forEach(n => { _npcCache[String(n.id)] = n; });
+        _mobCache = {};
+        (Array.isArray(mobsData) ? mobsData : []).forEach(m => { _mobCache[String(m.id)] = m; });
+
+        // Badge tổng
+        const badge = document.getElementById('mp-total-badge');
+        if (badge) badge.textContent = 'Tổng: ' + _all.length;
+
+        renderChips();
+        applyFilter();
+    }
+
+    window.mpLoad = mpLoad;
+
+    /* ═══════════════ chips thống kê ═══════════════ */
+    function renderChips() {
+        const container = document.getElementById('mp-chips');
+        if (!container) return;
+        const counts = {};
+        _all.forEach(m => { counts[m.type] = (counts[m.type] || 0) + 1; });
+        let html = `<span class="mp-chip mp-chip-all ${_filterType === null ? 'active' : ''}"
+                         onclick="mpFilterType(null)">
+                    🗺️ Tất cả (${_all.length})
+                   </span>`;
+        Object.entries(counts).sort((a,b) => a[0]-b[0]).forEach(([t, cnt]) => {
+            const info = TYPE_LABELS[t] || { icon:'❓', label:`Type ${t}` };
+            const cls  = ['mp-chip-normal','mp-chip-offline','mp-chip-special','mp-chip-event'][t] || 'mp-chip-all';
+            html += `<span class="mp-chip ${cls} ${_filterType == t ? 'active' : ''}"
+                          onclick="mpFilterType(${t})">
+                     ${info.icon} ${info.label} (${cnt})
+                    </span>`;
+        });
+        container.innerHTML = html;
+    }
+
+    window.mpFilterType = function(type) {
+        _filterType = type;
+        _page = 1;
+        renderChips();
+        applyFilter();
+    };
+
+    /* ═══════════════ filter ═══════════════ */
+    function applyFilter() {
+        const q = _searchQ.toLowerCase();
+        _filtered = _all.filter(m => {
+            if (_filterType !== null && Number(m.type) !== _filterType) return false;
+            if (_filterPlanet !== '' && String(m.planet_id) !== _filterPlanet) return false;
+            if (q && !String(m.NAME).toLowerCase().includes(q) && !String(m.id).includes(q)) return false;
+            return true;
+        });
+        _page = 1;
+        renderTable();
+        renderPagination();
+    }
+
+    /* ═══════════════ render table ═══════════════ */
+    function renderTable() {
+        const tbody = document.getElementById('mp-table-body');
+        if (!tbody) return;
+        const start = (_page - 1) * PAGE_SIZE;
+        const rows  = _filtered.slice(start, start + PAGE_SIZE);
+
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="10" class="mp-empty">Không có bản đồ nào</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = rows.map(m => {
+            const mobs = parseMobs(m.mobs);
+            const npcs = parseNpcs(m.npcs);
+            const wps  = parseWaypoints(m.waypoints);
+
+            // Danh sách quái — badge nhỏ hiện tên/id, unique theo tempId
+            const uniqueMobIds = [...new Set(mobs.map(mb => mb.tempId))];
+            const mobsHtml = uniqueMobIds.length
+                ? uniqueMobIds.map(id => {
+                    const mb = _mobCache[String(id)] || {};
+                    const name = mb.NAME || `Mob #${id}`;
+                    return `<span class="mp-mob-badge" title="${name} (ID: ${id})">
+                                👾 ${name}
+                            </span>`;
+                  }).join('')
+                : '<span class="mp-col-empty">—</span>';
+
+            // Danh sách NPC — avatar icon
+            const npcsHtml = npcs.length
+                ? npcs.map(n => {
+                    const nd = _npcCache[String(n.id)] || {};
+                    const av = nd.avatar;
+                    return `<span class="mp-npc-chip" title="${nd.NAME || 'NPC #'+n.id}">
+                                ${av
+                                    ? `<img src="/data/icon/x1/${av}.png" onerror="this.style.display='none'" />`
+                                    : '<span class="mp-npc-chip-fallback">🤖</span>'}
+                            </span>`;
+                  }).join('')
+                : '<span class="mp-col-empty">—</span>';
+
+            return `
+            <tr>
+                <td class="mp-td-id">${m.id}</td>
+                <td class="mp-td-name">${m.NAME}</td>
+                <td>${typeBadge(m.type)}</td>
+                <td>${planetLabel(m.planet_id)}</td>
+                <td class="mp-td-right">${m.zones}</td>
+                <td class="mp-td-right">${m.max_player}</td>
+                <td class="mp-col-mobs">${mobsHtml}</td>
+                <td class="mp-col-npcs">${npcsHtml}</td>
+                <td class="mp-td-right">${wps.length  || '—'}</td>
+                <td style="text-align:center;white-space:nowrap">
+                    <button class="mp-act-btn mp-act-detail"
+                            onclick="mpOpenDrawer(${m.id},'info')" title="Chi tiết">🔍</button>
+                    <button class="mp-act-btn mp-act-edit"
+                            onclick="mpOpenDrawer(${m.id},'edit')" title="Sửa">✏️</button>
+                    <button class="mp-act-btn mp-act-delete"
+                            onclick="mpDelete(${m.id})" title="Xóa">🗑</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    /* ═══════════════ pagination ═══════════════ */
+    function renderPagination() {
+        const total = Math.max(1, Math.ceil(_filtered.length / PAGE_SIZE));
+        const range = 3;
+        let html = '';
+        for (let i = 1; i <= total; i++) {
+            if (i === 1 || i === total || (i >= _page - range && i <= _page + range)) {
+                html += `<button class="mp-page-btn ${i === _page ? 'active' : ''}"
+                                 onclick="mpGoPage(${i})">${i}</button>`;
+            } else if (i === _page - range - 1 || i === _page + range + 1) {
+                html += `<span class="mp-page-ellipsis">…</span>`;
+            }
+        }
+        ['mp-pagination-top','mp-pagination-bot'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
+        });
+    }
+
+    window.mpGoPage = function(p) { _page = p; renderTable(); renderPagination(); window.scrollTo(0,0); };
+
+    /* ═══════════════ drawer ═══════════════ */
+    /* ═══════════════ drawer — tạo động append vào body ═══════════════ */
+    function getOrCreateDrawer() {
+        let drawer = document.getElementById('mp-drawer');
+        if (drawer) return drawer;
+
+        // Tạo drawer và append thẳng vào body để position:fixed không bị clip
+        drawer = document.createElement('div');
+        drawer.id = 'mp-drawer';
+        drawer.className = 'mp-drawer';
+        drawer.setAttribute('aria-hidden', 'true');
+        drawer.innerHTML = `
+            <div class="mp-drawer-backdrop"></div>
+            <div class="mp-drawer-panel">
+                <div class="mp-drawer-header">
+                    <div class="mp-drawer-title-wrap">
+                        <span class="mp-drawer-icon">🗺️</span>
+                        <div>
+                            <h3 id="mp-drawer-title">Bản đồ</h3>
+                            <p  id="mp-drawer-sub"></p>
+                        </div>
+                    </div>
+                    <button class="mp-drawer-close" id="mp-drawer-close-btn">×</button>
+                </div>
+                <div class="mp-drawer-tabs">
+                    <button class="mp-drawer-tab active" data-pane="info">📋 Thông tin</button>
+                    <button class="mp-drawer-tab" data-pane="mobs">👾 Mob</button>
+                    <button class="mp-drawer-tab" data-pane="npcs">🤖 NPC</button>
+                    <button class="mp-drawer-tab" data-pane="waypoints">🚪 Cổng</button>
+                    <button class="mp-drawer-tab" data-pane="edit">✏️ Sửa</button>
+                </div>
+                <div class="mp-drawer-body">
+                    <div class="mp-pane active" id="mp-pane-info"></div>
+                    <div class="mp-pane" id="mp-pane-mobs"></div>
+                    <div class="mp-pane" id="mp-pane-npcs"></div>
+                    <div class="mp-pane" id="mp-pane-waypoints"></div>
+                    <div class="mp-pane" id="mp-pane-edit"></div>
+                </div>
+            </div>`;
+
+        document.body.appendChild(drawer);
+
+        // Gắn events sau khi đã append
+        drawer.querySelector('.mp-drawer-backdrop').addEventListener('click', mpCloseDrawer);
+        drawer.querySelector('#mp-drawer-close-btn').addEventListener('click', mpCloseDrawer);
+        drawer.addEventListener('click', e => {
+            const tab = e.target.closest('.mp-drawer-tab');
+            if (tab) switchPane(tab.dataset.pane);
+        });
+
+        return drawer;
+    }
+
+    window.mpOpenDrawer = function(id, pane) {
+        _current = _all.find(m => Number(m.id) === Number(id));
+        if (!_current) return;
+
+        // Tạo drawer trước (append vào body) rồi mới điền nội dung
+        const drawer = getOrCreateDrawer();
+
+        const m    = _current;
+        const mobs = parseMobs(m.mobs);
+        const npcs = parseNpcs(m.npcs);
+        const wps  = parseWaypoints(m.waypoints);
+
+        // Header
+        document.getElementById('mp-drawer-title').textContent = `[${m.id}] ${m.NAME}`;
+        document.getElementById('mp-drawer-sub').textContent   =
+            `${(TYPE_LABELS[m.type]||{label:'?'}).label} · ${(PLANET_LABELS[m.planet_id]||{label:'?'}).label}`;
+
+        // Pane: Thông tin
+        document.getElementById('mp-pane-info').innerHTML = `
+            <div class="mp-info-grid">
+                <div class="mp-info-item"><div class="mp-info-label">ID</div>
+                    <div class="mp-info-value">${m.id}</div></div>
+                <div class="mp-info-item"><div class="mp-info-label">Tên</div>
+                    <div class="mp-info-value">${m.NAME}</div></div>
+                <div class="mp-info-item"><div class="mp-info-label">Loại</div>
+                    <div class="mp-info-value">${typeBadge(m.type)}</div></div>
+                <div class="mp-info-item"><div class="mp-info-label">Hành tinh</div>
+                    <div class="mp-info-value">${planetLabel(m.planet_id)}</div></div>
+                <div class="mp-info-item"><div class="mp-info-label">Số zone</div>
+                    <div class="mp-info-value">${m.zones}</div></div>
+                <div class="mp-info-item"><div class="mp-info-label">Max player / zone</div>
+                    <div class="mp-info-value">${m.max_player}</div></div>
+                <div class="mp-info-item"><div class="mp-info-label">Tile ID</div>
+                    <div class="mp-info-value">${m.tile_id ?? '—'}</div></div>
+                <div class="mp-info-item"><div class="mp-info-label">BG ID</div>
+                    <div class="mp-info-value">${m.bg_id ?? '—'}</div></div>
+                <div class="mp-info-item"><div class="mp-info-label">Mob trên map</div>
+                    <div class="mp-info-value">${mobs.length} loại</div></div>
+                <div class="mp-info-item"><div class="mp-info-label">NPC trên map</div>
+                    <div class="mp-info-value">${npcs.length} NPC</div></div>
+                <div class="mp-info-item"><div class="mp-info-label">Cổng dịch chuyển</div>
+                    <div class="mp-info-value">${wps.length} cổng</div></div>
+            </div>`;
+
+        // Pane: Mob
+        document.getElementById('mp-pane-mobs').innerHTML = mobs.length
+            ? `<div class="mp-section-title">👾 Danh sách mob (${mobs.length})</div>
+               <div class="mp-mob-list">${mobs.map((mb, i) => {
+                   const mobData = _mobCache[String(mb.tempId)] || {};
+                   const mobName = mobData.NAME || `Mob #${mb.tempId}`;
+                   return `
+                <div class="mp-mob-row" style="animation-delay:${i*40}ms">
+                    <div class="mp-mob-id">${mb.tempId}</div>
+                    <div class="mp-mob-info">
+                        <div class="mp-mob-name">${mobName}</div>
+                        <div class="mp-mob-meta">Lv.${mb.level} · HP: ${Number(mb.hp).toLocaleString('vi-VN')}</div>
+                    </div>
+                    <span class="mp-mob-coords">📍 ${mb.x}, ${mb.y}</span>
+                </div>`;
+               }).join('')}</div>`
+            : '<div class="mp-empty">Không có mob nào</div>';
+
+        // Pane: NPC
+        document.getElementById('mp-pane-npcs').innerHTML = npcs.length
+            ? `<div class="mp-section-title">🤖 Danh sách NPC (${npcs.length})</div>
+               <div class="mp-npc-list">${npcs.map((n, i) => {
+                   const npcData = _npcCache[String(n.id)] || {};
+                   const name    = npcData.NAME || `NPC #${n.id}`;
+                   const av      = npcData.avatar;
+                   return `
+                   <div class="mp-npc-row" style="animation-delay:${i*40}ms">
+                       <div class="mp-npc-avatar">
+                           ${av ? `<img src="/data/icon/x1/${av}.png" onerror="this.style.display='none'" />` : '🤖'}
+                       </div>
+                       <div class="mp-npc-info">
+                           <div class="mp-npc-name">${name}</div>
+                           <div class="mp-npc-id">ID: ${n.id}</div>
+                       </div>
+                       <span class="mp-npc-coords">📍 ${n.x}, ${n.y}</span>
+                   </div>`;
+               }).join('')}</div>`
+            : '<div class="mp-empty">Không có NPC nào</div>';
+
+        // Pane: Waypoints
+        document.getElementById('mp-pane-waypoints').innerHTML = wps.length
+            ? `<div class="mp-section-title">🚪 Cổng dịch chuyển (${wps.length})</div>
+               <div class="mp-wp-list">${wps.map((wp, i) => `
+                <div class="mp-wp-row" style="animation-delay:${i*40}ms">
+                    <div class="mp-wp-name">🚪 ${wp.name || '(không tên)'}</div>
+                    <div class="mp-wp-meta">
+                        <span class="mp-wp-tag mp-wp-tag-goto">→ Map #${wp.goMap} (${wp.goX},${wp.goY})</span>
+                        <span class="mp-wp-tag mp-wp-tag-coord">Vùng: (${wp.minX},${wp.minY}) → (${wp.maxX},${wp.maxY})</span>
+                        ${wp.isEnter   ? '<span class="mp-wp-tag mp-wp-tag-enter">Cổng vào nhà</span>' : ''}
+                        ${wp.isOffline ? '<span class="mp-wp-tag mp-wp-tag-offline">Map offline</span>' : ''}
+                    </div>
+                </div>`).join('')}</div>`
+            : '<div class="mp-empty">Không có cổng dịch chuyển</div>';
+
+        // Pane: Sửa
+        renderEditPane(m);
+
+        // Mở drawer — đã append vào body, position:fixed luôn đúng
+        drawer.classList.add('open');
+        drawer.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+
+        // Chuyển sang pane được chọn
+        switchPane(pane || 'info');
+    };
+
+    window.mpCloseDrawer = function() {
+        const drawer = document.getElementById('mp-drawer');
+        if (!drawer) return;
+        drawer.classList.remove('open');
+        drawer.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        _current = null;
+    };
+
+    /* ── Drawer tab switching ── */
+    function switchPane(pane) {
+        const drawer = document.getElementById('mp-drawer');
+        if (!drawer) return;
+        drawer.querySelectorAll('.mp-drawer-tab').forEach(b =>
+            b.classList.toggle('active', b.dataset.pane === pane)
+        );
+        drawer.querySelectorAll('.mp-pane').forEach(p =>
+            p.classList.toggle('active', p.id === `mp-pane-${pane}`)
+        );
+    }
+
+    document.addEventListener('click', e => {
+        const tab = e.target.closest('.mp-drawer-tab');
+        if (tab && document.getElementById('mp-drawer')?.classList.contains('open')) {
+            switchPane(tab.dataset.pane);
+        }
+    });
+
+    /* ── Edit pane ── */
+    function renderEditPane(m) {
+        const typeOpts = Object.entries(TYPE_LABELS).map(([v, t]) =>
+            `<option value="${v}"${Number(m.type)===Number(v)?' selected':''}>${t.icon} ${t.label}</option>`
+        ).join('');
+        const planetOpts = Object.entries(PLANET_LABELS).map(([v, p]) =>
+            `<option value="${v}"${Number(m.planet_id)===Number(v)?' selected':''}>${p.icon} ${p.label}</option>`
+        ).join('');
+
+        document.getElementById('mp-pane-edit').innerHTML = `
+            <div class="mp-form-grid">
+                <div class="mp-form-group">
+                    <label class="mp-form-label">Tên bản đồ</label>
+                    <input class="mp-form-input" id="mp-edit-name" value="${m.NAME || ''}" />
+                </div>
+                <div class="mp-form-group">
+                    <label class="mp-form-label">Loại map</label>
+                    <select class="mp-form-select" id="mp-edit-type">${typeOpts}</select>
+                </div>
+                <div class="mp-form-group">
+                    <label class="mp-form-label">Hành tinh</label>
+                    <select class="mp-form-select" id="mp-edit-planet">${planetOpts}</select>
+                </div>
+                <div class="mp-form-group">
+                    <label class="mp-form-label">Số zone</label>
+                    <input class="mp-form-input" id="mp-edit-zones" type="number" min="1" value="${m.zones ?? 8}" />
+                </div>
+                <div class="mp-form-group">
+                    <label class="mp-form-label">Max player / zone</label>
+                    <input class="mp-form-input" id="mp-edit-max" type="number" min="1" value="${m.max_player ?? 12}" />
+                </div>
+                <div class="mp-form-group">
+                    <label class="mp-form-label">Tile ID</label>
+                    <input class="mp-form-input" id="mp-edit-tile" type="number" value="${m.tile_id ?? 1}" />
+                </div>
+                <div class="mp-form-group">
+                    <label class="mp-form-label">BG ID</label>
+                    <input class="mp-form-input" id="mp-edit-bg" type="number" value="${m.bg_id ?? 0}" />
+                </div>
+                <div class="mp-form-group">
+                    <label class="mp-form-label">BG Type</label>
+                    <input class="mp-form-input" id="mp-edit-bgtype" type="number" value="${m.bg_type ?? 0}" />
+                </div>
+                <div class="mp-form-group full">
+                    <label class="mp-form-label">
+                        Mob (JSON)
+                        <button type="button" class="mp-json-fmt-btn" data-target="mp-edit-mobs">⬡ Format</button>
+                    </label>
+                    <textarea class="mp-form-textarea mp-json-area" id="mp-edit-mobs">${prettyJsonField(m.mobs)}</textarea>
+                </div>
+                <div class="mp-form-group full">
+                    <label class="mp-form-label">
+                        NPC (JSON)
+                        <button type="button" class="mp-json-fmt-btn" data-target="mp-edit-npcs">⬡ Format</button>
+                    </label>
+                    <textarea class="mp-form-textarea mp-json-area" id="mp-edit-npcs">${prettyJsonField(m.npcs)}</textarea>
+                </div>
+                <div class="mp-form-group full">
+                    <label class="mp-form-label">
+                        Waypoints (JSON)
+                        <button type="button" class="mp-json-fmt-btn" data-target="mp-edit-waypoints">⬡ Format</button>
+                    </label>
+                    <textarea class="mp-form-textarea mp-json-area" id="mp-edit-waypoints" style="min-height:130px">${prettyJsonField(m.waypoints)}</textarea>
+                </div>
+            </div>
+            <div class="mp-form-actions">
+                <button class="mp-save-btn" onclick="mpSave()">💾 Lưu thay đổi</button>
+                <button class="mp-cancel-btn" onclick="mpCloseDrawer()">Hủy</button>
+            </div>`;
+    }
+
+    /* ── Save ── */
+    window.mpSave = async function() {
+        if (!_current) return;
+        const payload = {
+            NAME:       document.getElementById('mp-edit-name').value,
+            type:       document.getElementById('mp-edit-type').value,
+            planet_id:  document.getElementById('mp-edit-planet').value,
+            zones:      document.getElementById('mp-edit-zones').value,
+            max_player: document.getElementById('mp-edit-max').value,
+            tile_id:    document.getElementById('mp-edit-tile').value,
+            bg_id:      document.getElementById('mp-edit-bg').value,
+            bg_type:    document.getElementById('mp-edit-bgtype').value,
+            mobs:       compactToDbFormat(document.getElementById('mp-edit-mobs').value),
+            npcs:       compactToDbFormat(document.getElementById('mp-edit-npcs').value),
+            waypoints:  compactToDbFormat(document.getElementById('mp-edit-waypoints').value),
+            data:       _current.data || '[]',
+        };
+        try {
+            const res  = await fetch(`/api/maps/${_current.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Cập nhật cache local
+                Object.assign(_current, payload);
+                const idx = _all.findIndex(m => Number(m.id) === Number(_current.id));
+                if (idx >= 0) Object.assign(_all[idx], payload);
+                toast('Đã lưu bản đồ!', 'success');
+                mpCloseDrawer();
+                applyFilter();
+            } else {
+                toast('Lưu thất bại: ' + (data.message || ''), 'error');
+            }
+        } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+    };
+
+    /* ── Delete ── */
+    window.mpDelete = async function(id) {
+        const m = _all.find(x => Number(x.id) === Number(id));
+        if (!m || !confirm(`Xóa bản đồ "${m.NAME}" (ID: ${id})?`)) return;
+        try {
+            const res  = await fetch(`/api/maps/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                _all      = _all.filter(x => Number(x.id) !== Number(id));
+                _filtered = _filtered.filter(x => Number(x.id) !== Number(id));
+                const badge = document.getElementById('mp-total-badge');
+                if (badge) badge.textContent = 'Tổng: ' + _all.length;
+                toast('Đã xóa!', 'success');
+                renderChips(); renderTable(); renderPagination();
+            } else { toast('Xóa thất bại!', 'error'); }
+        } catch (e) { toast('Lỗi: ' + e.message, 'error'); }
+    };
+
+    /* ── Add map (mở drawer trống) ── */
+    document.addEventListener('click', e => {
+        if (e.target.id !== 'mp-add-btn') return;
+        _current = { id: null, NAME:'', type:0, planet_id:0, zones:8, max_player:12,
+                     tile_id:1, bg_id:0, bg_type:0, data:'[]', mobs:'[]', npcs:'[]', waypoints:'[]' };
+        document.getElementById('mp-drawer-title').textContent = 'Thêm bản đồ mới';
+        document.getElementById('mp-drawer-sub').textContent   = '';
+        ['info','mobs','npcs','waypoints'].forEach(p =>
+            { document.getElementById(`mp-pane-${p}`).innerHTML = '<div class="mp-empty">Điền thông tin rồi lưu</div>'; }
+        );
+        renderEditPane(_current);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+            const drawer = getOrCreateDrawer();
+            drawer.classList.add('open');
+            drawer.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            switchPane('edit');
+        }, 0);
+    });
+
+    // Override save cho trường hợp thêm mới
+    const _origSave = window.mpSave;
+    window.mpSave = async function() {
+        if (_current && _current.id === null) {
+            const payload = {
+                NAME:       document.getElementById('mp-edit-name').value,
+                type:       document.getElementById('mp-edit-type').value,
+                planet_id:  document.getElementById('mp-edit-planet').value,
+                zones:      document.getElementById('mp-edit-zones').value,
+                max_player: document.getElementById('mp-edit-max').value,
+                tile_id:    document.getElementById('mp-edit-tile').value,
+                bg_id:      document.getElementById('mp-edit-bg').value,
+                bg_type:    document.getElementById('mp-edit-bgtype').value,
+                mobs:       compactToDbFormat(document.getElementById('mp-edit-mobs').value),
+                npcs:       compactToDbFormat(document.getElementById('mp-edit-npcs').value),
+                waypoints:  compactToDbFormat(document.getElementById('mp-edit-waypoints').value),
+            };
+            payload.data = `[${payload.type},${payload.planet_id},${payload.bg_type},${payload.tile_id},${payload.bg_id}]`;
+            try {
+                const res  = await fetch('/api/maps', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    toast('Đã thêm bản đồ!', 'success');
+                    mpCloseDrawer(); await mpLoad();
+                } else { toast('Thêm thất bại: ' + (data.message || ''), 'error'); }
+            } catch (e) { toast('Lỗi: ' + e.message, 'error'); }
+            return;
+        }
+        _origSave();
+    };
+
+    /* ── Search & filter events ── */
+    let _searchTimer = null;
+    document.addEventListener('input', e => {
+        if (e.target.id === 'mp-search') {
+            clearTimeout(_searchTimer);
+            _searchTimer = setTimeout(() => { _searchQ = e.target.value.trim(); applyFilter(); }, 200);
+        }
+    });
+    document.addEventListener('change', e => {
+        if (e.target.id === 'mp-filter-planet') { _filterPlanet = e.target.value; applyFilter(); }
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') mpCloseDrawer();
+    });
+
+    /* ── Intercept renderTable chung ── */
+    const _origRender = window.renderTable;
+    window.renderTable = function(key, rows, cols) {
+        if (key === 'maps') return;
+        return _origRender ? _origRender(key, rows, cols) : undefined;
+    };
+
+    /* ── Load khi tab được kích hoạt ── */
+    document.addEventListener('dashboardActivated', () => {});
+    if (document.getElementById('maps')?.classList.contains('active')) mpLoad();
+    document.addEventListener('click', e => {
+        if (e.target.closest('.menu-item')?.dataset?.target === 'maps' && !_all.length) mpLoad();
+    });
+
+})();
+</script>

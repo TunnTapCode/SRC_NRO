@@ -252,14 +252,20 @@ public final class AdminApiServer {
                     handleCrud(exchange, method, idParam, payload, "item_shop_option", "id", "item_shop_id", "option_id", "param");
                 }
                 return;
+            case "item-options":
+                // GET /api/item-options → toàn bộ { id, NAME } từ bảng item_option_template
+                handleCrud(exchange, method, idParam, payload, "item_option_template", "id", "NAME");
+                return;
+            case "mobs":
+                handleCrud(exchange, method, idParam, payload, "mob_template", "id", "TYPE", "NAME", "hp");
+                return;
             case "npcs":
                 handleCrud(exchange, method, idParam, payload, "npc_template", "id", "NAME", "head", "body", "leg", "avatar");
                 return;
             case "maps":
-                handleCrud(exchange, method, idParam, payload, "map_template", "id", "NAME", "zones", "max_player", "data", "type", "planet_id", "mobs", "npcs");
-                return;
-                // Trả về danh sách { id, NAME } từ bảng item_option_template
-                handleCrud(exchange, method, idParam, payload, "item_option_template", "id", "NAME");
+                handleCrud(exchange, method, idParam, payload, "map_template", "id",
+                    "NAME", "zones", "max_player", "type", "planet_id",
+                    "bg_type", "tile_id", "bg_id", "data", "waypoints", "mobs", "npcs");
                 return;
             case "head-avatars":
                 // Trả về map { head_id: avatar_id } dạng flat JSON object để frontend tra nhanh
