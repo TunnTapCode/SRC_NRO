@@ -51,3 +51,43 @@ function formatStatus(value) {
     const colorMap = { active: 'success', locked: 'warning', banned: 'danger' };
     return `<span class="badge ${colorMap[value] || 'success'}">${value}</span>`;
 }
+
+/**
+ * Toast notification
+ * @param {string} msg     - Nội dung
+ * @param {'success'|'error'|'warning'|'info'} type
+ * @param {number} duration - ms, default 5000
+ */
+function toast(msg, type = 'info', duration = 5500) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+    const titles = { success: 'Thành công', error: 'Lỗi', warning: 'Cảnh báo', info: 'Thông báo' };
+
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.innerHTML = `
+        <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+        <div class="toast-body">
+            <div class="toast-title">${titles[type] || 'Thông báo'}</div>
+            <div class="toast-msg">${msg}</div>
+        </div>
+        <button class="toast-close" aria-label="Đóng">✕</button>
+        <div class="toast-progress" style="animation-duration:${duration}ms"></div>
+    `;
+
+    container.appendChild(el);
+
+    // Đóng khi nhấn ✕
+    el.querySelector('.toast-close').addEventListener('click', () => dismiss(el));
+
+    // Auto dismiss
+    const timer = setTimeout(() => dismiss(el), duration);
+
+    function dismiss(node) {
+        clearTimeout(timer);
+        node.classList.add('hide');
+        node.addEventListener('animationend', () => node.remove(), { once: true });
+    }
+}

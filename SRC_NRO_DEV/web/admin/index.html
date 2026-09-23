@@ -28,6 +28,7 @@
                     <h1>SRC NRO</h1>
                     <small>Admin Panel</small>
                 </div>
+                <button id="sidebar-close-btn" class="sidebar-close-btn" aria-label="Đóng sidebar">✕</button>
             </div>
 
             <nav class="menu">
@@ -53,7 +54,11 @@
                 </button>
                 <button class="menu-item" data-target="shops">
                     <span class="menu-icon">🏪</span>
-                    <span class="menu-label">Shop vật phẩm</span>
+                    <span class="menu-label">Cửa hàng</span>
+                </button>
+                <button class="menu-item" data-target="maps">
+                    <span class="menu-icon">🗺️</span>
+                    <span class="menu-label">Bản đồ</span>
                 </button>
                 <button class="menu-item" data-target="npcs">
                     <span class="menu-icon">🤖</span>
@@ -87,6 +92,7 @@
     </div>
 
     <!-- ── Modal dùng chung cho mọi module ── -->
+    <div id="toast-container"></div>
     <div id="entity-modal" class="modal hidden" aria-hidden="true">
         <div class="modal-backdrop" data-close="true"></div>
         <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">

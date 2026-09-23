@@ -1,33 +1,422 @@
 <link rel="stylesheet" href="/admin/css/items.css" />
 
 <section class="module" id="items">
-    <div class="card">
-        <div class="card-head">
-            <h3>Danh sách vật phẩm</h3>
+
+    <!-- ══════════════════════════════════════
+         BANNER
+    ══════════════════════════════════════════ -->
+    <div class="it-banner">
+        <div class="it-banner-left">
+            <img class="it-banner-avatar" src="/data/effect/x1/ImgEffect_2.png"
+                 onerror="this.src=''" alt="banner" />
+            <div class="it-banner-info">
+                <h2 class="it-banner-title">
+                    Item
+                    <span class="it-badge" id="items-total-badge">Tổng: 0</span>
+                </h2>
+                <div class="it-banner-actions">
+                    <button class="it-btn it-btn-panel" onclick="showTab('dashboard')">
+                        🏠 Go Panel
+                    </button>
+                    <button class="it-btn it-btn-refresh" onclick="loadTableData('items')">
+                        🔄 Làm Mới
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>TYPE</th>
-                        <th>NAME</th>
-                        <th>Description</th>
-                        <th>Level</th>
-                        <th>Icon</th>
-                        <th>Part</th>
-                        <th>Up to up</th>
-                        <th>Power req</th>
-                        <th>Gold</th>
-                        <th>Gem</th>
-                        <th>Head</th>
-                        <th>Body</th>
-                        <th>Leg</th>
-                        <th>Hành động</th>
-                    </tr>
-                </thead>
-                <tbody id="items-table"></tbody>
-            </table>
+        <div class="it-banner-photos">
+            <div class="it-photo it-photo-1"></div>
+            <div class="it-photo it-photo-2"></div>
+            <div class="it-photo it-photo-3"></div>
         </div>
     </div>
+
+    <!-- ══════════════════════════════════════
+         TOOLBAR: Xem nhanh + Lưu + Pagination
+    ══════════════════════════════════════════ -->
+    <div class="it-toolbar">
+        <div class="it-toolbar-left">
+            <button class="it-tool-btn it-tool-preview" id="it-preview-btn">
+                🔮 Xem Nhanh Item
+            </button>
+            <button class="it-tool-btn it-tool-save" id="it-save-btn">
+                💾 Lưu Dữ Liệu
+            </button>
+        </div>
+        <div class="it-pagination" id="it-pagination"></div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         TABLE
+    ══════════════════════════════════════════ -->
+    <div class="it-table-card">
+        <table class="it-table">
+            <thead>
+                <tr>
+                    <th class="it-col-id">ID</th>
+                    <th class="it-col-icon">Icon</th>
+                    <th class="it-col-type">Type</th>
+                    <th class="it-col-gen">Gen</th>
+                    <th class="it-col-name">Tên</th>
+                    <th class="it-col-desc">Mô Tả</th>
+                    <th class="it-col-iconid">IconID</th>
+                    <th class="it-col-hbl">H</th>
+                    <th class="it-col-hbl">B</th>
+                    <th class="it-col-hbl">L</th>
+                    <th class="it-col-act">Hành động</th>
+                </tr>
+                <!-- Filter row -->
+                <tr class="it-filter-row" id="it-filter-row">
+                    <td><input class="it-filter" data-col="id"          placeholder="ID" /></td>
+                    <td></td>
+                    <td><input class="it-filter" data-col="TYPE"        placeholder="Type" /></td>
+                    <td><input class="it-filter" data-col="gender"      placeholder="Gen" /></td>
+                    <td><input class="it-filter" data-col="NAME"        placeholder="Tên" /></td>
+                    <td><input class="it-filter" data-col="description" placeholder="Mô tả" /></td>
+                    <td><input class="it-filter" data-col="icon_id"     placeholder="IconID" /></td>
+                    <td><input class="it-filter" data-col="head"        placeholder="H" /></td>
+                    <td><input class="it-filter" data-col="body"        placeholder="B" /></td>
+                    <td><input class="it-filter" data-col="leg"         placeholder="L" /></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody id="items-table"></tbody>
+        </table>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         PREVIEW MODAL (Xem nhanh item)
+    ══════════════════════════════════════════ -->
+    <div id="it-preview-modal" class="it-modal-overlay it-hidden">
+        <div class="it-modal-dialog">
+            <div class="it-modal-header">
+                <h3>🔮 Xem Nhanh Item</h3>
+                <div class="it-modal-search-wrap">
+                    <span>🔍</span>
+                    <input id="it-modal-search" type="text" placeholder="Tìm tên hoặc ID..." />
+                </div>
+                <button class="it-modal-close" id="it-modal-close">✕</button>
+            </div>
+            <div id="it-modal-grid" class="it-modal-grid"></div>
+        </div>
+    </div>
+
 </section>
+
+<!-- ══════════════════════════════════════
+     SCRIPT: Items custom renderer
+══════════════════════════════════════════ -->
+<script>
+(function () {
+
+    const PAGE_SIZE = 20;
+    let _allRows  = [];
+    let _filtered = [];
+    let _page     = 1;
+    let _dirty    = {};   // { id: { ...changedFields } }
+    let _filters  = {};   // { col: value }
+    let _filterTimer = null;
+
+    /* ══════════════════════
+       INTERCEPT loadTableData
+    ══════════════════════ */
+    const _origLoad = window.loadTableData;
+    window.loadTableData = async function (key) {
+        if (key !== 'items') return _origLoad ? _origLoad(key) : undefined;
+
+        // Gọi API
+        try {
+            const rows = await window.apiRequest('items', { method: 'GET' });
+            state.data['items'] = Array.isArray(rows) ? rows : [];
+        } catch (_) { state.data['items'] = []; }
+
+        window.renderItemsCustom(state.data['items']);
+    };
+
+    /* ══════════════════════
+       MAIN RENDER
+    ══════════════════════ */
+    window.renderItemsCustom = function (rows) {
+        _allRows  = rows || [];
+        _dirty    = {};
+        _filters  = {};
+        _filtered = _allRows.slice();
+        _page     = 1;
+
+        // Reset filter inputs
+        document.querySelectorAll('.it-filter').forEach(inp => inp.value = '');
+
+        // Badge tổng
+        const badge = document.getElementById('items-total-badge');
+        if (badge) badge.textContent = 'Tổng: ' + _allRows.length;
+
+        renderPage();
+    };
+
+    /* ══════════════════════
+       RENDER PAGE
+    ══════════════════════ */
+    function renderPage() {
+        const tbody = document.getElementById('items-table');
+        if (!tbody) return;
+
+        const start = (_page - 1) * PAGE_SIZE;
+        const rows  = _filtered.slice(start, start + PAGE_SIZE);
+
+        if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:24px;color:#94a3b8">Không có dữ liệu</td></tr>`;
+            renderPagination();
+            return;
+        }
+
+        tbody.innerHTML = rows.map(row => {
+            const d = _dirty[row.id] || {};
+            const v = f => d[f] !== undefined ? d[f] : (row[f] ?? '');
+            const isDirty = !!_dirty[row.id];
+            const iconId  = v('icon_id');
+
+            return `
+            <tr class="${isDirty ? 'it-row-dirty' : ''}" data-id="${row.id}">
+                <td class="it-td-id">${row.id}</td>
+                <td class="it-td-icon">
+                    <img id="it-icon-${row.id}"
+                         src="/data/icon/x4/${iconId}.png"
+                         onerror="this.style.display='none'"
+                         alt="item-${iconId}" />
+                </td>
+                <td><input class="it-cell" data-id="${row.id}" data-field="TYPE"        value="${v('TYPE')}" /></td>
+                <td><input class="it-cell" data-id="${row.id}" data-field="gender"      value="${v('gender')}" /></td>
+                <td><input class="it-cell it-cell-name" data-id="${row.id}" data-field="NAME"  value="${v('NAME')}" /></td>
+                <td><input class="it-cell it-cell-desc" data-id="${row.id}" data-field="description" value="${v('description')}" /></td>
+                <td><input class="it-cell it-cell-sm"   data-id="${row.id}" data-field="icon_id"
+                           value="${v('icon_id')}"
+                           onchange="window.itUpdateIcon(${row.id}, this.value)" /></td>
+                <td><input class="it-cell it-cell-sm"   data-id="${row.id}" data-field="head"  value="${v('head')}" /></td>
+                <td><input class="it-cell it-cell-sm"   data-id="${row.id}" data-field="body"  value="${v('body')}" /></td>
+                <td><input class="it-cell it-cell-sm"   data-id="${row.id}" data-field="leg"   value="${v('leg')}" /></td>
+                <td class="it-td-act">
+                    <button class="it-act-btn it-act-save  ${isDirty ? '' : 'it-act-disabled'}"
+                            onclick="window.itSaveRow(${row.id})" title="Lưu">💾</button>
+                    <button class="it-act-btn it-act-delete"
+                            onclick="window.itDeleteRow(${row.id})" title="Xóa">🗑</button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        // Bind input change
+        tbody.querySelectorAll('.it-cell').forEach(inp => {
+            inp.addEventListener('input', () => {
+                const id    = Number(inp.dataset.id);
+                const field = inp.dataset.field;
+                if (!_dirty[id]) _dirty[id] = {};
+                _dirty[id][field] = inp.value;
+                // Highlight row + enable save btn
+                const tr = inp.closest('tr');
+                if (tr) tr.classList.add('it-row-dirty');
+                const saveBtn = tr && tr.querySelector('.it-act-save');
+                if (saveBtn) saveBtn.classList.remove('it-act-disabled');
+            });
+        });
+
+        renderPagination();
+    }
+
+    /* ══════════════════════
+       PAGINATION
+    ══════════════════════ */
+    function renderPagination() {
+        const el = document.getElementById('it-pagination');
+        if (!el) return;
+        const total = Math.max(1, Math.ceil(_filtered.length / PAGE_SIZE));
+        let html = '';
+        // Hiện tối đa 7 trang xung quanh trang hiện tại
+        const range = 3;
+        for (let i = 1; i <= total; i++) {
+            if (i === 1 || i === total || (i >= _page - range && i <= _page + range)) {
+                html += `<button class="it-page-btn ${i === _page ? 'active' : ''}"
+                                 onclick="window.itGoPage(${i})">${i}</button>`;
+            } else if (i === _page - range - 1 || i === _page + range + 1) {
+                html += `<span class="it-page-ellipsis">…</span>`;
+            }
+        }
+        el.innerHTML = html;
+    }
+
+    window.itGoPage = function (p) { _page = p; renderPage(); };
+
+    /* ══════════════════════
+       FILTER
+    ══════════════════════ */
+    function applyFilters() {
+        _filtered = _allRows.filter(row => {
+            return Object.entries(_filters).every(([col, q]) => {
+                if (!q) return true;
+                const val = String(row[col] ?? '').toLowerCase();
+                return val.includes(q.toLowerCase());
+            });
+        });
+        _page = 1;
+        renderPage();
+    }
+
+    document.addEventListener('input', function (e) {
+        if (!e.target.classList.contains('it-filter')) return;
+        const col = e.target.dataset.col;
+        _filters[col] = e.target.value.trim();
+        clearTimeout(_filterTimer);
+        _filterTimer = setTimeout(applyFilters, 200);
+    });
+
+    /* ══════════════════════
+       UPDATE ICON PREVIEW
+    ══════════════════════ */
+    window.itUpdateIcon = function (id, val) {
+        const img = document.getElementById(`it-icon-${id}`);
+        if (!img) return;
+        img.style.display = '';
+        img.src = `/data/icon/x4/${val}.png`;
+    };
+
+    /* ══════════════════════
+       SAVE ROW
+    ══════════════════════ */
+    window.itSaveRow = async function (id) {
+        const changes = _dirty[id];
+        if (!changes || Object.keys(changes).length === 0) return;
+
+        // Merge với row gốc để PUT đầy đủ fields
+        const original = _allRows.find(r => Number(r.id) === Number(id)) || {};
+        const payload  = { ...original, ...changes };
+        delete payload.id;
+
+        try {
+            const res  = await fetch(`/api/items/${id}`, {
+                method:  'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Cập nhật cache local
+                const idx = _allRows.findIndex(r => Number(r.id) === Number(id));
+                if (idx >= 0) _allRows[idx] = { ..._allRows[idx], ...changes };
+                delete _dirty[id];
+
+                // Bỏ highlight row
+                const tr = document.querySelector(`tr[data-id="${id}"]`);
+                if (tr) {
+                    tr.classList.remove('it-row-dirty');
+                    const btn = tr.querySelector('.it-act-save');
+                    if (btn) btn.classList.add('it-act-disabled');
+                    // Flash xanh
+                    tr.classList.add('it-row-saved');
+                    setTimeout(() => tr.classList.remove('it-row-saved'), 1200);
+                }
+            } else {
+                toast('Lưu thất bại: ' + (data.message || 'Lỗi không xác định'), 'error');
+            }
+        } catch (e) {
+            toast('Lỗi kết nối: ' + e.message, 'error');
+        }
+    };
+
+    /* ══════════════════════
+       SAVE ALL DIRTY
+    ══════════════════════ */
+    document.addEventListener('click', async function (e) {
+        if (e.target.id !== 'it-save-btn') return;
+        const ids = Object.keys(_dirty);
+        if (ids.length === 0) { toast('Không có thay đổi nào để lưu.', 'warning'); return; }
+        if (!confirm(`Lưu ${ids.length} dòng đã thay đổi?`)) return;
+        for (const id of ids) await window.itSaveRow(Number(id));
+        toast(`Đã lưu ${ids.length} dòng thành công.`, 'success');
+    });
+
+    /* ══════════════════════
+       DELETE ROW
+    ══════════════════════ */
+    window.itDeleteRow = async function (id) {
+        if (!confirm(`Xóa item ID ${id}?`)) return;
+        try {
+            const res  = await fetch(`/api/items/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                _allRows  = _allRows.filter(r => Number(r.id) !== Number(id));
+                _filtered = _filtered.filter(r => Number(r.id) !== Number(id));
+                delete _dirty[id];
+                const badge = document.getElementById('items-total-badge');
+                if (badge) badge.textContent = 'Tổng: ' + _allRows.length;
+                toast(`Đã xóa item ID ${id}.`, 'success');
+                renderPage();
+            } else {
+                toast('Xóa thất bại: ' + (data.message || ''), 'error');
+            }
+        } catch (e) {
+            toast('Lỗi kết nối: ' + e.message, 'error');
+        }
+    };
+
+    /* ══════════════════════
+       PREVIEW MODAL
+    ══════════════════════ */
+    let _modalTimer = null;
+
+    function openPreviewModal() {
+        const modal = document.getElementById('it-preview-modal');
+        if (!modal) return;
+        renderModalGrid('');
+        modal.classList.remove('it-hidden');
+        document.body.style.overflow = 'hidden';
+        const inp = document.getElementById('it-modal-search');
+        if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 80); }
+    }
+
+    function closePreviewModal() {
+        const modal = document.getElementById('it-preview-modal');
+        if (!modal) return;
+        modal.classList.add('it-hidden');
+        document.body.style.overflow = '';
+    }
+
+    function renderModalGrid(q) {
+        const grid = document.getElementById('it-modal-grid');
+        if (!grid) return;
+        const query = q.trim().toLowerCase();
+        const list  = query
+            ? _allRows.filter(r => (r.NAME||'').toLowerCase().includes(query) || String(r.id).includes(query))
+            : _allRows;
+
+        if (list.length === 0) {
+            grid.innerHTML = `<div class="it-modal-empty">Không tìm thấy</div>`;
+            return;
+        }
+
+        grid.innerHTML = list.map(r => `
+            <div class="it-modal-item" title="${r.NAME} (ID: ${r.id})">
+                <div class="it-modal-icon">
+                    <img src="/data/icon/x4/${r.icon_id ?? r.id}.png"
+                         onerror="this.style.display='none'" alt="${r.NAME}" />
+                </div>
+                <div class="it-modal-name">${r.NAME}</div>
+                <div class="it-modal-id">ID: ${r.id}</div>
+            </div>`).join('');
+    }
+
+    document.addEventListener('click', function (e) {
+        if (e.target.id === 'it-preview-btn')  { openPreviewModal(); return; }
+        if (e.target.id === 'it-modal-close')  { closePreviewModal(); return; }
+        if (e.target.id === 'it-preview-modal'){ closePreviewModal(); return; }
+    });
+
+    document.addEventListener('input', function (e) {
+        if (e.target.id !== 'it-modal-search') return;
+        clearTimeout(_modalTimer);
+        _modalTimer = setTimeout(() => renderModalGrid(e.target.value), 180);
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closePreviewModal();
+    });
+
+})();
+</script>

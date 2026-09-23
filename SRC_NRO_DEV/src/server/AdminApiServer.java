@@ -27,33 +27,44 @@ import utils.Logger;
 
 public final class AdminApiServer {
 
-    private static final int PORT = 8081;
+    private static final int START_PORT = 8080;
     private static HttpServer server;
+    private static int actualPort = -1;
     private static final Pattern JSON_VALUE_PATTERN = Pattern.compile("\\\"([^\\\"]+)\\\"\\s*:\\s*(\\\"(?:\\\\.|[^\\\"])*\\\"|\\d+|true|false|null)");
 
     private AdminApiServer() {
+    }
+
+    public static int getPort() {
+        return actualPort;
     }
 
     public static void start() {
         if (server != null) {
             return;
         }
-        try {
-            server = HttpServer.create(new InetSocketAddress(PORT), 0);
-            server.createContext("/api", AdminApiServer::handleApi);
-            server.createContext("/admin", AdminApiServer::handleAdmin);
-            server.createContext("/admin/", AdminApiServer::handleAdmin);
-            server.createContext("/data", AdminApiServer::handleData);
-            server.createContext("/data/", AdminApiServer::handleData);
-            server.setExecutor(Executors.newCachedThreadPool(runnable -> {
-                Thread thread = new Thread(runnable, "Admin-API");
-                return thread;
-            }));
-            server.start();
-            Logger.success("Admin API: http://127.0.0.1:" + PORT + "/admin\n");
-        } catch (IOException e) {
-            Logger.logException(AdminApiServer.class, e);
+        for (int port = START_PORT; port < START_PORT + 10; port++) {
+            try {
+                server = HttpServer.create(new InetSocketAddress(port), 0);
+                actualPort = port;
+                server.createContext("/api", AdminApiServer::handleApi);
+                server.createContext("/admin", AdminApiServer::handleAdmin);
+                server.createContext("/admin/", AdminApiServer::handleAdmin);
+                server.createContext("/data", AdminApiServer::handleData);
+                server.createContext("/data/", AdminApiServer::handleData);
+                server.setExecutor(Executors.newCachedThreadPool(runnable -> {
+                    Thread thread = new Thread(runnable, "Admin-API");
+                    return thread;
+                }));
+                server.start();
+                Logger.success("Admin API: http://127.0.0.1:" + port + "/admin\n");
+                return;
+            } catch (IOException e) {
+                server = null;
+                actualPort = -1;
+            }
         }
+        Logger.error("Khong the khoi dong Admin API tu cong " + START_PORT + " den " + (START_PORT + 9) + "\n");
     }
 
     private static void handleAdmin(HttpExchange exchange) throws IOException {
@@ -196,8 +207,59 @@ public final class AdminApiServer {
             case "shops":
                 handleCrud(exchange, method, idParam, payload, "shop", "id", "npc_id", "tag_name", "type_shop");
                 return;
+            case "tab-shops":
+                // GET /api/tab-shops?shop_id=1 → tabs của shop đó; không có param → tất cả
+                if ("GET".equalsIgnoreCase(method)) {
+                    String shopIdParam = exchange.getRequestURI().getQuery();
+                    String shopId = null;
+                    if (shopIdParam != null) {
+                        for (String part : shopIdParam.split("&")) {
+                            if (part.startsWith("shop_id=")) shopId = part.substring(8);
+                        }
+                    }
+                    sendJson(exchange, 200, queryRowsWhere("tab_shop", "id", shopId != null ? "shop_id" : null, shopId));
+                } else {
+                    handleCrud(exchange, method, idParam, payload, "tab_shop", "id", "shop_id", "NAME");
+                }
+                return;
+            case "item-shops":
+                // GET /api/item-shops?tab_id=1 → items của tab đó
+                if ("GET".equalsIgnoreCase(method)) {
+                    String tabIdParam = exchange.getRequestURI().getQuery();
+                    String tabId = null;
+                    if (tabIdParam != null) {
+                        for (String part : tabIdParam.split("&")) {
+                            if (part.startsWith("tab_id=")) tabId = part.substring(7);
+                        }
+                    }
+                    sendJson(exchange, 200, queryRowsWhere("item_shop", "id", tabId != null ? "tab_id" : null, tabId));
+                } else {
+                    handleCrud(exchange, method, idParam, payload, "item_shop", "id", "tab_id", "temp_id", "is_new", "is_sell", "type_sell", "cost", "icon_spec");
+                }
+                return;
+            case "item-shop-options":
+                // GET /api/item-shop-options?item_shop_id=1
+                if ("GET".equalsIgnoreCase(method)) {
+                    String itemShopIdParam = exchange.getRequestURI().getQuery();
+                    String itemShopId = null;
+                    if (itemShopIdParam != null) {
+                        for (String part : itemShopIdParam.split("&")) {
+                            if (part.startsWith("item_shop_id=")) itemShopId = part.substring(13);
+                        }
+                    }
+                    sendJson(exchange, 200, queryRowsWhere("item_shop_option", "id", itemShopId != null ? "item_shop_id" : null, itemShopId));
+                } else {
+                    handleCrud(exchange, method, idParam, payload, "item_shop_option", "id", "item_shop_id", "option_id", "param");
+                }
+                return;
             case "npcs":
                 handleCrud(exchange, method, idParam, payload, "npc_template", "id", "NAME", "head", "body", "leg", "avatar");
+                return;
+            case "maps":
+                handleCrud(exchange, method, idParam, payload, "map_template", "id", "NAME", "zones", "max_player", "data", "type", "planet_id", "mobs", "npcs");
+                return;
+                // Trả về danh sách { id, NAME } từ bảng item_option_template
+                handleCrud(exchange, method, idParam, payload, "item_option_template", "id", "NAME");
                 return;
             case "head-avatars":
                 // Trả về map { head_id: avatar_id } dạng flat JSON object để frontend tra nhanh
@@ -293,9 +355,36 @@ public final class AdminApiServer {
         return rows;
     }
 
+    /** Query với WHERE col = value tùy chọn, nếu filterCol null thì lấy tất cả */
+    private static List<Map<String, Object>> queryRowsWhere(String table, String primaryKey, String filterCol, String filterVal) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        String sql = "SELECT * FROM " + table
+                + (filterCol != null ? " WHERE " + filterCol + " = ?" : "")
+                + " ORDER BY " + primaryKey + " ASC";
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            if (filterCol != null && filterVal != null) {
+                statement.setInt(1, Integer.parseInt(filterVal));
+            }
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
+                        String col = resultSet.getMetaData().getColumnName(i);
+                        row.put(col, resultSet.getObject(i));
+                    }
+                    rows.add(row);
+                }
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+        return rows;
+    }
+
     /**
      * Query players với LEFT JOIN head_avatar để lấy avatar_id.
-     * Kết quả trả thêm field "avatar_id" — dùng load ảnh /data/icon/x1/{avatar_id}.png.
+     * Kết quả trả thêm field "avatar_id" — dùng load ảnh /data/icon/x4/{avatar_id}.png.
      * Nếu player.head không có trong head_avatar thì avatar_id = null.
      */
     private static List<Map<String, Object>> queryPlayers(String idParam) {
@@ -466,6 +555,7 @@ public final class AdminApiServer {
     private static void sendJson(HttpExchange exchange, int statusCode, List<Map<String, Object>> payload) throws IOException {
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
         String content = jsonFromList(payload);
+       
         send(exchange, statusCode, content.getBytes(StandardCharsets.UTF_8));
     }
 

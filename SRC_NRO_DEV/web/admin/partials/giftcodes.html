@@ -1,24 +1,714 @@
 <link rel="stylesheet" href="/admin/css/giftcodes.css" />
 
 <section class="module" id="giftcodes">
-    <div class="card">
-        <div class="card-head">
-            <h3>Danh sách gift code</h3>
+
+    <!-- ══════════════════════════════════════
+         VIEW DANH SÁCH
+    ══════════════════════════════════════════ -->
+    <div id="gc-list-view">
+
+        <div class="mb-banner">
+            <div class="mb-left">
+                <div class="mb-avatar">🎁</div>
+                <div class="mb-info">
+                    <h2 class="mb-title">
+                        Gift Code
+                        <span class="mb-badge" id="giftcodes-total-badge">Tổng: 0</span>
+                    </h2>
+                    <div class="mb-actions">
+                        <button class="mb-btn mb-btn-primary" onclick="showTab('dashboard')">🏠 Go Panel</button>
+                        <button class="mb-btn mb-btn-refresh" onclick="loadTableData('giftcodes')">🔄 Làm Mới</button>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-photos">
+                <div class="mb-photo mb-photo-1"></div>
+                <div class="mb-photo mb-photo-2"></div>
+                <div class="mb-photo mb-photo-3"></div>
+            </div>
         </div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Code</th>
-                        <th>Số lượng còn</th>
-                        <th>Detail</th>
-                        <th>Expired</th>
-                        <th>Hành động</th>
-                    </tr>
-                </thead>
-                <tbody id="giftcodes-table"></tbody>
-            </table>
+
+        <div class="card">
+            <div class="card-head">
+                <h3>Danh sách gift code</h3>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Code</th>
+                            <th>Số lượng còn</th>
+                            <th>Phần thưởng</th>
+                            <th>Expired</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="giftcodes-table"></tbody>
+                </table>
+            </div>
         </div>
     </div>
+
+    <!-- ══════════════════════════════════════
+         VIEW TẠO GIFTCODE
+    ══════════════════════════════════════════ -->
+    <div id="gc-create-view" class="gc-hidden">
+
+        <!-- Header -->
+        <div class="gc-header">
+            <div class="gc-header-left">
+                <button class="gc-btn gc-btn-back" id="gc-back-btn">← Trở về</button>
+                <button class="gc-btn gc-btn-reset" id="gc-reset-btn">🔄 Làm mới</button>
+            </div>
+            <h2 class="gc-title">TẠO GIFTCODE </h2>
+            <div class="gc-header-right"></div>
+        </div>
+
+        <!-- Danh sách item cards -->
+        <div id="gc-items-container"></div>
+
+        <!-- Preview -->
+        <div class="gc-preview-box">
+            <div class="gc-preview-label">🔍 XEM VẬT PHẨM TRONG CODE:</div>
+            <div id="gc-preview-content" class="gc-preview-content"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="gc-footer">
+            <button class="gc-btn gc-btn-add-item" id="gc-add-item-btn">+ THÊM VẬT PHẨM</button>
+            <button class="gc-btn gc-btn-export" id="gc-export-btn">XUẤT GIFTCODE</button>
+        </div>
+
+    </div>
+
 </section>
+
+<!-- ══════════════════════════════════════
+     POPUP CHỌN VẬT PHẨM
+══════════════════════════════════════════ -->
+<div id="gc-item-picker" class="gc-picker-overlay gc-hidden" aria-modal="true">
+    <div class="gc-picker-dialog">
+        <div class="gc-picker-header">
+            <h3 class="gc-picker-title">🎒 Chọn vật phẩm</h3>
+            <div class="gc-picker-search-wrap">
+                <span class="gc-picker-search-icon">🔍</span>
+                <input id="gc-picker-search" class="gc-picker-search"
+                       type="text" placeholder="Tìm tên vật phẩm..." autocomplete="off" />
+            </div>
+            <button class="gc-picker-close" id="gc-picker-close">✕</button>
+        </div>
+        <div id="gc-picker-grid" class="gc-picker-grid"></div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCRIPT: Parse & Render bảng danh sách
+══════════════════════════════════════════ -->
+<script>
+(function () {
+
+    /* ── Parse detail (sửa lỗi DB thiếu ":") ── */
+    function parseGcDetail(raw) {
+        if (!raw) return [];
+        try {
+            let str = typeof raw === 'string' ? raw : JSON.stringify(raw);
+            str = str.replace(/"(\s*)\[/g, function (match, space, offset) {
+                if (str[offset - 1] === ':') return match;
+                return '"' + space + ':[';
+            });
+            let parsed = JSON.parse(str);
+            if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+            if (!Array.isArray(parsed)) return [];
+            return parsed.map(e => ({
+                item_id:  Number(e.id ?? e.item_id ?? 0),
+                quantity: Number(e.quantity ?? e.count ?? 1),
+            })).filter(e => e.item_id > 0);
+        } catch (_) { return []; }
+    }
+
+    /* ── Render slots icon ── */
+    function renderGcSlots(items) {
+        if (!items || items.length === 0)
+            return `<span class="gc-no-item">Không có vật phẩm</span>`;
+        const cache = window._itemCache || {};
+        return `<div class="gc-slots">` + items.map(it => {
+            const tmpl   = cache[String(it.item_id)] || {};
+            const iconId = tmpl.icon_id ?? it.item_id;
+            const name   = tmpl.NAME || `#${it.item_id}`;
+            const count  = it.quantity > 1 ? `<span class="gc-slot-count">x${it.quantity}</span>` : '';
+            return `
+            <div class="gc-slot" title="${name}${it.quantity > 1 ? ' x' + it.quantity : ''}">
+                <img src="/data/icon/x4/${iconId}.png" onerror="this.style.display='none'" alt="${name}" />
+                ${count}
+                <div class="gc-slot-tooltip">
+                    <b>${name}</b>
+                    ${it.quantity > 1 ? `<span>x${it.quantity}</span>` : ''}
+                </div>
+            </div>`;
+        }).join('') + `</div>`;
+    }
+
+    /* ── Ensure item cache ── */
+    async function ensureItemCache() {
+        if (window._itemCache) return;
+        try {
+            const list = await fetch('/api/items').then(r => r.json());
+            window._itemCache = {};
+            list.forEach(t => { window._itemCache[String(t.id)] = t; });
+        } catch (_) { window._itemCache = {}; }
+    }
+
+    /* ── Patch renderTable ── */
+    const _origRenderTable = window.renderTable;
+    if (typeof _origRenderTable === 'function') {
+        window.renderTable = function (key, rows, columns) {
+            if (key !== 'giftcodes') return _origRenderTable(key, rows, columns);
+            renderGiftcodesTable(rows, columns);
+        };
+    }
+
+    function renderGiftcodesTable(rows, columns) {
+        const tbody = document.getElementById('giftcodes-table');
+        if (!tbody) return;
+        const badge = document.getElementById('giftcodes-total-badge');
+        if (badge) badge.textContent = 'Tổng: ' + (rows ? rows.length : 0);
+        if (!rows || rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${columns.length + 1}">Không có dữ liệu</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = rows.map(row => {
+            const cells = columns.map(col => {
+                if (col === 'detail') {
+                    return `<td>${renderGcSlots(parseGcDetail(row.detail))}</td>`;
+                }
+                const val = row[col] == null ? '' : row[col];
+                return `<td>${val}</td>`;
+            }).join('');
+            return `<tr>${cells}
+                <td>
+                    <button class="btn-action edit"   data-type="giftcodes" data-id="${row.id}">Sửa</button>
+                    <button class="btn-action delete" data-type="giftcodes" data-id="${row.id}">Xóa</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    /* ── Patch loadTableData ── */
+    const _origLoad = window.loadTableData;
+    window.loadTableData = async function (key) {
+        if (key === 'giftcodes') await ensureItemCache();
+        return _origLoad ? _origLoad(key) : undefined;
+    };
+
+})();
+</script>
+
+<!-- ══════════════════════════════════════
+     SCRIPT: Tạo Giftcode
+══════════════════════════════════════════ -->
+<script>
+(function () {
+
+    /* ══════════════════════
+       STATE
+    ══════════════════════ */
+    let _items       = [];   // [{ itemId, quantity, options:[{optId, param}] }]
+    let _optCache    = null; // [{ id, NAME }]
+    let _editId      = null; // null = tạo mới, số = đang sửa giftcode id này
+
+    /* ══════════════════════
+       CACHE LOADERS
+    ══════════════════════ */
+    async function ensureOptCache() {
+        if (_optCache){
+            return _optCache;
+        }
+         
+        try {
+            _optCache = await fetch('/api/item-options').then(r => r.json());
+
+        } catch (_) { _optCache = []; }
+        return _optCache;
+    }
+
+    async function ensureItemCache() {
+        if (window._itemCache) return window._itemCache;
+        try {
+            const list = await fetch('/api/items').then(r => r.json());
+            window._itemCache = {};
+            list.forEach(t => { window._itemCache[String(t.id)] = t; });
+        } catch (_) { window._itemCache = {}; }
+        return window._itemCache;
+    }
+
+    function getItem(itemId) {
+        const t = (window._itemCache || {})[String(itemId)] || {};
+        return { name: t.NAME || `#${itemId}`, iconId: t.icon_id ?? itemId };
+    }
+
+    /* ══════════════════════
+       VIEW SWITCH
+    ══════════════════════ */
+    function showCreateView() {
+        document.getElementById('gc-list-view').classList.add('gc-hidden');
+        document.getElementById('gc-create-view').classList.remove('gc-hidden');
+        // Đổi title theo mode
+        const titleEl = document.querySelector('.gc-title');
+        if (titleEl) titleEl.textContent = _editId ? 'SỬA GIFTCODE' : 'TẠO GIFTCODE BẰNG CHIM';
+        renderAll();
+    }
+
+    function showListView() {
+        document.getElementById('gc-create-view').classList.add('gc-hidden');
+        document.getElementById('gc-list-view').classList.remove('gc-hidden');
+    }
+
+    /* ══════════════════════
+       RENDER FULL
+    ══════════════════════ */
+    function renderAll() {
+        renderCards();
+        renderPreview();
+    }
+
+    /* ══════════════════════
+       ITEM CARDS
+    ══════════════════════ */
+    function renderCards() {
+        const container = document.getElementById('gc-items-container');
+        if (!container) return;
+        if (_items.length === 0) {
+            container.innerHTML = `<div class="gc-empty">Nhấn <b>+ THÊM VẬT PHẨM</b> để bắt đầu</div>`;
+            return;
+        }
+        container.innerHTML = _items.map((it, idx) => buildCard(it, idx)).join('');
+        bindCardEvents(container);
+    }
+
+    function buildCard(it, idx) {
+        const info     = it.itemId ? getItem(it.itemId) : null;
+        
+        const optRows  = it.options.map((o, oi) => buildOptRow(idx, oi, o)).join('');
+
+        return `
+        <div class="gc-card" data-idx="${idx}">
+            <div class="gc-card-left">
+                <div class="gc-field-lbl">VẬT PHẨM MỤC TIÊU</div>
+                <div class="gc-item-preview gc-pick-trigger" data-pick="${idx}" title="Nhấn để chọn vật phẩm">
+                    ${info
+                        ? `<div class="gc-item-icon">
+                               <img src="/data/icon/x4/${info.iconId}.png"
+                                    onerror="this.style.display='none'" alt="${info.name}" />
+                           </div>
+                           <span class="gc-item-name">${info.name}</span>`
+                        : `<span class="gc-item-noselect">Nhấn để chọn vật phẩm...</span>`
+                    }
+                    <span class="gc-pick-hint">📦</span>
+                </div>
+
+                <div class="gc-field-lbl" style="margin-top:14px">SỐ LƯỢNG NHẬN</div>
+                <input class="gc-qty" type="number" min="1" value="${it.quantity}"
+                       data-idx="${idx}" placeholder="Nhập số lượng..." />
+            </div>
+
+            <div class="gc-card-right">
+                <div class="gc-card-right-header">
+                    <span class="gc-field-lbl">CHỈ SỐ</span>
+                    <button class="gc-remove-card" data-remove="${idx}">XÓA ✕</button>
+                </div>
+
+                <!-- Option rows — select từ item_option_template -->
+                <div class="gc-opt-list" id="gc-opts-${idx}">
+                    ${optRows}
+                </div>
+
+                <button class="gc-add-opt" data-addopt="${idx}">+ THÊM CHỈ SỐ</button>
+            </div>
+        </div>`;
+    }
+
+    function buildOptRow(idx, oi, o) {
+        const opts = (_optCache || []);
+        const selOpts = opts.map(op =>
+            `<option value="${op.id}" ${op.id == o.optId ? 'selected' : ''}>${op.NAME}</option>`
+        ).join('');
+
+        return `
+        <div class="gc-opt-row">
+            <select class="gc-opt-sel" data-idx="${idx}" data-oi="${oi}">
+                <option value="">-- Tìm tên chỉ số... --</option>
+                ${selOpts}
+            </select>
+            <input class="gc-opt-val" type="number" value="${o.param}"
+                   placeholder="Giá trị" data-idx="${idx}" data-oi="${oi}" />
+            <button class="gc-opt-del" data-idx="${idx}" data-oi="${oi}">✕</button>
+        </div>`;
+    }
+
+    /* ══════════════════════
+       BIND EVENTS
+    ══════════════════════ */
+    function bindCardEvents(container) {
+        // Qty
+        container.querySelectorAll('.gc-qty').forEach(input => {
+            input.addEventListener('change', () => {
+                const idx = Number(input.dataset.idx);
+                _items[idx].quantity = Math.max(1, Number(input.value) || 1);
+                renderPreview();
+            });
+        });
+
+        // Opt select
+        container.querySelectorAll('.gc-opt-sel').forEach(sel => {
+            sel.addEventListener('change', () => {
+                const idx = Number(sel.dataset.idx);
+                const oi  = Number(sel.dataset.oi);
+                _items[idx].options[oi].optId = Number(sel.value) || 0;
+                renderPreview();
+            });
+        });
+
+        // Opt value
+        container.querySelectorAll('.gc-opt-val').forEach(input => {
+            input.addEventListener('input', () => {
+                const idx = Number(input.dataset.idx);
+                const oi  = Number(input.dataset.oi);
+                _items[idx].options[oi].param = Number(input.value) || 0;
+                renderPreview();
+            });
+        });
+    }
+
+    /* ══════════════════════
+       PREVIEW
+    ══════════════════════ */
+    function renderPreview() {
+        const el = document.getElementById('gc-preview-content');
+        if (!el) return;
+
+        const filled = _items.filter(i => i.itemId);
+        if (filled.length === 0) {
+            el.innerHTML = `<div class="gc-empty">Chưa có vật phẩm nào</div>`;
+            return;
+        }
+
+        const opts = _optCache || [];
+        el.innerHTML = filled.map(it => {
+            const info = getItem(it.itemId);
+            const optLines = it.options.length
+                ? it.options.map(o => {
+                    const tmpl = opts.find(op => op.id == o.optId);
+                    const name = tmpl ? tmpl.NAME.replace('#', o.param) : `opt${o.optId}: +${o.param}`;
+                    return `<span class="gc-prev-opt">${name}</span>`;
+                }).join('')
+                : `<span class="gc-prev-no-opt">Không có chỉ số</span>`;
+
+            return `
+            <div class="gc-prev-item">
+                <div class="gc-prev-icon">
+                    <img src="/data/icon/x4/${info.iconId}.png"
+                         onerror="this.style.display='none'" alt="${info.name}" />
+                </div>
+                <div class="gc-prev-info">
+                    <div class="gc-prev-name">${info.name}</div>
+                    <div class="gc-prev-qty">Số Lượng: <b>${it.quantity}</b></div>
+                    <div class="gc-prev-opts">${optLines}</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    /* ══════════════════════
+       EXPORT / SAVE
+    ══════════════════════ */
+    async function exportGiftcode() {
+        const valid = _items.filter(i => i.itemId && i.quantity > 0);
+        if (valid.length === 0) {
+            toast('Vui lòng thêm ít nhất 1 vật phẩm hợp lệ.', 'warning');
+            return;
+        }
+
+        // Nếu đang sửa, lấy row cũ để điền default
+        const existingRow = _editId
+            ? (state.data['giftcodes'] || []).find(r => Number(r.id) === _editId)
+            : null;
+
+        const code = prompt('Mã Gift Code:', existingRow ? existingRow.code : '');
+        if (!code || !code.trim()) return;
+        const countLeft = Number(prompt('Số lượng code (số người được dùng):', existingRow ? existingRow.count_left : '1') || '0');
+        if (!countLeft || countLeft < 1) { toast('Số lượng không hợp lệ.', 'warning'); return; }
+        const expired = prompt('Ngày hết hạn (yyyy-MM-dd HH:mm:ss)\nĐể trống = không giới hạn:', existingRow ? (existingRow.expired || '') : '') || '';
+
+        const detail = valid.map(it => ({
+            id:       it.itemId,
+            quantity: it.quantity,
+            options:  it.options.map(o => ({ id: o.optId, param: o.param })),
+        }));
+
+        const payload = {
+            code:       code.trim(),
+            count_left: countLeft,
+            detail:     JSON.stringify(detail),
+            expired:    expired || null,
+        };
+
+        try {
+            const url    = _editId ? `/api/giftcodes/${_editId}` : '/api/giftcodes';
+            const method = _editId ? 'PUT' : 'POST';
+            const res    = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast(_editId
+                    ? `Cập nhật gift code "${code.trim()}" thành công!`
+                    : `Tạo gift code "${code.trim()}" thành công!`,
+                    'success'
+                );
+                _items  = [];
+                _editId = null;
+                showListView();
+                if (typeof loadTableData === 'function') loadTableData('giftcodes');
+            } else {
+                toast('Lỗi: ' + (data.message || 'Không xác định'), 'error');
+            }
+        } catch (e) {
+            toast('Lỗi kết nối: ' + e.message, 'error');
+        }
+    }
+
+    /* ══════════════════════
+       GLOBAL DELEGATION
+    ══════════════════════ */
+    document.addEventListener('click', function (e) {
+        // Xóa card
+        const removeIdx = e.target.dataset.remove;
+        if (removeIdx !== undefined) {
+            _items.splice(Number(removeIdx), 1);
+            renderAll();
+            return;
+        }
+        // Thêm opt
+        const addOpt = e.target.dataset.addopt;
+        if (addOpt !== undefined) {
+            _items[Number(addOpt)].options.push({ optId: 0, param: 0 });
+            renderCards();
+            return;
+        }
+        // Xóa opt
+        if (e.target.classList.contains('gc-opt-del')) {
+            const idx = Number(e.target.dataset.idx);
+            const oi  = Number(e.target.dataset.oi);
+            _items[idx].options.splice(oi, 1);
+            renderCards();
+            renderPreview();
+        }
+    });
+
+    /* ══════════════════════
+       EXPOSE _gcSetItem cho picker
+    ══════════════════════ */
+    window._gcSetItem = function (idx, itemId) {
+        if (!_items[idx]) return;
+        _items[idx].itemId = itemId;
+        renderAll();
+    };
+
+    /* ══════════════════════
+       INTERCEPT "Thêm mới"
+    ══════════════════════ */
+    const _origOpenAddForm = window.openAddForm;
+    window.openAddForm = async function (type) {
+        if (type === 'giftcodes') {
+            showTab('giftcodes');
+            _editId = null;
+            _items  = [{ itemId: null, quantity: 1, options: [] }];
+            await Promise.all([ensureItemCache(), ensureOptCache()]);
+            showCreateView();
+            return;
+        }
+        if (typeof _origOpenAddForm === 'function') _origOpenAddForm(type);
+    };
+
+    /* ══════════════════════
+       INTERCEPT "Sửa"
+    ══════════════════════ */
+    const _origEditData = window.editData;
+    window.editData = async function (type, id) {
+        if (type !== 'giftcodes') {
+            if (typeof _origEditData === 'function') _origEditData(type, id);
+            return;
+        }
+        showTab('giftcodes');
+
+        // Lấy row từ cache
+        const row = (state.data['giftcodes'] || []).find(r => Number(r.id) === Number(id));
+        if (!row) { toast('Không tìm thấy giftcode!', 'error'); return; }
+
+        _editId = Number(id);
+
+        // Parse detail → _items
+        function parseDetail(raw) {
+            if (!raw) return [];
+            try {
+                let str = typeof raw === 'string' ? raw : JSON.stringify(raw);
+                str = str.replace(/"(\s*)\[/g, function (m, sp, off) {
+                    return str[off - 1] === ':' ? m : '"' + sp + ':[';
+                });
+                let arr = JSON.parse(str);
+                if (typeof arr === 'string') arr = JSON.parse(arr);
+                if (!Array.isArray(arr)) return [];
+                return arr.map(e => ({
+                    itemId:   Number(e.id ?? e.item_id ?? 0),
+                    quantity: Number(e.quantity ?? 1),
+                    options:  Array.isArray(e.options)
+                        ? e.options.map(o => ({ optId: Number(o.id ?? o.optId ?? 0), param: Number(o.param ?? 0) }))
+                        : [],
+                })).filter(e => e.itemId > 0);
+            } catch (_) { return []; }
+        }
+
+        _items = parseDetail(row.detail);
+        if (_items.length === 0) _items = [{ itemId: null, quantity: 1, options: [] }];
+
+        await Promise.all([ensureItemCache(), ensureOptCache()]);
+        showCreateView();
+    };
+
+    /* ══════════════════════
+       INIT
+    ══════════════════════ */
+    function init() {
+        const backBtn   = document.getElementById('gc-back-btn');
+        const resetBtn  = document.getElementById('gc-reset-btn');
+        const addBtn    = document.getElementById('gc-add-item-btn');
+        const exportBtn = document.getElementById('gc-export-btn');
+        if (!backBtn) return;
+
+        backBtn.addEventListener('click', () => { _editId = null; showListView(); });
+
+        resetBtn.addEventListener('click', () => {
+            _items  = [{ itemId: null, quantity: 1, options: [] }];
+            renderAll();
+        });
+
+        addBtn.addEventListener('click', () => {
+            _items.push({ itemId: null, quantity: 1, options: [] });
+            renderAll();
+        });
+
+        exportBtn.addEventListener('click', exportGiftcode);
+    }
+
+    if (document.readyState !== 'loading') init();
+    else document.addEventListener('DOMContentLoaded', init);
+
+})();
+</script>
+
+<!-- ══════════════════════════════════════
+     SCRIPT: Item Picker Popup
+══════════════════════════════════════════ -->
+<script>
+(function () {
+    let _pickerTargetIdx = -1;
+    let _allItems        = [];   // flat array để render grid
+    let _renderTimer     = null;
+
+    /* ── Mở popup ── */
+    window.openItemPicker = function (idx) {
+        _pickerTargetIdx = idx;
+        const overlay = document.getElementById('gc-item-picker');
+        if (!overlay) return;
+
+        // Build flat array từ cache
+        const cache = window._itemCache || {};
+        _allItems = Object.values(cache).sort((a, b) => a.id - b.id);
+
+        // Reset search
+        const searchInput = document.getElementById('gc-picker-search');
+        if (searchInput) searchInput.value = '';
+
+        renderPickerGrid('');
+        overlay.classList.remove('gc-hidden');
+        document.body.style.overflow = 'hidden';
+        if (searchInput) setTimeout(() => searchInput.focus(), 80);
+    };
+
+    /* ── Đóng popup ── */
+    function closeItemPicker() {
+        const overlay = document.getElementById('gc-item-picker');
+        if (!overlay) return;
+        overlay.classList.add('gc-hidden');
+        document.body.style.overflow = '';
+        _pickerTargetIdx = -1;
+    }
+
+    /* ── Render grid ── */
+    function renderPickerGrid(query) {
+        const grid = document.getElementById('gc-picker-grid');
+        if (!grid) return;
+
+        const q = query.trim().toLowerCase();
+        const list = q
+            ? _allItems.filter(t => (t.NAME || '').toLowerCase().includes(q) || String(t.id).includes(q))
+            : _allItems;
+
+        if (list.length === 0) {
+            grid.innerHTML = `<div class="gc-picker-empty">Không tìm thấy vật phẩm nào</div>`;
+            return;
+        }
+
+        grid.innerHTML = list.map(t => {
+            const iconId = t.icon_id ?? t.id;
+            return `
+            <div class="gc-picker-item" data-id="${t.id}" title="${t.NAME} (ID: ${t.id})">
+                <div class="gc-picker-icon">
+                    <img src="/data/icon/x4/${iconId}.png"
+                         onerror="this.style.display='none'" alt="${t.NAME}" />
+                </div>
+                <div class="gc-picker-name">${t.NAME}</div>
+            </div>`;
+        }).join('');
+
+        // Click chọn
+        grid.querySelectorAll('.gc-picker-item').forEach(el => {
+            el.addEventListener('click', () => {
+                if (_pickerTargetIdx < 0) return;
+                // Ghi vào state (dùng window để truy cập từ script khác)
+                if (window._gcSetItem) window._gcSetItem(_pickerTargetIdx, Number(el.dataset.id));
+                closeItemPicker();
+            });
+        });
+    }
+
+    /* ── Search debounce ── */
+    document.addEventListener('input', function (e) {
+        if (e.target.id !== 'gc-picker-search') return;
+        clearTimeout(_renderTimer);
+        _renderTimer = setTimeout(() => renderPickerGrid(e.target.value), 180);
+    });
+
+    /* ── Đóng bằng overlay click hoặc nút ✕ ── */
+    document.addEventListener('click', function (e) {
+        if (e.target.id === 'gc-picker-close') { closeItemPicker(); return; }
+        if (e.target.id === 'gc-item-picker')  { closeItemPicker(); return; }
+
+        // Click vào gc-pick-trigger → mở picker
+        const trigger = e.target.closest('.gc-pick-trigger');
+        if (trigger) {
+            const idx = Number(trigger.dataset.pick);
+            window.openItemPicker(idx);
+        }
+    });
+
+    /* ── ESC ── */
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeItemPicker();
+    });
+
+})();
+</script>
