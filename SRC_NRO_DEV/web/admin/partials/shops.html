@@ -1,23 +1,581 @@
 <link rel="stylesheet" href="/admin/css/shops.css" />
 
 <section class="module" id="shops">
-    <div class="card">
-        <div class="card-head">
-            <h3>Danh sách shop bán vật phẩm</h3>
+
+    <!-- ══════════════════════════════════════
+         VIEW 1: Banner + 3 type card
+    ══════════════════════════════════════════ -->
+    <div id="sh-v1">
+        <div class="mb-banner">
+            <div class="mb-left">
+                <img class="mb-avatar" src="/data/effect/x1/ImgEffect_3.png"
+                     onerror="this.style.fontSize='2.4rem';this.textContent='🏪'" alt="shop" />
+                <div class="mb-info">
+                    <h2 class="mb-title">Shop</h2>
+                    <div class="mb-actions">
+                        <button class="mb-btn mb-btn-primary" onclick="showTab('dashboard')">🏠 Go Panel</button>
+                        <button class="mb-btn mb-btn-refresh" id="sh-refresh-btn">🔄 Làm Mới</button>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-photos">
+                <div class="mb-photo mb-photo-1"></div>
+                <div class="mb-photo mb-photo-2"></div>
+                <div class="mb-photo mb-photo-3"></div>
+            </div>
         </div>
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>NPC ID</th>
-                        <th>Tag name</th>
-                        <th>Type shop</th>
-                        <th>Hành động</th>
-                    </tr>
-                </thead>
-                <tbody id="shops-table"></tbody>
-            </table>
+
+        <div class="sh-menu-grid">
+            <div class="sh-menu-card" data-type="0" id="sh-card-0">
+                <div class="sh-card-icons">🪙💎</div>
+                <div class="sh-card-title">Shop Vàng, Ngọc</div>
+                <div class="sh-card-desc">Chỉnh sửa vật phẩm bán bằng vàng & ngọc</div>
+            </div>
+            <div class="sh-menu-card" data-type="1" id="sh-card-1">
+                <div class="sh-card-icons">🥇🪙🎫🧪</div>
+                <div class="sh-card-title">Shop Thỏi Vàng</div>
+                <div class="sh-card-desc">Vật Phẩm Đặc Biệt & Thỏi Vàng</div>
+            </div>
+            <div class="sh-menu-card" data-type="3" id="sh-card-3">
+                <div class="sh-card-icons">💎⚡🔮</div>
+                <div class="sh-card-title">Shop Đặc Biệt</div>
+                <div class="sh-card-desc">Vật phẩm sự kiện & đặc biệt</div>
+            </div>
         </div>
     </div>
+
+    <!-- ══════════════════════════════════════
+         VIEW 2: Không banner — NPC grid + tabs + items
+    ══════════════════════════════════════════ -->
+    <div id="sh-v2" class="sh-hidden">
+
+        <!-- Toolbar -->
+        <div class="sh-toolbar">
+            <button class="sh-back-btn" id="sh-back-btn">← Trở về</button>
+            <h3 class="sh-toolbar-title" id="sh-toolbar-title"></h3>
+            <div class="sh-toolbar-right">
+                <button class="sh-tool-btn sh-tool-add sh-hidden" id="sh-add-item-btn">+ Thêm vật phẩm</button>
+                <button class="sh-tool-btn sh-tool-refresh sh-hidden" id="sh-reload-btn">🔄 Tải lại</button>
+            </div>
+        </div>
+
+        <!-- NPC Grid -->
+        <div id="sh-npc-grid" class="sh-npc-grid"></div>
+
+        <!-- Tabs + Items (ẩn cho đến khi chọn NPC) -->
+        <div id="sh-shop-detail" class="sh-hidden">
+            <div class="sh-tab-bar" id="sh-tab-bar"></div>
+            <div id="sh-item-grid" class="sh-item-grid"></div>
+        </div>
+    </div>
+
+    <!-- ══ MODAL THÊM / SỬA ══ -->
+    <div id="sh-item-modal" class="sh-modal-overlay sh-hidden">
+        <div class="sh-modal-dialog">
+            <div class="sh-modal-header">
+                <h3 id="sh-modal-title">Thêm vật phẩm</h3>
+                <button class="sh-modal-close" id="sh-modal-close">✕</button>
+            </div>
+            <div class="sh-modal-body">
+                <input type="hidden" id="sh-modal-id" />
+                <div class="sh-modal-row">
+                    <label>Vật phẩm</label>
+                    <div class="sh-modal-item-pick" id="sh-modal-item-pick">
+                        <div class="sh-modal-item-preview" id="sh-modal-item-preview">
+                            <span class="sh-modal-no-item">Nhấn để chọn...</span>
+                        </div>
+                    </div>
+                    <input type="hidden" id="sh-modal-temp-id" />
+                </div>
+                <div class="sh-modal-row">
+                    <label>Giá bán</label>
+                    <input class="sh-modal-input" type="number" id="sh-modal-cost" min="0" placeholder="0" />
+                </div>
+                <div class="sh-modal-row">
+                    <label>Loại tiền</label>
+                    <select class="sh-modal-input" id="sh-modal-type-sell">
+                        <option value="0">🪙 Vàng</option>
+                        <option value="1">💎 Ngọc</option>
+                        <option value="2">🥇 Thỏi vàng</option>
+                        <option value="3">🎫 Phiếu</option>
+                    </select>
+                </div>
+                <div class="sh-modal-row">
+                    <label>Hàng mới?</label>
+                    <select class="sh-modal-input" id="sh-modal-is-new">
+                        <option value="0">Không</option>
+                        <option value="1">Có</option>
+                    </select>
+                </div>
+                <div class="sh-modal-section-title">Chỉ số đi kèm</div>
+                <div id="sh-modal-opts" class="sh-modal-opts"></div>
+                <button class="sh-add-opt-btn" id="sh-modal-add-opt">+ Thêm chỉ số</button>
+            </div>
+            <div class="sh-modal-footer">
+                <button class="sh-tool-btn sh-tool-add" id="sh-modal-save">💾 Lưu</button>
+                <button class="sh-back-btn" id="sh-modal-cancel">Hủy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ ITEM PICKER ══ -->
+    <div id="sh-picker" class="sh-picker-overlay sh-hidden">
+        <div class="sh-picker-dialog">
+            <div class="sh-picker-header">
+                <h3>🎒 Chọn vật phẩm</h3>
+                <div class="sh-picker-search-wrap">
+                    <span>🔍</span>
+                    <input id="sh-picker-search" type="text" placeholder="Tìm tên / ID..." autocomplete="off" />
+                </div>
+                <button id="sh-picker-close">✕</button>
+            </div>
+            <div id="sh-picker-grid" class="sh-picker-grid"></div>
+        </div>
+    </div>
+
 </section>
+
+<script>
+(function () {
+
+    const SHOP_TYPES = {
+        0: 'Shop Vàng, Ngọc',
+        1: 'Shop Thỏi Vàng',
+        3: 'Shop Đặc Biệt',
+    };
+    const CURRENCY = { 0:'🪙', 1:'💎', 2:'🥇', 3:'🎫' };
+
+    // Dịch tag_name → tiếng Việt
+    const TAG_NAMES = {
+        'BUNMA':                    'Bulma - Shop Trang Bị',
+        'BUNMA_FUTURE':             'Bulma Tương Lai',
+        'BUNMA_LINHTHU':            'Bulma - Linh Thú',
+        'BULMA_TL':                 'Bulma - Thời Lượng',
+        'BULMA_EVENT':              'Bulma - Sự Kiện',
+        'DENDE':                    'Dende - Shop Trang Bị',
+        'APPULE':                   'Appule - Shop Trang Bị',
+        'URON':                     'Uron - Sách Kỹ Năng',
+        'SANTA':                    'Santa - Shop Cải Trang',
+        'SANTA_HEAD':               'Santa - Shop Đầu',
+        'SANTA_RUONG':              'Santa - Mở Rộng Rương',
+        'SANTA_HSD':                'Santa - Hạn Sử Dụng',
+        'SANTA_MO_RONG_HANH_TRANG': 'Santa - Mở Rộng Hành Trang',
+        'SANTA_HAN_SU_DUNG':        'Santa - Hạn Sử Dụng',
+        'SANTA_DANH_HIEU':          'Santa - Danh Hiệu',
+        'SANTA_GIAM_GIA':           'Santa - Giảm Giá',
+        'SHOP_VIP':                 'Shop VIP',
+        'BUA_1H':                   'Bùa 1 Giờ',
+        'BUA_8H':                   'Bùa 8 Giờ',
+        'BUA_1M':                   'Bùa 1 Tháng',
+        'BILL':                     'Bill - Shop Đặc Biệt',
+        'OSIN':                     'Osin - Shop',
+        'KARIN':                    'Karin - Shop Đặc Biệt',
+        'CHUBEDAN':                 'Chú Bé Đan - Shop Đặc Biệt',
+        'THIEN_SU':                 'Thiên Sứ - Shop Đặc Biệt',
+        'QUY_LAO':                  'Quỷ Lão - Thỏi Vàng',
+        'QDDN':                     'Quỷ Đầu Đàn - Shop Đặc Biệt',
+        'DOI_SKILL_DE':             'Đổi Skill Dễ',
+    };
+
+    function tagLabel(tagName) {
+        if (!tagName) return '';
+        return TAG_NAMES[tagName] || tagName.replace(/_/g, ' ');
+    }
+
+    let _allShops   = [];
+    let _npcCache   = {};
+    let _optNames   = {};
+    let _activeType = null;
+    let _activeShop = null;
+    let _activeTabId= null;
+    let _tabs       = [];
+    let _items      = [];
+    let _modalOpts  = [];
+    let _pickerTimer= null;
+
+    /* ── Helpers ── */
+    function show(id) { document.getElementById(id)?.classList.remove('sh-hidden'); }
+    function hide(id) { document.getElementById(id)?.classList.add('sh-hidden'); }
+    function showV1()  { show('sh-v1'); hide('sh-v2'); }
+    function showV2(title) {
+        hide('sh-v1');
+        show('sh-v2');
+        document.getElementById('sh-toolbar-title').textContent = title || '';
+        hide('sh-add-item-btn');
+        hide('sh-reload-btn');
+        hide('sh-shop-detail');
+    }
+
+    /* ── Load data ── */
+    const _origLoad = window.loadTableData;
+    window.loadTableData = async function (key) {
+        if (key !== 'shops') return _origLoad ? _origLoad(key) : undefined;
+        const [shops, npcs, opts] = await Promise.all([api('shops'), api('npcs'), api('item-options')]);
+        _allShops = shops;
+        _npcCache = {}; npcs.forEach(n => (_npcCache[String(n.id)] = n));
+        _optNames = {}; opts.forEach(o => (_optNames[String(o.id)] = o.NAME));
+        if (!window._itemCache) {
+            const items = await api('items');
+            window._itemCache = {};
+            items.forEach(t => (window._itemCache[String(t.id)] = t));
+        }
+        renderBadges();
+        showV1();
+    };
+
+    async function api(resource, query) {
+        try { return await fetch('/api/' + resource + (query ? '?' + query : '')).then(r => r.json()); }
+        catch (_) { return []; }
+    }
+
+    /* ── Badges trên card ── */
+    function renderBadges() {
+        [0,1,3].forEach(t => {
+            const card = document.getElementById(`sh-card-${t}`);
+            if (!card) return;
+            let b = card.querySelector('.sh-card-badge');
+            if (!b) { b = document.createElement('span'); b.className = 'sh-card-badge'; card.appendChild(b); }
+            b.textContent = _allShops.filter(r => Number(r.type_shop) === t).length + ' shop';
+        });
+    }
+
+    /* ── Click card type → chuyển sang V2, render NPC grid ── */
+    document.addEventListener('click', function (e) {
+        const card = e.target.closest('.sh-menu-card');
+        if (card && document.getElementById('sh-v1') && !document.getElementById('sh-v1').classList.contains('sh-hidden')) {
+            _activeType = Number(card.dataset.type);
+            _activeShop = null;
+            showV2(SHOP_TYPES[_activeType] || 'Shop');
+            renderNpcGrid(_activeType);
+        }
+    });
+
+    /* ── NPC Grid ── */
+    function renderNpcGrid(type) {
+        const grid  = document.getElementById('sh-npc-grid');
+        const shops = _allShops.filter(r => Number(r.type_shop) === type);
+        if (!shops.length) {
+            grid.innerHTML = '<div class="sh-empty">Không có shop nào</div>';
+            return;
+        }
+        grid.innerHTML = shops.map(s => {
+            const npc     = _npcCache[String(s.npc_id)] || {};
+            const npcName = npc.NAME || `NPC #${s.npc_id}`;
+            const label   = tagLabel(s.tag_name);
+            const av      = npc.avatar;
+            return `
+            <div class="sh-npc-card${_activeShop?.id === s.id ? ' sh-npc-active' : ''}" data-shop-id="${s.id}">
+                <div class="sh-npc-avatar">
+                    ${av ? `<img src="/data/icon/x1/${av}.png" onerror="this.style.display='none'" />` : '<span>🤖</span>'}
+                </div>
+                <div class="sh-npc-id">ID: ${s.npc_id}</div>
+                <div class="sh-npc-name">${npcName}</div>
+                <div class="sh-npc-tag" title="${s.tag_name || ''}">${label}</div>
+            </div>`;
+        }).join('');
+        grid.querySelectorAll('.sh-npc-card').forEach(el =>
+            el.addEventListener('click', () => openShop(Number(el.dataset.shopId)))
+        );
+    }
+
+    /* ── Click NPC → hiện tabs + items bên dưới ── */
+    async function openShop(shopId) {
+        _activeShop = _allShops.find(s => s.id === shopId) || null;
+        if (!_activeShop) return;
+
+        document.querySelectorAll('.sh-npc-card').forEach(c =>
+            c.classList.toggle('sh-npc-active', Number(c.dataset.shopId) === shopId)
+        );
+
+        const npc  = _npcCache[String(_activeShop.npc_id)] || {};
+        const name = npc.NAME || _activeShop.tag_name || `Shop #${shopId}`;
+        document.getElementById('sh-toolbar-title').textContent =
+            `${SHOP_TYPES[_activeType] || 'Shop'} — ${name}`;
+
+        // Hiện nút + shop detail
+        show('sh-add-item-btn');
+        show('sh-reload-btn');
+        show('sh-shop-detail');
+
+        document.getElementById('sh-tab-bar').innerHTML = '<span class="sh-tab-loading">⏳ Đang tải tab...</span>';
+        document.getElementById('sh-item-grid').innerHTML = '';
+
+        setTimeout(() => {
+            document.getElementById('sh-shop-detail').scrollIntoView({ behavior:'smooth', block:'start' });
+        }, 60);
+
+        // Load tabs từ DB theo shop_id
+        _tabs = await api('tab-shops', `shop_id=${shopId}`);
+
+        if (!_tabs.length) {
+            document.getElementById('sh-tab-bar').innerHTML = '';
+            document.getElementById('sh-item-grid').innerHTML =
+                '<div class="sh-empty">Shop này chưa có tab nào trong DB</div>';
+            return;
+        }
+
+        renderTabBar();
+        await loadTab(_tabs[0].id);
+
+        // Gắn badge số tab lên NPC card
+        const activeCard = document.querySelector(`.sh-npc-card[data-shop-id="${shopId}"]`);
+        if (activeCard && !activeCard.querySelector('.sh-npc-tab-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'sh-npc-tab-badge';
+            badge.textContent = _tabs.length + ' tab';
+            activeCard.appendChild(badge);
+        }
+    }
+
+    /* ── Tab bar ── */
+    function renderTabBar() {
+        const bar = document.getElementById('sh-tab-bar');
+        // Lấy avatar NPC của shop đang mở
+        const npc    = _activeShop ? (_npcCache[String(_activeShop.npc_id)] || {}) : {};
+        const avatar = npc.avatar ? `/data/icon/x1/${npc.avatar}.png` : null;
+
+        bar.innerHTML = _tabs.map((t, i) => {
+            const label = (t.NAME || `Tab ${i+1}`)
+                .replace(/<>/g, ' ')
+                .replace(/\n/g, ' ');
+            return `
+            <button class="sh-tab-btn${i === 0 ? ' active' : ''}" data-tab-id="${t.id}">
+                ${avatar
+                    ? `<img class="sh-tab-avatar" src="${avatar}" onerror="this.style.display='none'" alt="" />`
+                    : ''}
+                <span class="sh-tab-label">${label}</span>
+            </button>`;
+        }).join('');
+        bar.querySelectorAll('.sh-tab-btn').forEach(b =>
+            b.addEventListener('click', () => loadTab(Number(b.dataset.tabId)))
+        );
+    }
+
+    /* ── Load tab ── */
+    async function loadTab(tabId) {
+        _activeTabId = tabId;
+        document.querySelectorAll('.sh-tab-btn').forEach(b =>
+            b.classList.toggle('active', Number(b.dataset.tabId) === tabId)
+        );
+        _items = await api('item-shops', `tab_id=${tabId}`);
+        await Promise.all(_items.map(async it => {
+            it._opts = await api('item-shop-options', `item_shop_id=${it.id}`);
+        }));
+        renderItemGrid();
+    }
+
+    /* ── Item grid ── */
+    function renderItemGrid() {
+        const grid = document.getElementById('sh-item-grid');
+        if (!_items.length) { grid.innerHTML = '<div class="sh-empty">Không có vật phẩm nào</div>'; return; }
+        const cache = window._itemCache || {};
+        grid.innerHTML = _items.map(item => {
+            const tmpl = cache[String(item.temp_id)] || {};
+            const name = tmpl.NAME || `#${item.temp_id}`;
+            const icon = tmpl.icon_id ?? item.temp_id;
+            const cur  = CURRENCY[item.type_sell] ?? '🪙';
+            const opts = (item._opts || []).map(o => {
+                const raw = _optNames[String(o.option_id)] || `opt${o.option_id}`;
+                return `<li>• ${raw.includes('#') ? raw.replace('#', o.param) : raw + ': ' + o.param}</li>`;
+            }).join('');
+            return `
+            <div class="sh-item-card" data-id="${item.id}">
+                ${item.is_new ? '<span class="sh-new-badge">NEW</span>' : ''}
+                <div class="sh-item-icon">
+                    <img src="/data/icon/x4/${icon}.png" onerror="this.style.display='none'" />
+                    <span class="sh-item-id">STT:${item.id}</span>
+                </div>
+                <div class="sh-item-info">
+                    <div class="sh-item-name">${name}</div>
+                    <div class="sh-item-cost">${fmt(item.cost)} ${cur}</div>
+                    <div class="sh-item-tempid">ID: ${item.temp_id}</div>
+                    ${opts ? `<ul class="sh-item-opts">${opts}</ul>` : ''}
+                </div>
+                <div class="sh-item-actions">
+                    <button class="sh-item-edit"   data-id="${item.id}">✏️</button>
+                    <button class="sh-item-delete" data-id="${item.id}">🗑</button>
+                </div>
+            </div>`;
+        }).join('');
+        grid.querySelectorAll('.sh-item-edit').forEach(b =>
+            b.addEventListener('click', () => openEditModal(Number(b.dataset.id)))
+        );
+        grid.querySelectorAll('.sh-item-delete').forEach(b =>
+            b.addEventListener('click', () => deleteItem(Number(b.dataset.id)))
+        );
+    }
+
+    function fmt(n) {
+        const v = Number(n) || 0;
+        if (v >= 1e9) return (v/1e9).toFixed(1).replace(/\.0$/, '') + ' Tỷ';
+        if (v >= 1e6) return (v/1e6).toFixed(1).replace(/\.0$/, '') + ' Tr';
+        if (v >= 1e3) return (v/1e3).toFixed(1).replace(/\.0$/, '') + ' K';
+        return v.toLocaleString('vi-VN');
+    }
+
+    /* ── Modal ── */
+    function openAddModal() {
+        document.getElementById('sh-modal-title').textContent = 'Thêm vật phẩm';
+        document.getElementById('sh-modal-id').value = '';
+        document.getElementById('sh-modal-temp-id').value = '';
+        document.getElementById('sh-modal-cost').value = '';
+        document.getElementById('sh-modal-type-sell').value = '0';
+        document.getElementById('sh-modal-is-new').value = '0';
+        setPreview(null); _modalOpts = []; renderOpts(); openModal();
+    }
+
+    async function openEditModal(id) {
+        const item = _items.find(i => i.id === id); if (!item) return;
+        document.getElementById('sh-modal-title').textContent = 'Sửa vật phẩm';
+        document.getElementById('sh-modal-id').value     = item.id;
+        document.getElementById('sh-modal-temp-id').value = item.temp_id;
+        document.getElementById('sh-modal-cost').value   = item.cost;
+        document.getElementById('sh-modal-type-sell').value = item.type_sell ?? 0;
+        document.getElementById('sh-modal-is-new').value = item.is_new ? '1' : '0';
+        setPreview(item.temp_id);
+        _modalOpts = (item._opts || []).map(o => ({ id: o.id, option_id: o.option_id, param: o.param }));
+        renderOpts(); openModal();
+    }
+
+    function setPreview(tempId) {
+        const el = document.getElementById('sh-modal-item-preview');
+        if (!tempId) { el.innerHTML = '<span class="sh-modal-no-item">Nhấn để chọn...</span>'; return; }
+        const t = (window._itemCache || {})[String(tempId)] || {};
+        el.innerHTML = `<img src="/data/icon/x4/${t.icon_id ?? tempId}.png" onerror="this.style.display='none'" /><span>${t.NAME || '#' + tempId}</span>`;
+    }
+
+    function renderOpts() {
+        const el = document.getElementById('sh-modal-opts');
+        if (!_modalOpts.length) { el.innerHTML = '<div class="sh-modal-no-opts">Chưa có chỉ số nào</div>'; return; }
+        const entries = Object.entries(_optNames);
+        el.innerHTML = _modalOpts.map((o, i) => `
+            <div class="sh-opt-row">
+                <select class="sh-opt-sel" data-i="${i}">
+                    <option value="">-- Chọn --</option>
+                    ${entries.map(([id, nm]) => `<option value="${id}"${id == o.option_id ? ' selected' : ''}>${nm}</option>`).join('')}
+                </select>
+                <input class="sh-opt-val" type="number" value="${o.param}" data-i="${i}" placeholder="Giá trị" />
+                <button class="sh-opt-del" data-i="${i}">✕</button>
+            </div>`).join('');
+        el.querySelectorAll('.sh-opt-sel').forEach(s =>
+            s.addEventListener('change', () => { _modalOpts[+s.dataset.i].option_id = +s.value; })
+        );
+        el.querySelectorAll('.sh-opt-val').forEach(inp =>
+            inp.addEventListener('input', () => { _modalOpts[+inp.dataset.i].param = +inp.value; })
+        );
+        el.querySelectorAll('.sh-opt-del').forEach(b =>
+            b.addEventListener('click', () => { _modalOpts.splice(+b.dataset.i, 1); renderOpts(); })
+        );
+    }
+
+    function openModal()  { show('sh-item-modal'); document.body.style.overflow = 'hidden'; }
+    function closeModal() { hide('sh-item-modal'); document.body.style.overflow = ''; }
+
+    /* ── Save / Delete ── */
+    async function saveItem() {
+        const id     = document.getElementById('sh-modal-id').value;
+        const tempId = +document.getElementById('sh-modal-temp-id').value;
+        const cost   = +document.getElementById('sh-modal-cost').value || 0;
+        if (!tempId) { toast('Vui lòng chọn vật phẩm.', 'warning'); return; }
+        if (!_activeTabId) { toast('Chưa chọn tab.', 'warning'); return; }
+        const payload = {
+            tab_id: _activeTabId, temp_id: tempId, cost,
+            type_sell: +document.getElementById('sh-modal-type-sell').value,
+            is_new:    +document.getElementById('sh-modal-is-new').value,
+            is_sell: 1, icon_spec: 0,
+        };
+        try {
+            let savedId = id ? +id : null;
+            if (id) {
+                await fetch(`/api/item-shops/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+            } else {
+                await fetch('/api/item-shops', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+                const newest = (await api('item-shops', `tab_id=${_activeTabId}`)).sort((a,b) => b.id - a.id)[0];
+                savedId = newest?.id;
+            }
+            if (savedId) {
+                const old = await api('item-shop-options', `item_shop_id=${savedId}`);
+                for (const o of old) await fetch(`/api/item-shop-options/${o.id}`, { method:'DELETE' });
+                for (const o of _modalOpts) {
+                    if (!o.option_id) continue;
+                    await fetch('/api/item-shop-options', { method:'POST', headers:{'Content-Type':'application/json'},
+                        body: JSON.stringify({ item_shop_id: savedId, option_id: o.option_id, param: o.param }) });
+                }
+            }
+            toast(id ? 'Cập nhật thành công!' : 'Thêm thành công!', 'success');
+            closeModal(); await loadTab(_activeTabId);
+        } catch (e) { toast('Lỗi: ' + e.message, 'error'); }
+    }
+
+    async function deleteItem(id) {
+        if (!confirm(`Xóa item #${id}?`)) return;
+        try {
+            await fetch(`/api/item-shops/${id}`, { method:'DELETE' });
+            toast('Đã xóa.', 'success'); await loadTab(_activeTabId);
+        } catch (e) { toast('Lỗi: ' + e.message, 'error'); }
+    }
+
+    /* ── Picker ── */
+    function openPicker() {
+        renderPickerGrid('');
+        show('sh-picker'); document.body.style.overflow = 'hidden';
+        const inp = document.getElementById('sh-picker-search');
+        if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 80); }
+    }
+    function closePicker() { hide('sh-picker'); document.body.style.overflow = ''; }
+
+    function renderPickerGrid(q) {
+        const grid  = document.getElementById('sh-picker-grid');
+        const query = q.trim().toLowerCase();
+        const list  = Object.values(window._itemCache || {})
+            .filter(t => !query || (t.NAME||'').toLowerCase().includes(query) || String(t.id).includes(query))
+            .sort((a, b) => a.id - b.id);
+        grid.innerHTML = list.length
+            ? list.map(t => `
+                <div class="sh-picker-item" data-id="${t.id}" title="${t.NAME}">
+                    <div class="sh-picker-icon"><img src="/data/icon/x4/${t.icon_id ?? t.id}.png" onerror="this.style.display='none'" /></div>
+                    <div class="sh-picker-name">${t.NAME}</div>
+                    <div class="sh-picker-id">ID:${t.id}</div>
+                </div>`).join('')
+            : '<div class="sh-picker-empty">Không tìm thấy</div>';
+        grid.querySelectorAll('.sh-picker-item').forEach(el =>
+            el.addEventListener('click', () => {
+                const tid = +el.dataset.id;
+                document.getElementById('sh-modal-temp-id').value = tid;
+                setPreview(tid); closePicker();
+            })
+        );
+    }
+
+    /* ── Events ── */
+    document.addEventListener('click', function (e) {
+        if (e.target.id === 'sh-back-btn')       { showV1(); _activeShop = null; return; }
+        if (e.target.id === 'sh-refresh-btn')    { loadTableData('shops'); return; }
+        if (e.target.id === 'sh-add-item-btn')   { openAddModal(); return; }
+        if (e.target.id === 'sh-reload-btn')     { if (_activeTabId) loadTab(_activeTabId); return; }
+        if (e.target.id === 'sh-modal-close' || e.target.id === 'sh-modal-cancel') { closeModal(); return; }
+        if (e.target.id === 'sh-modal-save')     { saveItem(); return; }
+        if (e.target.id === 'sh-modal-add-opt')  { _modalOpts.push({id:null,option_id:0,param:0}); renderOpts(); return; }
+        if (e.target.closest('#sh-modal-item-pick')) { openPicker(); return; }
+        if (e.target.id === 'sh-picker-close' || e.target.id === 'sh-picker') { closePicker(); return; }
+        if (e.target.id === 'sh-item-modal')     { closeModal(); return; }
+    });
+    document.addEventListener('input', function (e) {
+        if (e.target.id === 'sh-picker-search') {
+            clearTimeout(_pickerTimer);
+            _pickerTimer = setTimeout(() => renderPickerGrid(e.target.value), 180);
+        }
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { closePicker(); closeModal(); }
+    });
+
+    /* ── Chặn renderTable chung ── */
+    const _origRender = window.renderTable;
+    window.renderTable = function (key, rows, cols) {
+        if (key === 'shops') return;
+        return _origRender(key, rows, cols);
+    };
+
+})();
+</script>

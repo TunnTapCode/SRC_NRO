@@ -24,15 +24,32 @@ function renderTable(key, rows, columns) {
             if (key === 'items' && column === 'icon_id') {
                 const iconId = row.icon_id ?? row.iconID ?? 0;
                 return `<td>
-                    <img src="/data/icon/x1/${iconId}.png" alt="item-${iconId}"
+                    <img src="/data/icon/x4/${iconId}.png" alt="item-${iconId}"
                          style="width:32px;height:32px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,0.04);"
                          onerror="this.style.display='none'" />
                 </td>`;
             }
 
-            // Hiển thị Active/False cho các cột boolean
-            if (column === 'active' || column === 'is_admin' || column === 'ban') {
-                return `<td>${String(value) === 'true' ? 'Active' : 'False'}</td>`;
+            // Badge cho cột active
+            if (column === 'active') {
+                const on = String(value) === 'true';
+                return `<td><span class="badge badge-active${on ? ' on' : ' off'}">
+                    ${on ? '✅ Active' : '❌ Inactive'}
+                </span></td>`;
+            }
+
+            // Badge cho cột ban
+            if (column === 'ban') {
+                const banned = String(value) === 'true';
+                return `<td><span class="badge badge-ban${banned ? ' banned' : ' clear'}">
+                    ${banned ? '🚫 Banned' : '✔️ Clear'}
+                </span></td>`;
+            }
+
+            // Icon cho cột is_admin
+            if (column === 'is_admin') {
+                const isAdmin = String(value) === 'true';
+                return `<td>${isAdmin ? '🛡️ Admin' : '👤 User'}</td>`;
             }
 
             return `<td>${value}</td>`;

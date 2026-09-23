@@ -137,7 +137,7 @@ function renderTable(key, rows, columns) {
             const value = normalizeRowValue(key, row[column]);
             if (key === 'items' && column === 'icon_id') {
                 const iconId = row.icon_id ?? row.iconID ?? 0;
-                return `<td><img src="/data/icon/x1/${iconId}.png" alt="item-${iconId}" style="width: 32px; height: 32px; object-fit: contain; border-radius: 8px; background: rgba(255,255,255,0.04);" onerror="this.style.display='none'" /></td>`;
+                return `<td><img src="/data/icon/x4/${iconId}.png" alt="item-${iconId}" style="width: 32px; height: 32px; object-fit: contain; border-radius: 8px; background: rgba(255,255,255,0.04);" onerror="this.style.display='none'" /></td>`;
             }
             if (column === 'active' || column === 'is_admin' || column === 'ban') {
                 return `<td>${String(value) === 'true' ? 'Active' : 'False'}</td>`;

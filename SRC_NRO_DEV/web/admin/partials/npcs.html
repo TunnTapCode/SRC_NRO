@@ -1,10 +1,29 @@
 <link rel="stylesheet" href="/admin/css/npcs.css" />
 
 <section class="module" id="npcs">
-    <div class="card">
-        <div class="card-head">
-            <h3>Danh sách NPC</h3>
+
+    <div class="mb-banner">
+        <div class="mb-left">
+            <div class="mb-avatar">🤖</div>
+            <div class="mb-info">
+                <h2 class="mb-title">
+                    NPC
+                    <span class="mb-badge" id="npcs-total-badge">Tổng: 0</span>
+                </h2>
+                <div class="mb-actions">
+                    <button class="mb-btn mb-btn-primary" onclick="showTab('dashboard')">🏠 Go Panel</button>
+                    <button class="mb-btn mb-btn-refresh" onclick="loadTableData('npcs')">🔄 Làm Mới</button>
+                </div>
+            </div>
         </div>
+        <div class="mb-photos">
+            <div class="mb-photo mb-photo-1"></div>
+            <div class="mb-photo mb-photo-2"></div>
+            <div class="mb-photo mb-photo-3"></div>
+        </div>
+    </div>
+
+    <div class="card">
         <div class="table-wrap">
             <table>
                 <thead>
@@ -22,4 +41,18 @@
             </table>
         </div>
     </div>
+
 </section>
+
+<script>
+(function () {
+    const _origRender = window.renderTable;
+    window.renderTable = function (key, rows, columns) {
+        if (key === 'npcs') {
+            const badge = document.getElementById('npcs-total-badge');
+            if (badge) badge.textContent = 'Tổng: ' + (rows ? rows.length : 0);
+        }
+        return _origRender(key, rows, columns);
+    };
+})();
+</script>

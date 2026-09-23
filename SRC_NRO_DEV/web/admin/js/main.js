@@ -8,13 +8,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sidebar       = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const mobileBtn     = document.getElementById('mobile-menu-btn');
+    const sidebarClose  = document.getElementById('sidebar-close-btn');
+
+    function syncSidebarButtonState() {
+        const isCollapsed = sidebar.classList.contains('collapsed');
+        if (mobileBtn) {
+            mobileBtn.textContent = isCollapsed ? '☰' : '✕';
+            mobileBtn.setAttribute('aria-label', isCollapsed ? 'Mở menu' : 'Đóng menu');
+        }
+        if (sidebarClose) {
+            sidebarClose.textContent = '✕';
+            sidebarClose.setAttribute('aria-label', isCollapsed ? 'Mở sidebar' : 'Đóng sidebar');
+        }
+    }
 
     function toggleSidebar() {
+        if (!sidebar) return;
         sidebar.classList.toggle('collapsed');
-        // Đổi icon nút mobile khi mở/đóng
-        if (mobileBtn) {
-            mobileBtn.textContent = sidebar.classList.contains('collapsed') ? '☰' : '✕';
-        }
+        syncSidebarButtonState();
     }
 
     if (sidebarToggle && sidebar) {
@@ -23,6 +34,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (mobileBtn && sidebar) {
         mobileBtn.addEventListener('click', toggleSidebar);
     }
+    if (sidebarClose && sidebar) {
+        sidebarClose.addEventListener('click', toggleSidebar);
+    }
+
+    syncSidebarButtonState();
 
     // --- Điều hướng menu ---
     document.querySelectorAll('.menu-item').forEach((btn) => {

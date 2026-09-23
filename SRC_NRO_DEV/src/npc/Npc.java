@@ -56,6 +56,7 @@ public abstract class Npc implements IAtionNpc {
         }
     }
 
+    
     public void createOtherMenu(Player player, int indexMenu, String npcSay, String... menuSelect) {
         Message msg;
         try {

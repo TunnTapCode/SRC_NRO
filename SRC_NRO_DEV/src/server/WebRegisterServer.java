@@ -24,8 +24,13 @@ public final class WebRegisterServer {
     private static final int START_PORT = 8080;
     private static final Pattern USERNAME_PATTERN = Pattern.compile("[a-z0-9]{4,20}");
     private static HttpServer server;
+    private static int actualPort = -1;
 
     private WebRegisterServer() {
+    }
+
+    public static int getPort() {
+        return actualPort;
     }
 
     public static void start() {
@@ -35,6 +40,8 @@ public final class WebRegisterServer {
         for (int port = START_PORT; port < START_PORT + 10; port++) {
             try {
                 server = HttpServer.create(new InetSocketAddress(port), 0);
+                actualPort = port;
+                ServerManager.DOMAIN = "http://127.0.0.1:" + port + "/register";
                 server.createContext("/register", WebRegisterServer::handleRegister);
                 server.createContext("/admin", WebRegisterServer::handleAdmin);
                 server.setExecutor(Executors.newCachedThreadPool(runnable -> {
@@ -46,6 +53,7 @@ public final class WebRegisterServer {
                 return;
             } catch (IOException e) {
                 server = null;
+                actualPort = -1;
             }
         }
         Logger.error("Khong the khoi dong web dang ky tu cong " + START_PORT + " den " + (START_PORT + 9) + "\n");

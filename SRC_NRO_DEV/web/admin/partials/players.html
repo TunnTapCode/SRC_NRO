@@ -105,12 +105,12 @@
         // Ưu tiên field từ JOIN phía server
         const fromJoin = row.head_avatar_id;
         if (fromJoin !== null && fromJoin !== undefined) {
-            return `/data/icon/x1/${fromJoin}.png`;
+            return `/data/icon/x4/${fromJoin}.png`;
         }
         // Fallback: tra _headMap (load từ /api/head-avatars)
         const fromMap = _headMap[String(row.head)];
         if (fromMap !== undefined) {
-            return `/data/icon/x1/${fromMap}.png`;
+            return `/data/icon/x4/${fromMap}.png`;
         }
         return null;
     }
@@ -225,7 +225,7 @@
                 const name   = tmpl.NAME   || `#${item.id}`;
                 html.push(`
                     <div class="pl-slot" title="${name} x${item.count}">
-                        <img src="/data/icon/x1/${iconId}.png"
+                        <img src="/data/icon/x4/${iconId}.png"
                              onerror="this.style.display='none'"
                              alt="${name}" />
                     </div>`);
@@ -304,8 +304,8 @@
                             ${renderSlots(bag, 12)}
                         </div>
                         <button class="pl-bag-btn"
-                                onclick="openBagDrawer('${row.name ?? ''}', ${row.id})"
-                                data-bag='${JSON.stringify((bag||[]).slice(0,80))}'>
+                                onclick="openBagDrawer('${row.name ?? ''}', this)"
+                                data-bag='${JSON.stringify((bag||[]).slice(0,80)).replace(/'/g, "&#39;")}'>
                             📦 ${bag.filter(Boolean).length} vật phẩm
                         </button>
                     </div>
@@ -317,8 +317,8 @@
                             ${renderSlots(box, 12)}
                         </div>
                         <button class="pl-bag-btn"
-                                onclick="openBagDrawer('${row.name ?? ''}', ${row.id})"
-                                data-bag='${JSON.stringify((box||[]).slice(0,80))}'>
+                                onclick="openBagDrawer('${row.name ?? ''}', this)"
+                                data-bag='${JSON.stringify((box||[]).slice(0,80)).replace(/'/g, "&#39;")}'>
                             📦 ${box.filter(Boolean).length} vật phẩm
                         </button>
                     </div>
@@ -433,19 +433,16 @@
         return _itemCache;
     }
 
-    window.openBagDrawer = async function (playerName, playerId) {
+    window.openBagDrawer = async function (playerName, btnEl) {
         const drawer  = document.getElementById('bag-drawer');
         const nameEl  = document.getElementById('bag-drawer-name');
         const countEl = document.getElementById('bag-drawer-count');
         const grid    = document.getElementById('bag-drawer-grid');
         if (!drawer) return;
 
-        // Lấy bag data từ attribute của nút
-        const btn = document.querySelector(`.pl-bag-btn[onclick*="${playerId}"]`);
+        // Lấy bag data trực tiếp từ nút được click
         let bagItems = [];
-        if (btn) {
-            try { bagItems = JSON.parse(btn.dataset.bag || '[]'); } catch (_) {}
-        }
+        try { bagItems = JSON.parse(btnEl.dataset.bag || '[]'); } catch (_) {}
 
         nameEl.textContent  = `Túi đồ — ${playerName}`;
         countEl.textContent = 'Đang tải...';
@@ -457,6 +454,16 @@
         document.body.style.overflow = 'hidden';
 
         const templates = await loadItemCache();
+        // Load option template names (dùng cache từ giftcodes nếu có)
+        if (!window._optTemplateCache) {
+            try {
+                const list = await fetch('/api/item-options').then(r => r.json());
+                window._optTemplateCache = {};
+                list.forEach(o => { window._optTemplateCache[String(o.id)] = o.NAME; });
+            } catch (_) { window._optTemplateCache = {}; }
+        }
+        const optNames = window._optTemplateCache;
+
         const filled    = bagItems.filter(Boolean).length;
         countEl.textContent = `${filled} / ${bagItems.length} ô có vật phẩm`;
 
@@ -470,14 +477,17 @@
             const iconId = tmpl.icon_id ?? item.id;
             const count  = item.count > 1 ? `<span class="bag-slot-count">x${item.count}</span>` : '';
 
-            // Build tooltip options
-            const optLines = (item.opts || []).map(([optId, param]) =>
-                `<span>opt${optId}: +${param}</span>`
-            ).join('');
+            // Build tooltip options — dùng tên từ item_option_template
+            const optLines = (item.opts || []).map(([optId, param]) => {
+                const rawName = optNames[String(optId)] || `opt${optId}`;
+                // Thay # bằng giá trị param nếu có
+                const label = rawName.includes('#') ? rawName.replace('#', param) : `${rawName}: ${param}`;
+                return `<span>${label}</span>`;
+            }).join('');
 
             return `
                 <div class="bag-slot" title="${name}" style="animation-delay:${idx * 12}ms">
-                    <img src="/data/icon/x1/${iconId}.png"
+                    <img src="/data/icon/x4/${iconId}.png"
                          onerror="this.style.display='none'"
                          alt="${name}" />
                     ${count}
@@ -501,6 +511,54 @@
     // Đóng bằng Escape
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') window.closeBagDrawer();
+    });
+
+    // Tooltip fixed positioning — thoát khỏi overflow container
+    document.addEventListener('mouseover', function (e) {
+        const slot = e.target.closest('.bag-slot');
+        if (!slot) return;
+        const tip = slot.querySelector('.bag-slot-tooltip');
+        if (!tip) return;
+
+        const rect = slot.getBoundingClientRect();
+        // Hiện phía trên slot, neo trái
+        let left = rect.left;
+        let top  = rect.top - 8; // sẽ đặt bottom = top này
+
+        // Tạm render để biết kích thước
+        tip.style.visibility = 'hidden';
+        tip.style.opacity    = '0';
+        tip.style.left       = left + 'px';
+        tip.style.top        = (top - 120) + 'px'; // ước tính
+        tip.style.bottom     = 'auto';
+
+        // Sau 1 frame đo thực
+        requestAnimationFrame(() => {
+            const tipH = tip.offsetHeight;
+            const tipW = tip.offsetWidth;
+            let finalTop  = rect.top - tipH - 10;
+            let finalLeft = rect.left;
+
+            // Nếu tràn phải → dịch trái
+            if (finalLeft + tipW > window.innerWidth - 8) {
+                finalLeft = window.innerWidth - tipW - 8;
+            }
+            // Nếu tràn trên → hiện phía dưới slot
+            if (finalTop < 8) {
+                finalTop = rect.bottom + 10;
+            }
+
+            tip.style.top        = finalTop + 'px';
+            tip.style.left       = finalLeft + 'px';
+            tip.style.visibility = '';
+        });
+    });
+
+    document.addEventListener('mouseout', function (e) {
+        const slot = e.target.closest('.bag-slot');
+        if (!slot) return;
+        const tip = slot.querySelector('.bag-slot-tooltip');
+        if (tip) { tip.style.top = ''; tip.style.left = ''; tip.style.visibility = ''; }
     });
 })();
 </script>
