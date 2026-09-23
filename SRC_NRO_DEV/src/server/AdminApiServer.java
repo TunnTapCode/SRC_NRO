@@ -16,6 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -180,7 +181,11 @@ public final class AdminApiServer {
                 handleCrud(exchange, method, idParam, payload, "account", "id", "username", "password", "email", "is_admin", "active", "ban");
                 return;
             case "players":
-                handleCrud(exchange, method, idParam, payload, "player", "id", "account_id", "name", "head", "gender", "clan_id", "rank", "power");
+                if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    sendJson(exchange, 200, queryPlayers(idParam));
+                } else {
+                    handleCrud(exchange, method, idParam, payload, "player", "id", "account_id", "name", "head", "gender", "clan_id", "rank", "power");
+                }
                 return;
             case "giftcodes":
                 handleCrud(exchange, method, idParam, payload, "giftcode", "id", "code", "count_left", "detail", "expired");
@@ -193,6 +198,10 @@ public final class AdminApiServer {
                 return;
             case "npcs":
                 handleCrud(exchange, method, idParam, payload, "npc_template", "id", "NAME", "head", "body", "leg", "avatar");
+                return;
+            case "head-avatars":
+                // Trả về map { head_id: avatar_id } dạng flat JSON object để frontend tra nhanh
+                sendJson(exchange, 200, queryHeadAvatars());
                 return;
             default:
                 sendText(exchange, 404, "Unknown resource: " + resource);
@@ -282,6 +291,61 @@ public final class AdminApiServer {
             Logger.logException(AdminApiServer.class, e);
         }
         return rows;
+    }
+
+    /**
+     * Query players với LEFT JOIN head_avatar để lấy avatar_id.
+     * Kết quả trả thêm field "avatar_id" — dùng load ảnh /data/icon/x1/{avatar_id}.png.
+     * Nếu player.head không có trong head_avatar thì avatar_id = null.
+     */
+    private static List<Map<String, Object>> queryPlayers(String idParam) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        // LEFT JOIN để giữ tất cả player, kể cả head không có trong head_avatar
+        // Alias ha.avatar_id → head_avatar_id để tránh conflict với cột khác
+        String sql = "SELECT p.*, ha.avatar_id AS head_avatar_id "
+                   + "FROM player p "
+                   + "LEFT JOIN head_avatar ha ON p.head = ha.head_id "
+                   + (idParam != null ? "WHERE p.id = ? " : "")
+                   + "ORDER BY p.id ASC";
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            if (idParam != null) {
+                statement.setInt(1, Integer.parseInt(idParam));
+            }
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
+                        String col = resultSet.getMetaData().getColumnLabel(i); // dùng getColumnLabel để lấy alias
+                        row.put(col, resultSet.getObject(i));
+                    }
+                    rows.add(row);
+                }
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+        return rows;
+    }
+
+    /**
+     * Trả về map head_id → avatar_id dạng JSON object phẳng.
+     * Frontend dùng để tra cứu nhanh không cần vòng lặp.
+     * Ví dụ: { "0": 516, "6": 520, "102": 1363 }
+     */
+    private static Map<String, Object> queryHeadAvatars() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        String sql = "SELECT head_id, avatar_id FROM head_avatar ORDER BY head_id ASC";
+        try (Connection connection = DatabaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                result.put(String.valueOf(rs.getInt("head_id")), rs.getInt("avatar_id"));
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+        return result;
     }
 
     private static Map<String, String> readBody(HttpExchange exchange) throws IOException {

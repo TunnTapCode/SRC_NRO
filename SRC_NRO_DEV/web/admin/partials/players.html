@@ -1,0 +1,506 @@
+<link rel="stylesheet" href="/admin/css/players.css" />
+
+<section class="module" id="players">
+
+    <!-- ── Header banner ── -->
+    <div class="pl-banner">
+        <div class="pl-banner-left">
+            <img class="pl-banner-avatar" src="/data/effect/x1/ImgEffect_1.png"
+                 onerror="this.src=''" alt="banner" />
+            <div class="pl-banner-info">
+                <h2 class="pl-banner-title">
+                    Player
+                    <span class="pl-badge" id="players-total-badge">Tổng: 0</span>
+                </h2>
+                <div class="pl-banner-actions">
+                    <button class="pl-btn pl-btn-panel" onclick="showTab('accounts')">
+                        🏠 Go Panel
+                    </button>
+                    <button class="pl-btn pl-btn-refresh" onclick="loadTableData('players')">
+                        🔄 Làm Mới
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="pl-banner-photos">
+            <div class="pl-photo pl-photo-1"></div>
+            <div class="pl-photo pl-photo-2"></div>
+            <div class="pl-photo pl-photo-3"></div>
+        </div>
+    </div>
+
+    <!-- ── Pagination (trên bảng) ── -->
+    <div class="pl-pagination" id="players-pagination"></div>
+
+    <!-- ── Bảng danh sách ── -->
+    <div class="pl-table-card">
+        <table class="pl-table">
+            <thead>
+                <tr>
+                    <th class="col-char">Nhân vật</th>
+                    <th class="col-power">Sức mạnh</th>
+                    <th class="col-finance">Tài chính</th>
+                    <th class="col-items">Hành trang</th>
+                    <th class="col-chest">Rương đồ</th>
+                    <th class="col-vip">VIP</th>
+                </tr>
+            </thead>
+            <tbody id="players-table">
+                <!-- search row -->
+                <tr class="pl-search-row">
+                    <td colspan="6">
+                        <div class="pl-search-wrap">
+                            <span class="pl-search-icon">🔍</span>
+                            <input id="players-search" class="pl-search-input"
+                                   type="text" placeholder="Nhập tên rồi nhấn Enter hoặc nút Tìm" />
+                            <button id="players-search-btn" class="pl-search-btn">Tìm</button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ── Drawer xem toàn bộ túi đồ ── -->
+    <div id="bag-drawer" class="bag-drawer" aria-hidden="true">
+        <div class="bag-drawer-backdrop" onclick="closeBagDrawer()"></div>
+        <div class="bag-drawer-panel">
+            <div class="bag-drawer-header">
+                <div class="bag-drawer-title">
+                    <span class="bag-drawer-icon">🎒</span>
+                    <div>
+                        <h3 id="bag-drawer-name">Túi đồ</h3>
+                        <p id="bag-drawer-count" class="bag-drawer-sub"></p>
+                    </div>
+                </div>
+                <button class="bag-drawer-close" onclick="closeBagDrawer()">×</button>
+            </div>
+            <div id="bag-drawer-grid" class="bag-drawer-grid"></div>
+        </div>
+    </div>
+
+</section>
+
+<!-- ── Script render riêng cho Players ── -->
+<script>
+(function () {
+    const PAGE_SIZE = 20;
+    let _allRows   = [];
+    let _filtered  = [];
+    let _page      = 1;
+    let _headMap   = {};   // { headId: avatarId } — load 1 lần từ API
+
+    /* ── Load head-avatar map từ API ── */
+    async function loadHeadMap() {
+        try {
+            const res = await fetch('/api/head-avatars');
+            if (res.ok) _headMap = await res.json();
+        } catch (_) { /* fallback: dùng head_id làm avatar_id */ }
+    }
+
+    /** Tra avatar_id từ row.head_avatar_id (server JOIN LEFT head_avatar, alias rõ ràng)
+     *  Fallback về _headMap nếu server chưa rebuild, null nếu không có mapping
+     */
+    function avatarUrl(row) {
+        // Ưu tiên field từ JOIN phía server
+        const fromJoin = row.head_avatar_id;
+        if (fromJoin !== null && fromJoin !== undefined) {
+            return `/data/icon/x1/${fromJoin}.png`;
+        }
+        // Fallback: tra _headMap (load từ /api/head-avatars)
+        const fromMap = _headMap[String(row.head)];
+        if (fromMap !== undefined) {
+            return `/data/icon/x1/${fromMap}.png`;
+        }
+        return null;
+    }
+
+    /* ---------- helpers ---------- */
+    function fmt(n) {
+        if (n === null || n === undefined || n === '') return '0';
+        const v = Number(n);
+        if (isNaN(v)) return String(n);
+        if (v >= 1e12) return (v / 1e12).toFixed(1).replace(/\.0$/, '') + ' N';
+        if (v >= 1e9)  return (v / 1e9 ).toFixed(1).replace(/\.0$/, '') + ' Tỷ';
+        if (v >= 1e6)  return (v / 1e6 ).toFixed(1).replace(/\.0$/, '') + ' Tr';
+        if (v >= 1e3)  return (v / 1e3 ).toFixed(1).replace(/\.0$/, '') + ' K';
+        return v.toLocaleString('vi-VN');
+    }
+
+    /**
+     * Parse data_inventory → { gold, gem, ruby, coupon }
+     * Nguồn: NTTSqlFetcher.java
+     * [0]=gold  [1]=gem  [2]=ruby  [3]=coupon  [4]=event
+     */
+    function parseDataInventory(raw) {
+        try {
+            const arr = JSON.parse(raw || '[]');
+            return {
+                gold:   arr[0] ?? 0,
+                gem:    arr[1] ?? 0,
+                ruby:   arr[2] ?? 0,
+                coupon: arr[3] ?? 0,
+            };
+        } catch (_) {
+            return { gold: 0, gem: 0, ruby: 0, coupon: 0 };
+        }
+    }
+
+    /**
+     * Parse data_point → { power, tiemNang, hpg, mpg, dameg, defg, hp, mp }
+     * Nguồn: NTTSqlFetcher.java
+     * [0]=limitPower  [1]=power  [2]=tiemNang  [3]=stamina  [4]=maxStamina
+     * [5]=hpg  [6]=mpg  [7]=dameg  [8]=defg  [9]=critg  [10]=critdragon
+     * [11]=năng động  [12]=hp  [13]=mp
+     */
+    function parseDataPoint(raw) {
+        try {
+            const arr = JSON.parse(raw || '[]');
+            return {
+                mghsm:    arr[0]  ?? 0 ,
+                power:    arr[1]  ?? 0,
+                tiemNang: arr[2]  ?? 0,
+                hpg:      arr[5]  ?? 0,
+                mpg:      arr[6]  ?? 0,
+                dameg:    arr[7]  ?? 0,
+                defg:     arr[8]  ?? 0,
+                hp:       arr[12] ?? 0,
+                mp:       arr[13] ?? 0,
+            };
+        } catch (_) {
+            return { mghsm: 0, power: 0, tiemNang: 0, hpg: 0, mpg: 0, dameg: 0, defg: 0, hp: 0, mp: 0 };
+        }
+    }
+
+    /**
+     * Parse items_body / items_bag / items_box
+     * Format DB (từ PlayerDAO.java):
+     *   dataArray = [ "[templateId, quantity, \"[[optId,param],...]\", createTime]", ... ]
+     *
+     * Cấu trúc 1 entry sau khi parse chuỗi con:
+     *   [0] = templateId  (int, -1 = slot trống)
+     *   [1] = quantity    (int)
+     *   [2] = options     (string: "[[\"[optId,param]\"],...]")
+     *   [3] = createTime  (long)
+     */
+    function parseItems(raw) {
+        try {
+            const outerArr = JSON.parse(raw || '[]');
+            return outerArr.map((entry) => {
+                try {
+                    // entry là chuỗi JSON lồng nhau, parse tiếp
+                    const item = JSON.parse(entry);
+                    const templateId = Number(item[0]);
+                    if (templateId === -1) return null;   // slot trống
+
+                    // Parse options: mỗi phần tử là chuỗi "[optId, param]"
+                    let opts = [];
+                    try {
+                        const rawOpts = JSON.parse(item[2] || '[]');
+                        opts = rawOpts.map((o) => JSON.parse(o));
+                        // opts[i] = [optionTemplateId, param]
+                    } catch (_) {}
+
+                    return {
+                        id:         templateId,
+                        count:      Number(item[1]) || 1,
+                        createTime: Number(item[3]) || 0,
+                        opts,
+                    };
+                } catch (_) { return null; }
+            });
+        } catch (_) { return []; }
+    }
+
+    /** Render danh sách slot item với icon — dùng icon_id từ item_template cache */
+    function renderSlots(items, maxSlots) {
+        const html = [];
+        // _itemCache có thể chưa load, fallback dùng templateId
+        const cache = (typeof _itemCache !== 'undefined' && _itemCache) ? _itemCache : {};
+        for (let i = 0; i < maxSlots; i++) {
+            const item = items ? items[i] : null;
+            if (item && item.id !== -1) {
+                const tmpl  = cache[String(item.id)] || {};
+                const iconId = tmpl.icon_id ?? item.id;
+                const name   = tmpl.NAME   || `#${item.id}`;
+                html.push(`
+                    <div class="pl-slot" title="${name} x${item.count}">
+                        <img src="/data/icon/x1/${iconId}.png"
+                             onerror="this.style.display='none'"
+                             alt="${name}" />
+                    </div>`);
+            } else {
+                html.push(`<div class="pl-slot"></div>`);
+            }
+        }
+        return html.join('');
+    }
+
+    /* ---------- render một trang ---------- */
+    function renderPage() {
+        const tbody = document.getElementById('players-table');
+        if (!tbody) return;
+
+        const start = (_page - 1) * PAGE_SIZE;
+        const rows  = _filtered.slice(start, start + PAGE_SIZE);
+
+        // giữ lại search row (tr đầu tiên)
+        const searchRow = tbody.querySelector('.pl-search-row');
+        tbody.innerHTML = '';
+        if (searchRow) tbody.appendChild(searchRow);
+
+        if (rows.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="6" style="text-align:center;padding:24px;color:#94a3b8;">
+                Không có dữ liệu
+            </td>`;
+            tbody.appendChild(tr);
+            renderPagination();
+            return;
+        }
+
+        rows.forEach((row) => {
+            const inv  = parseDataInventory(row.data_inventory);
+            const pt   = parseDataPoint(row.data_point);
+            const bag  = parseItems(row.items_bag);    // hành trang (túi đồ)
+            const box  = parseItems(row.items_box);    // rương đồ
+            const tr   = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <div class="pl-char">
+                        ${(function() {
+                            const url = avatarUrl(row);
+                            console.log(url)
+                            if (url) {
+                                return `<img class="pl-char-avatar" src="${url}"
+                                             onerror="this.replaceWith(document.createElement('div'));this.className='pl-char-avatar pl-char-no-avatar'"
+                                             alt="${row.name}" />`;
+                            }
+                            return `<div class="pl-char-avatar pl-char-no-avatar" title="head: ${row.head}">?</div>`;
+                        })()}
+                        <span class="pl-char-name">${row.name ?? ''}</span>
+                    </div>
+                </td>
+                <td>
+                    <ul class="pl-power-list">
+                        <li>⚔️ SM: <b>${fmt(pt.power)}</b></li>
+                        <li>🌟 TN: <b>${fmt(pt.tiemNang)}</b></li>
+                        <li>❤️ HP: <b>${fmt(pt.hp)}/${fmt(pt.hp)}</b></li>
+                        <li>🔵 KI: <b>${fmt(pt.mp)}/${fmt(pt.mp)}</b></li>
+                    </ul>
+                </td>
+                <td>
+                    <ul class="pl-finance-list">
+                        <li>🪙 <b>${fmt(inv.gold)}</b></li>
+                        <li>💎 <b>${fmt(inv.gem)}</b></li>
+                        <li>❤️‍🔥 <b>${fmt(inv.ruby)}</b></li>
+                        <li>🎫 <b>${fmt(inv.coupon)}</b></li>
+                    </ul>
+                </td>
+                <td>
+                    <!-- Preview 12 slot đầu + nút mở drawer đầy đủ -->
+                    <div class="pl-bag-preview">
+                        <div class="pl-slots pl-slots-preview" style="grid-template-columns:repeat(6,28px)">
+                            ${renderSlots(bag, 12)}
+                        </div>
+                        <button class="pl-bag-btn"
+                                onclick="openBagDrawer('${row.name ?? ''}', ${row.id})"
+                                data-bag='${JSON.stringify((bag||[]).slice(0,80))}'>
+                            📦 ${bag.filter(Boolean).length} vật phẩm
+                        </button>
+                    </div>
+                </td>
+                <td>
+                    <!-- Preview 12 slot đầu + nút mở drawer đầy đủ -->
+                    <div class="pl-bag-preview">
+                        <div class="pl-slots pl-slots-preview" style="grid-template-columns:repeat(6,28px)">
+                            ${renderSlots(box, 12)}
+                        </div>
+                        <button class="pl-bag-btn"
+                                onclick="openBagDrawer('${row.name ?? ''}', ${row.id})"
+                                data-bag='${JSON.stringify((box||[]).slice(0,80))}'>
+                            📦 ${box.filter(Boolean).length} vật phẩm
+                        </button>
+                    </div>
+                </td>
+                <td>
+                    <div class="pl-actions">
+                        <button class="pl-action-btn pl-action-delete btn-action delete"
+                                data-type="players" data-id="${row.id}"
+                                title="Xóa">🗑</button>
+                        <button class="pl-action-btn pl-action-tick btn-action edit"
+                                data-type="players" data-id="${row.id}"
+                                title="Sửa">✓</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        renderPagination();
+    }
+
+    /* ---------- pagination ---------- */
+    function renderPagination() {
+        const container = document.getElementById('players-pagination');
+        if (!container) return;
+        const totalPages = Math.max(1, Math.ceil(_filtered.length / PAGE_SIZE));
+        let html = '';
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="pl-page-btn ${i === _page ? 'active' : ''}"
+                             onclick="playersGoPage(${i})">${i}</button>`;
+        }
+        container.innerHTML = html;
+    }
+
+    /* ---------- public API ---------- */
+    window.playersGoPage = function (page) {
+        _page = page;
+        renderPage();
+    };
+
+    /* Hook vào renderTable để intercept players */
+    const _origRenderTable = typeof renderTable === 'function' ? renderTable : null;
+
+    window.renderPlayersCustom = async function (rows) {
+        // Load item cache (bắt buộc để hiển thị icon item đúng)
+        // Load headMap song song làm fallback khi server chưa có JOIN
+        const tasks = [];
+        if (!window._itemCache) {
+            tasks.push(
+                fetch('/api/items').then(r => r.json()).then(list => {
+                    window._itemCache = {};
+                    list.forEach(t => { window._itemCache[String(t.id)] = t; });
+                }).catch(() => { window._itemCache = {}; })
+            );
+        }
+        if (Object.keys(_headMap).length === 0) {
+            tasks.push(loadHeadMap());
+        }
+        if (tasks.length) await Promise.all(tasks);
+
+        _allRows  = rows || [];
+        _filtered = _allRows.slice();
+        _page     = 1;
+
+        const badge = document.getElementById('players-total-badge');
+        if (badge) badge.textContent = 'Tổng: ' + _allRows.length;
+
+        renderPage();
+    };
+
+    /* ---------- Search — chờ nhấn Enter hoặc nút Tìm mới filter ---------- */
+    function doSearch() {
+        const input = document.getElementById('players-search');
+        if (!input) return;
+        const q = input.value.trim().toLowerCase();
+        _filtered = q
+            ? _allRows.filter((r) => (r.name ?? '').toLowerCase().includes(q))
+            : _allRows.slice();
+        _page = 1;
+        renderPage();
+    }
+
+    document.addEventListener('click', function (e) {
+        if (e.target.id === 'players-search-btn') doSearch();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.target.id === 'players-search' && e.key === 'Enter') doSearch();
+    });
+})();
+</script>
+
+<!-- ── Script Bag Drawer (global) ── -->
+<script>
+(function () {
+    // Cache item templates: { id: { id, NAME, icon_id } }
+    let _itemCache = null;
+
+    async function loadItemCache() {
+        if (_itemCache) return _itemCache;
+        try {
+            const res = await fetch('/api/items');
+            if (!res.ok) throw new Error();
+            const list = await res.json();
+            _itemCache = {};
+            list.forEach((t) => { _itemCache[String(t.id)] = t; });
+        } catch (_) {
+            _itemCache = {};
+        }
+        // Expose ra window để renderSlots (script players) dùng chung
+        window._itemCache = _itemCache;
+        return _itemCache;
+    }
+
+    window.openBagDrawer = async function (playerName, playerId) {
+        const drawer  = document.getElementById('bag-drawer');
+        const nameEl  = document.getElementById('bag-drawer-name');
+        const countEl = document.getElementById('bag-drawer-count');
+        const grid    = document.getElementById('bag-drawer-grid');
+        if (!drawer) return;
+
+        // Lấy bag data từ attribute của nút
+        const btn = document.querySelector(`.pl-bag-btn[onclick*="${playerId}"]`);
+        let bagItems = [];
+        if (btn) {
+            try { bagItems = JSON.parse(btn.dataset.bag || '[]'); } catch (_) {}
+        }
+
+        nameEl.textContent  = `Túi đồ — ${playerName}`;
+        countEl.textContent = 'Đang tải...';
+        grid.innerHTML      = '<div class="bag-loading">⏳ Đang tải dữ liệu...</div>';
+
+        // Mở drawer trước, load data song song
+        drawer.classList.add('open');
+        drawer.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+
+        const templates = await loadItemCache();
+        const filled    = bagItems.filter(Boolean).length;
+        countEl.textContent = `${filled} / ${bagItems.length} ô có vật phẩm`;
+
+        grid.innerHTML = bagItems.map((item, idx) => {
+            if (!item || item.id === -1) {
+                return `<div class="bag-slot bag-slot-empty" title="Ô trống"></div>`;
+            }
+
+            const tmpl   = templates[String(item.id)] || {};
+            const name   = tmpl.NAME || `#${item.id}`;
+            const iconId = tmpl.icon_id ?? item.id;
+            const count  = item.count > 1 ? `<span class="bag-slot-count">x${item.count}</span>` : '';
+
+            // Build tooltip options
+            const optLines = (item.opts || []).map(([optId, param]) =>
+                `<span>opt${optId}: +${param}</span>`
+            ).join('');
+
+            return `
+                <div class="bag-slot" title="${name}" style="animation-delay:${idx * 12}ms">
+                    <img src="/data/icon/x1/${iconId}.png"
+                         onerror="this.style.display='none'"
+                         alt="${name}" />
+                    ${count}
+                    <div class="bag-slot-tooltip">
+                        <b>${name}</b>
+                        ${item.count > 1 ? `<span>Số lượng: ${item.count}</span>` : ''}
+                        ${optLines}
+                    </div>
+                </div>`;
+        }).join('');
+    };
+
+    window.closeBagDrawer = function () {
+        const drawer = document.getElementById('bag-drawer');
+        if (!drawer) return;
+        drawer.classList.remove('open');
+        drawer.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    };
+
+    // Đóng bằng Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') window.closeBagDrawer();
+    });
+})();
+</script>
