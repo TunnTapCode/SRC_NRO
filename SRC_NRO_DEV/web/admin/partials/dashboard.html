@@ -2,7 +2,7 @@
 
 <section class="module" id="dashboard">
 
-    <!-- ── Greeting ── -->
+    <!-- Greeting -->
     <div class="db-greeting">
         <div class="db-greeting-text">
             <h2 class="db-greeting-title">Xin chào, Admin 👋</h2>
@@ -11,7 +11,7 @@
         <button class="db-refresh-btn" onclick="dashboardLoad()">🔄 Làm mới</button>
     </div>
 
-    <!-- ── Stat Cards ── -->
+    <!-- Stat Cards -->
     <div class="db-cards">
         <div class="db-card db-card-accounts">
             <div class="db-card-icon">👤</div>
@@ -45,13 +45,13 @@
             </div>
             <div class="db-card-bg">🎁</div>
         </div>
-        <div class="db-card db-card-npcs">
-            <div class="db-card-icon">🤖</div>
+        <div class="db-card db-card-revenue">
+            <div class="db-card-icon">💰</div>
             <div class="db-card-body">
-                <p class="db-card-label">NPC</p>
-                <h3 class="db-card-value" id="db-total-npcs">—</h3>
+                <p class="db-card-label">Doanh thu (VNĐ)</p>
+                <h3 class="db-card-value" id="db-total-revenue">—</h3>
             </div>
-            <div class="db-card-bg">🤖</div>
+            <div class="db-card-bg">💰</div>
         </div>
         <div class="db-card db-card-shops">
             <div class="db-card-icon">🏪</div>
@@ -63,48 +63,63 @@
         </div>
     </div>
 
-    <!-- ── Hai cột dưới: Top players + Quick links ── -->
-    <div class="db-bottom">
-
-        <!-- Top 5 players mạnh nhất -->
+    <!-- Hàng 1: Top sức mạnh + Top nạp -->
+    <div class="db-row2">
         <div class="db-panel">
             <div class="db-panel-head">
                 <span class="db-panel-icon">🏆</span>
-                <h3>Top nhân vật mạnh nhất</h3>
+                <h3>Top sức mạnh</h3>
             </div>
-            <div id="db-top-players" class="db-top-list">
+            <div id="db-top-power" class="db-top-list">
                 <div class="db-loading">Đang tải...</div>
             </div>
         </div>
+        <div class="db-panel">
+            <div class="db-panel-head">
+                <span class="db-panel-icon">💎</span>
+                <h3>Top nạp</h3>
+            </div>
+            <div id="db-top-nap" class="db-top-list">
+                <div class="db-loading">Đang tải...</div>
+            </div>
+        </div>
+        <div class="db-panel">
+            <div class="db-panel-head">
+                <span class="db-panel-icon">📜</span>
+                <h3>Top nhiệm vụ</h3>
+            </div>
+            <div id="db-top-quest" class="db-top-list">
+                <div class="db-loading">Đang tải...</div>
+            </div>
+        </div>
+    </div>
 
-        <!-- Quick links -->
+    <!-- Hàng 2: Biểu đồ doanh thu + Quick links -->
+    <div class="db-row2" style="grid-template-columns:2fr 1fr">
+        <div class="db-panel">
+            <div class="db-panel-head">
+                <span class="db-panel-icon">📊</span>
+                <h3>Biểu đồ doanh thu theo nhà mạng</h3>
+            </div>
+            <div class="db-chart-wrap">
+                <canvas id="db-chart-telco" height="220"></canvas>
+            </div>
+        </div>
         <div class="db-panel">
             <div class="db-panel-head">
                 <span class="db-panel-icon">⚡</span>
                 <h3>Truy cập nhanh</h3>
             </div>
             <div class="db-quick-links">
-                <button class="db-quick-btn" onclick="showTab('accounts')">
-                    <span>👤</span> Quản lý tài khoản
-                </button>
-                <button class="db-quick-btn" onclick="showTab('players')">
-                    <span>⚔️</span> Quản lý nhân vật
-                </button>
-                <button class="db-quick-btn" onclick="showTab('giftcodes')">
-                    <span>🎁</span> Tạo Gift Code
-                </button>
-                <button class="db-quick-btn" onclick="showTab('items')">
-                    <span>🎒</span> Quản lý vật phẩm
-                </button>
-                <button class="db-quick-btn" onclick="showTab('shops')">
-                    <span>🏪</span> Cấu hình Shop
-                </button>
-                <button class="db-quick-btn" onclick="showTab('npcs')">
-                    <span>🤖</span> Quản lý NPC
-                </button>
+                <button class="db-quick-btn" onclick="showTab('accounts')"><span>👤</span> Tài khoản</button>
+                <button class="db-quick-btn" onclick="showTab('players')"><span>⚔️</span> Nhân vật</button>
+                <button class="db-quick-btn" onclick="showTab('giftcodes')"><span>🎁</span> Gift Code</button>
+                <button class="db-quick-btn" onclick="showTab('items')"><span>🎒</span> Vật phẩm</button>
+                <button class="db-quick-btn" onclick="showTab('shops')"><span>🏪</span> Shop</button>
+                <button class="db-quick-btn" onclick="showTab('npcs')"><span>🤖</span> NPC</button>
+                <button class="db-quick-btn" onclick="showTab('maps')"><span>🗺️</span> Bản đồ</button>
             </div>
         </div>
-
     </div>
 
 </section>
@@ -112,124 +127,292 @@
 <script>
 (function () {
 
+    /* ── Helpers ── */
     function fmtNum(n) {
         if (n === null || n === undefined) return '—';
         const v = Number(n);
-        if (v >= 1e9)  return (v / 1e9).toFixed(1).replace(/\.0$/, '') + ' Tỷ';
-        if (v >= 1e6)  return (v / 1e6).toFixed(1).replace(/\.0$/, '') + ' Tr';
-        if (v >= 1e3)  return (v / 1e3).toFixed(1).replace(/\.0$/, '') + ' K';
+        if (v >= 1e9)  return (v/1e9).toFixed(1).replace(/\.0$/,'') + ' Tỷ';
+        if (v >= 1e6)  return (v/1e6).toFixed(1).replace(/\.0$/,'') + ' Tr';
+        if (v >= 1e3)  return (v/1e3).toFixed(1).replace(/\.0$/,'') + ' K';
         return v.toLocaleString('vi-VN');
     }
 
-    async function fetchCount(resource) {
-        try {
-            const res = await fetch(`/api/${resource}`);
-            if (!res.ok) return 0;
-            const data = await res.json();
-            return Array.isArray(data) ? data.length : 0;
-        } catch (_) { return 0; }
+    function fmtVnd(n) {
+        const v = Number(n) || 0;
+        if (v >= 1e9)  return (v/1e9).toFixed(2) + ' Tỷ đ';
+        if (v >= 1e6)  return (v/1e6).toFixed(1) + ' Tr đ';
+        if (v >= 1e3)  return (v/1e3).toFixed(0) + ' K đ';
+        return v.toLocaleString('vi-VN') + ' đ';
     }
 
-    async function fetchTopPlayers() {
+    async function apiFetch(resource) {
         try {
-            const res = await fetch('/api/players');
-            if (!res.ok) return [];
-            const data = await res.json();
-            return [...data]
-                .sort((a, b) => Number(b.power) - Number(a.power))
-                .slice(0, 5);
+            const r = await fetch('/api/' + resource);
+            if (!r.ok) return [];
+            const d = await r.json();
+            return Array.isArray(d) ? d : [];
         } catch (_) { return []; }
     }
 
     function animateCount(el, target) {
-        const duration = 900;
-        const start    = performance.now();
-        const from     = 0;
-        function step(now) {
-            const pct   = Math.min((now - start) / duration, 1);
-            const ease  = 1 - Math.pow(1 - pct, 3);
-            const value = Math.round(from + (target - from) * ease);
-            el.textContent = value.toLocaleString('vi-VN');
-            if (pct < 1) requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
+        const dur = 900; const start = performance.now();
+        (function step(now) {
+            const p = Math.min((now - start) / dur, 1);
+            const e = 1 - Math.pow(1-p, 3);
+            el.textContent = Math.round(target * e).toLocaleString('vi-VN');
+            if (p < 1) requestAnimationFrame(step);
+        })(start);
     }
 
     function setCard(id, value) {
         const el = document.getElementById(id);
-        if (!el) return;
-        animateCount(el, value);
+        if (el) animateCount(el, value);
     }
 
-    function renderTopPlayers(players) {
-        const container = document.getElementById('db-top-players');
-        if (!container) return;
-        if (!players.length) {
-            container.innerHTML = '<p class="db-empty">Không có dữ liệu</p>';
-            return;
-        }
-        const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
-        container.innerHTML = players.map((p, i) => `
-            <div class="db-top-row" style="animation-delay:${i * 80}ms">
-                <span class="db-top-medal">${medals[i] || (i + 1)}</span>
-                <div class="db-top-info">
-                    <span class="db-top-name">${p.name ?? '?'}</span>
-                    <span class="db-top-rank">Rank ${p.rank ?? 0}</span>
-                </div>
-                <span class="db-top-power">⚔️ ${fmtNum(parseDataPoint(p.data_point).power)}</span>
-            </div>
-        `).join('');
-    }
     function parseDataPoint(raw) {
+        try { const a = JSON.parse(raw||'[]'); return { power: a[1]??0, tiemNang: a[2]??0 }; }
+        catch (_) { return { power:0, tiemNang:0 }; }
+    }
+
+    function parseAchievement(raw) {
+        // data_achievement: JSON array của các task đã hoàn thành
         try {
             const arr = JSON.parse(raw || '[]');
-            return {
-                mghsm:    arr[0]  ?? 0 ,
-                power:    arr[1]  ?? 0,
-                tiemNang: arr[2]  ?? 0,
-                hpg:      arr[5]  ?? 0,
-                mpg:      arr[6]  ?? 0,
-                dameg:    arr[7]  ?? 0,
-                defg:     arr[8]  ?? 0,
-                hp:       arr[12] ?? 0,
-                mp:       arr[13] ?? 0,
-            };
-        } catch (_) {
-            return { mghsm: 0, power: 0, tiemNang: 0, hpg: 0, mpg: 0, dameg: 0, defg: 0, hp: 0, mp: 0 };
+            return Array.isArray(arr) ? arr.length : 0;
+        } catch (_) { return 0; }
+    }
+
+    const MEDALS = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+
+    /* ── Top sức mạnh ── */
+    function renderTopPower(players) {
+        const el = document.getElementById('db-top-power');
+        if (!el) return;
+        if (!players.length) { el.innerHTML = '<p class="db-empty">Không có dữ liệu</p>'; return; }
+        const sorted = [...players]
+            .map(p => ({ ...p, _power: parseDataPoint(p.data_point).power }))
+            .sort((a,b) => b._power - a._power)
+            .slice(0, 5);
+        el.innerHTML = sorted.map((p,i) => `
+            <div class="db-top-row" style="animation-delay:${i*70}ms">
+                <span class="db-top-medal">${MEDALS[i]}</span>
+                <div class="db-top-info">
+                    <span class="db-top-name">${p.name ?? '?'}</span>
+                    <span class="db-top-sub">Tiềm năng: ${fmtNum(parseDataPoint(p.data_point).tiemNang)}</span>
+                </div>
+                <span class="db-top-value db-val-power">⚡ ${fmtNum(p._power)}</span>
+            </div>`).join('');
+    }
+
+    /* ── Top nạp ── */
+    function renderTopNap(napList) {
+        const el = document.getElementById('db-top-nap');
+        if (!el) return;
+        if (!napList.length) { el.innerHTML = '<p class="db-empty">Không có dữ liệu</p>'; return; }
+        // Gộp theo user_nap, chỉ tính status = 1 (thành công)
+        const map = {};
+        napList.filter(r => Number(r.status) === 1).forEach(r => {
+            const u = r.user_nap || '?';
+            map[u] = (map[u] || 0) + Number(r.amount || 0);
+        });
+        const sorted = Object.entries(map)
+            .sort((a,b) => b[1]-a[1])
+            .slice(0, 5);
+        if (!sorted.length) { el.innerHTML = '<p class="db-empty">Không có dữ liệu</p>'; return; }
+        el.innerHTML = sorted.map(([user, total], i) => `
+            <div class="db-top-row" style="animation-delay:${i*70}ms">
+                <span class="db-top-medal">${MEDALS[i]}</span>
+                <div class="db-top-info">
+                    <span class="db-top-name">${user}</span>
+                    <span class="db-top-sub">Tổng lần nạp</span>
+                </div>
+                <span class="db-top-value db-val-nap">💰 ${fmtVnd(total)}</span>
+            </div>`).join('');
+    }
+
+    /* ── Top nhiệm vụ ── */
+    function renderTopQuest(players) {
+        const el = document.getElementById('db-top-quest');
+        if (!el) return;
+        if (!players.length) { el.innerHTML = '<p class="db-empty">Không có dữ liệu</p>'; return; }
+        const sorted = [...players]
+            .map(p => ({ ...p, _quest: parseAchievement(p.data_achievement) }))
+            .sort((a,b) => b._quest - a._quest)
+            .slice(0, 5);
+        el.innerHTML = sorted.map((p,i) => `
+            <div class="db-top-row" style="animation-delay:${i*70}ms">
+                <span class="db-top-medal">${MEDALS[i]}</span>
+                <div class="db-top-info">
+                    <span class="db-top-name">${p.name ?? '?'}</span>
+                    <span class="db-top-sub">Nhiệm vụ hoàn thành</span>
+                </div>
+                <span class="db-top-value db-val-quest">📜 ${p._quest}</span>
+            </div>`).join('');
+    }
+
+    /* ── Biểu đồ doanh thu theo nhà mạng ── */
+    let _chartInstance = null;
+
+    function renderChart(napList) {
+        const canvas = document.getElementById('db-chart-telco');
+        if (!canvas) return;
+
+        // Gộp doanh thu theo telco (status=1)
+        const map = {};
+        napList.filter(r => Number(r.status) === 1).forEach(r => {
+            const t = (r.telco || 'Khác').toUpperCase();
+            map[t] = (map[t] || 0) + Number(r.amount || 0);
+        });
+
+        const labels = Object.keys(map);
+        const values = Object.values(map);
+
+        const COLORS = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7','#06b6d4','#f97316'];
+
+        // Dùng Chart.js nếu có, nếu không tự vẽ canvas
+        if (window.Chart) {
+            if (_chartInstance) _chartInstance.destroy();
+            _chartInstance = new window.Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Doanh thu (VNĐ)',
+                        data: values,
+                        backgroundColor: labels.map((_,i) => COLORS[i % COLORS.length] + 'cc'),
+                        borderColor:     labels.map((_,i) => COLORS[i % COLORS.length]),
+                        borderWidth: 2,
+                        borderRadius: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ' ' + fmtVnd(ctx.raw)
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: v => fmtVnd(v) }
+                        }
+                    }
+                }
+            });
+        } else {
+            // Fallback: vẽ bar chart thủ công bằng canvas
+            drawBarFallback(canvas, labels, values, COLORS);
         }
     }
-    window.dashboardLoad = async function () {
-        // Reset về loading
-        ['db-total-accounts','db-total-players','db-total-items',
-         'db-total-giftcodes','db-total-npcs','db-total-shops'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = '…';
-        });
-        document.getElementById('db-top-players').innerHTML =
-            '<div class="db-loading">Đang tải...</div>';
 
-        const [accounts, players, items, giftcodes, npcs, shops, top] = await Promise.all([
-            fetchCount('accounts'),
-            fetchCount('players'),
-            fetchCount('items'),
-            fetchCount('giftcodes'),
-            fetchCount('npcs'),
-            fetchCount('shops'),
-            fetchTopPlayers(),
+    function drawBarFallback(canvas, labels, values, colors) {
+        const ctx  = canvas.getContext('2d');
+        const W    = canvas.offsetWidth || 500;
+        const H    = canvas.height || 220;
+        canvas.width = W;
+        ctx.clearRect(0, 0, W, H);
+
+        if (!values.length) {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Chưa có dữ liệu nạp', W/2, H/2);
+            return;
+        }
+
+        const max    = Math.max(...values) || 1;
+        const pad    = { t:20, r:20, b:40, l:60 };
+        const barW   = Math.max(20, Math.floor((W - pad.l - pad.r) / labels.length - 10));
+        const chartH = H - pad.t - pad.b;
+
+        // Y axis labels
+        ctx.fillStyle = '#64748b';
+        ctx.font      = '11px sans-serif';
+        ctx.textAlign = 'right';
+        [0, 0.25, 0.5, 0.75, 1].forEach(r => {
+            const y = pad.t + chartH * (1 - r);
+            ctx.fillText(fmtVnd(max * r), pad.l - 6, y + 4);
+            ctx.strokeStyle = '#e2eaf5';
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+        });
+
+        // Bars
+        labels.forEach((lbl, i) => {
+            const x   = pad.l + i * (barW + 10);
+            const bh  = (values[i] / max) * chartH;
+            const y   = pad.t + chartH - bh;
+            ctx.fillStyle = colors[i % colors.length] + 'cc';
+            // rounded top
+            ctx.beginPath();
+            ctx.roundRect ? ctx.roundRect(x, y, barW, bh, [6,6,0,0]) : ctx.rect(x, y, barW, bh);
+            ctx.fill();
+            // label
+            ctx.fillStyle = '#475569';
+            ctx.textAlign = 'center';
+            ctx.fillText(lbl, x + barW/2, H - pad.b + 14);
+            // value
+            ctx.fillStyle = '#1e293b';
+            ctx.font = '10px sans-serif';
+            ctx.fillText(fmtVnd(values[i]), x + barW/2, y - 4);
+            ctx.font = '11px sans-serif';
+        });
+    }
+
+    /* ── Main load ── */
+    window.dashboardLoad = async function () {
+        ['db-total-accounts','db-total-players','db-total-items',
+         'db-total-giftcodes','db-total-revenue','db-total-shops'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.textContent = '…';
+        });
+        ['db-top-power','db-top-nap','db-top-quest'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<div class="db-loading">Đang tải...</div>';
+        });
+
+        const [accounts, players, items, giftcodes, napList, shops] = await Promise.all([
+            apiFetch('accounts'),
+            apiFetch('players'),
+            apiFetch('items'),
+            apiFetch('giftcodes'),
+            apiFetch('napthe'),
+            apiFetch('shops'),
         ]);
 
-        setCard('db-total-accounts',  accounts);
-        setCard('db-total-players',   players);
-        setCard('db-total-items',     items);
-        setCard('db-total-giftcodes', giftcodes);
-        setCard('db-total-npcs',      npcs);
-        setCard('db-total-shops',     shops);
-        renderTopPlayers(top);
+        // Cards
+        setCard('db-total-accounts',  accounts.length);
+        setCard('db-total-players',   players.length);
+        setCard('db-total-items',     items.length);
+        setCard('db-total-giftcodes', giftcodes.length);
+        setCard('db-total-shops',     shops.length);
+
+        // Doanh thu tổng (status=1)
+        const revenue = napList
+            .filter(r => Number(r.status) === 1)
+            .reduce((s, r) => s + Number(r.amount || 0), 0);
+        const revEl = document.getElementById('db-total-revenue');
+        if (revEl) revEl.textContent = fmtVnd(revenue);
+
+        // Top panels
+        renderTopPower(players);
+        renderTopNap(napList);
+        renderTopQuest(players);
+
+        // Chart (lazy load Chart.js nếu chưa có)
+        if (!window.Chart) {
+            const script  = document.createElement('script');
+            script.src    = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
+            script.onload = () => renderChart(napList);
+            document.head.appendChild(script);
+        } else {
+            renderChart(napList);
+        }
     };
 
-    // Load khi module được kích hoạt lần đầu
     document.addEventListener('dashboardActivated', window.dashboardLoad, { once: false });
-    // Cũng load ngay nếu đang active
     if (document.getElementById('dashboard')?.classList.contains('active')) {
         window.dashboardLoad();
     }

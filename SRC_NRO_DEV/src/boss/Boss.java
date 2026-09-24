@@ -300,6 +300,10 @@ public class Boss extends Player implements IBoss {
         this.bossStatus = status;
     }
 
+    public int getSecondsRest() {
+        return this.secondsRest;
+    }
+
     @Override
     public Player getPlayerAttack() {
         if (this.zone == null) {

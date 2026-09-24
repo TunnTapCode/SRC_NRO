@@ -1,0 +1,990 @@
+<link rel="stylesheet" href="/admin/css/operation.css" />
+
+<section class="module" id="operation">
+
+    <!-- Header -->
+    <div class="op-header">
+        <div class="op-header-left">
+            <h2 class="op-title">⚙️ Vận Hành</h2>
+            <p class="op-subtitle">Quản lý và điều hành hệ thống game</p>
+        </div>
+    </div>
+
+    <!-- Grid các card chức năng -->
+    <div class="op-grid" id="op-grid">
+
+        <!-- Thông báo toàn server -->
+        <div class="op-card op-card-blue" data-feature="announce">
+            <div class="op-card-icon">📢</div>
+            <div class="op-card-title">Thông Báo Server</div>
+            <div class="op-card-desc">Gửi thông báo tới tất cả người chơi đang online</div>
+            <div class="op-card-arrow">→</div>
+        </div>
+
+        <!-- Nạp thẻ -->
+        <div class="op-card op-card-green" data-feature="napthe">
+            <div class="op-card-icon">💰</div>
+            <div class="op-card-title">Lịch Sử Nạp Thẻ</div>
+            <div class="op-card-desc">Xem danh sách giao dịch nạp thẻ, doanh thu theo nhà mạng</div>
+            <div class="op-card-arrow">→</div>
+        </div>
+
+        <!-- Bảo trì server -->
+        <div class="op-card op-card-orange" data-feature="maintenance">
+            <div class="op-card-icon">🔧</div>
+            <div class="op-card-title">Bảo Trì</div>
+            <div class="op-card-desc">Bật / tắt chế độ bảo trì toàn server</div>
+            <div class="op-card-arrow">→</div>
+        </div>
+
+        <!-- Quản lý IP / Ban -->
+        <div class="op-card op-card-dark" data-feature="ipban">
+            <div class="op-card-icon">🚫</div>
+            <div class="op-card-title">Quản Lý Ban / IP</div>
+            <div class="op-card-desc">Ban tài khoản, chặn IP vi phạm quy định</div>
+            <div class="op-card-arrow">→</div>
+        </div>
+
+        <!-- Chỉnh Boss -->
+        <div class="op-card op-card-red" data-feature="chinhboss">
+            <div class="op-card-icon">🩸</div>
+            <div class="op-card-title">Chỉnh Boss</div>
+            <div class="op-card-desc">Điều chỉnh chỉ số HP, sát thương, tỉ lệ xuất hiện của Boss</div>
+            <div class="op-card-arrow">→</div>
+        </div>
+
+        <!-- Tỉ lệ đập đồ -->
+        <div class="op-card op-card-purple" data-feature="tiledapdo">
+            <div class="op-card-icon">💎</div>
+            <div class="op-card-title">Tỉ Lệ Đập Đồ</div>
+            <div class="op-card-desc">Chỉnh tỉ lệ thành công khi nâng cấp / đập đồ trang bị</div>
+            <div class="op-card-arrow">→</div>
+        </div>
+
+        <!-- Tỉ lệ EXP -->
+        <div class="op-card op-card-yellow" data-feature="tileexp">
+            <div class="op-card-icon">⚡</div>
+            <div class="op-card-title">Tỉ Lệ EXP</div>
+            <div class="op-card-desc">Nhân hệ số kinh nghiệm nhận được khi đánh quái</div>
+            <div class="op-card-arrow">→</div>
+        </div>
+
+        <!-- Tỉ lệ rơi đồ -->
+        <div class="op-card op-card-teal" data-feature="tileroidO">
+            <div class="op-card-icon">🍀</div>
+            <div class="op-card-title">Tỉ Lệ Rơi Đồ</div>
+            <div class="op-card-desc">Điều chỉnh xác suất quái vật rơi vật phẩm khi bị tiêu diệt</div>
+            <div class="op-card-arrow">→</div>
+        </div>
+           <div class="op-card op-card-cyan" data-feature="napthe">
+            <div class="op-card-icon">💰</div>
+            <div class="op-card-title">Lịch Sử Giao Dịch</div>
+            <div class="op-card-desc">Xem lại các giao dịch của nhân vật</div>
+            <div class="op-card-arrow">→</div>
+        </div>
+
+        <!-- Backup DB 
+        <div class="op-card op-card-teal" data-feature="backup">
+            <div class="op-card-icon">💾</div>
+            <div class="op-card-title">Sao Lưu Dữ Liệu</div>
+            <div class="op-card-desc">Backup database, xem lịch sử backup gần đây</div>
+            <div class="op-card-arrow">→</div>
+        </div> 
+        -->
+    </div>
+
+    <!-- ── Nội dung từng feature (hiện khi click card) ── -->
+    <div id="op-feature-area" class="op-hidden"></div>
+
+</section>
+
+<!-- ── Feature views ── -->
+
+<!-- BOSS MODAL (overlay toàn màn hình) -->
+<div id="op-boss-modal" class="op-boss-overlay op-hidden">
+    <div class="op-boss-dialog">
+
+        <!-- Left: danh sách boss -->
+        <div class="op-boss-left">
+            <div class="op-boss-search-wrap">
+                <span class="op-boss-search-icon">🔍</span>
+                <input id="op-boss-search" class="op-boss-search" type="text"
+                       placeholder="Tìm Boss..." autocomplete="off" />
+                <span id="op-boss-count" class="op-boss-count">0 boss</span>
+            </div>
+            <div id="op-boss-grid" class="op-boss-grid">
+                <div class="op-loading">⏳ Đang tải...</div>
+            </div>
+        </div>
+
+        <!-- Right: form chỉnh sửa -->
+        <div class="op-boss-right">
+            <div class="op-boss-right-header">
+                <h3>Thông tin chỉnh sửa</h3>
+                <button class="op-boss-close" id="op-boss-close">✕</button>
+            </div>
+
+            <div id="op-boss-detail" class="op-boss-detail">
+                <div class="op-boss-no-select">← Chọn Boss để chỉnh sửa</div>
+            </div>
+        </div>
+    </div>
+</div>
+<template id="op-tpl-napthe">
+    <div class="op-feature">
+        <div class="op-feature-header">
+            <button class="op-back-btn" id="op-back-btn">← Trở về</button>
+            <h3 class="op-feature-title">💰 Lịch Sử Nạp Thẻ</h3>
+            <div class="op-feature-actions">
+                <button class="op-tool-btn op-btn-primary" id="op-nap-refresh">🔄 Tải lại</button>
+            </div>
+        </div>
+        <!-- Stats nhanh -->
+        <div class="op-nap-stats">
+            <div class="op-stat-chip op-stat-total">
+                <span class="op-stat-icon">💳</span>
+                <div><div class="op-stat-label">Tổng giao dịch</div><div class="op-stat-val" id="op-nap-count">—</div></div>
+            </div>
+            <div class="op-stat-chip op-stat-success">
+                <span class="op-stat-icon">✅</span>
+                <div><div class="op-stat-label">Thành công</div><div class="op-stat-val" id="op-nap-success">—</div></div>
+            </div>
+            <div class="op-stat-chip op-stat-fail">
+                <span class="op-stat-icon">❌</span>
+                <div><div class="op-stat-label">Thất bại</div><div class="op-stat-val" id="op-nap-fail">—</div></div>
+            </div>
+            <div class="op-stat-chip op-stat-revenue">
+                <span class="op-stat-icon">💰</span>
+                <div><div class="op-stat-label">Doanh thu</div><div class="op-stat-val" id="op-nap-revenue">—</div></div>
+            </div>
+        </div>
+        <!-- Filter -->
+        <div class="op-filter-row">
+            <input class="op-filter-input" type="text" id="op-nap-search" placeholder="🔍 Tìm tài khoản / serial..." />
+            <select class="op-filter-select" id="op-nap-status-filter">
+                <option value="">Tất cả</option>
+                <option value="1">Thành công</option>
+                <option value="0">Thất bại</option>
+            </select>
+            <select class="op-filter-select" id="op-nap-telco-filter">
+                <option value="">Nhà mạng</option>
+            </select>
+        </div>
+        <!-- Table -->
+        <div class="op-table-wrap">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tài khoản</th>
+                        <th>Nhà mạng</th>
+                        <th>Mệnh giá</th>
+                        <th>Serial</th>
+                        <th>Trạng thái</th>
+                        <th>Thời gian</th>
+                    </tr>
+                </thead>
+                <tbody id="op-nap-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</template>
+
+<template id="op-tpl-rank">
+    <div class="op-feature">
+        <div class="op-feature-header">
+            <button class="op-back-btn" id="op-back-btn">← Trở về</button>
+            <h3 class="op-feature-title">🏆 Bảng Xếp Hạng</h3>
+        </div>
+        <div class="op-rank-tabs">
+            <button class="op-rank-tab active" data-rank="power">⚡ Sức Mạnh</button>
+            <button class="op-rank-tab" data-rank="nap">💰 Nạp Thẻ</button>
+        </div>
+        <div id="op-rank-list" class="op-rank-list"></div>
+    </div>
+</template>
+
+<template id="op-tpl-default">
+    <div class="op-feature">
+        <div class="op-feature-header">
+            <button class="op-back-btn" id="op-back-btn">← Trở về</button>
+            <h3 class="op-feature-title" id="op-default-title"></h3>
+        </div>
+        <div class="op-coming-soon">
+            <div class="op-coming-icon">🔨</div>
+            <h3>Đang phát triển</h3>
+            <p>Tính năng này sẽ sớm ra mắt trong phiên bản tiếp theo.</p>
+        </div>
+    </div>
+</template>
+
+<script>
+(function () {
+
+    /* ── Helpers ── */
+    function fmtVnd(n) {
+        const v = Number(n) || 0;
+        if (v >= 1e9) return (v/1e9).toFixed(2) + ' Tỷ đ';
+        if (v >= 1e6) return (v/1e6).toFixed(1) + ' Tr đ';
+        if (v >= 1e3) return (v/1e3).toFixed(0) + ' K đ';
+        return v.toLocaleString('vi-VN') + ' đ';
+    }
+    function fmtDate(s) {
+        if (!s) return '—';
+        return String(s).replace('T', ' ').substring(0, 16);
+    }
+    async function api(resource) {
+        try { return await fetch('/api/' + resource).then(r => r.json()); }
+        catch (_) { return []; }
+    }
+
+    /* ── Show / Hide feature ── */
+    function showGrid()    {
+        document.getElementById('op-grid').classList.remove('op-hidden');
+        document.getElementById('op-feature-area').classList.add('op-hidden');
+        document.getElementById('op-feature-area').innerHTML = '';
+    }
+    function showFeature(html) {
+        document.getElementById('op-grid').classList.add('op-hidden');
+        const area = document.getElementById('op-feature-area');
+        area.innerHTML = html;
+        area.classList.remove('op-hidden');
+        // Bind back btn
+        const backBtn = area.querySelector('#op-back-btn');
+        if (backBtn) backBtn.addEventListener('click', showGrid);
+    }
+
+    function tplHTML(id) {
+        const tpl = document.getElementById(id);
+        return tpl ? tpl.innerHTML : '';
+    }
+
+    /* ════════════════════════════
+       FEATURE: NẠP THẺ
+    ════════════════════════════ */
+    let _napAll = [];
+
+    async function openNapthe() {
+        showFeature(tplHTML('op-tpl-napthe'));
+        // Bind refresh
+        document.getElementById('op-nap-refresh')?.addEventListener('click', loadNap);
+        document.getElementById('op-nap-search')?.addEventListener('input', filterNap);
+        document.getElementById('op-nap-status-filter')?.addEventListener('change', filterNap);
+        document.getElementById('op-nap-telco-filter')?.addEventListener('change', filterNap);
+        await loadNap();
+    }
+
+    async function loadNap() {
+        _napAll = await api('napthe');
+        // Telco filter
+        const telcos = [...new Set(_napAll.map(r => (r.telco||'').toUpperCase()))].sort();
+        const sel = document.getElementById('op-nap-telco-filter');
+        if (sel) {
+            const cur = sel.value;
+            sel.innerHTML = '<option value="">Nhà mạng</option>' +
+                telcos.map(t => `<option value="${t}" ${t===cur?'selected':''}>${t}</option>`).join('');
+        }
+        renderNap(_napAll);
+    }
+
+    function filterNap() {
+        const q       = (document.getElementById('op-nap-search')?.value || '').toLowerCase();
+        const status  = document.getElementById('op-nap-status-filter')?.value ?? '';
+        const telco   = document.getElementById('op-nap-telco-filter')?.value ?? '';
+        const filtered = _napAll.filter(r => {
+            if (q && !(r.user_nap||'').toLowerCase().includes(q) && !(r.serial||'').toLowerCase().includes(q)) return false;
+            if (status !== '' && String(r.status) !== status) return false;
+            if (telco  && (r.telco||'').toUpperCase() !== telco) return false;
+            return true;
+        });
+        renderNap(filtered);
+    }
+
+    function renderNap(rows) {
+        // Stats
+        const success = rows.filter(r => Number(r.status) === 1);
+        const fail    = rows.filter(r => Number(r.status) !== 1);
+        const rev     = success.reduce((s,r) => s + Number(r.amount||0), 0);
+        setText('op-nap-count',   rows.length);
+        setText('op-nap-success', success.length);
+        setText('op-nap-fail',    fail.length);
+        setText('op-nap-revenue', fmtVnd(rev));
+
+        const tbody = document.getElementById('op-nap-tbody');
+        if (!tbody) return;
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="op-empty">Không có dữ liệu</td></tr>';
+            return;
+        }
+        tbody.innerHTML = rows.slice(0, 200).map(r => `
+            <tr>
+                <td>${r.id}</td>
+                <td><b>${r.user_nap || '—'}</b></td>
+                <td><span class="op-telco-badge op-telco-${(r.telco||'').toLowerCase()}">${(r.telco||'—').toUpperCase()}</span></td>
+                <td class="op-amount">${fmtVnd(r.amount)}</td>
+                <td class="op-serial">${(r.serial||'').substring(0,20)}…</td>
+                <td>${Number(r.status)===1
+                    ? '<span class="op-status-ok">✅ Thành công</span>'
+                    : '<span class="op-status-fail">❌ Thất bại</span>'}</td>
+                <td class="op-date">${fmtDate(r.created_at)}</td>
+            </tr>`).join('');
+    }
+
+    /* ════════════════════════════
+       FEATURE: RANK
+    ════════════════════════════ */
+    async function openRank() {
+        showFeature(tplHTML('op-tpl-rank'));
+        document.querySelectorAll('.op-rank-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.op-rank-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                loadRank(btn.dataset.rank);
+            });
+        });
+        await loadRank('power');
+    }
+
+    async function loadRank(type) {
+        const list = document.getElementById('op-rank-list');
+        if (!list) return;
+        list.innerHTML = '<div class="op-loading">⏳ Đang tải...</div>';
+
+        if (type === 'power') {
+            const players = await api('players');
+            const sorted = players
+                .map(p => {
+                    try { const a = JSON.parse(p.data_point||'[]'); return { name:p.name, val: a[1]||0 }; }
+                    catch(_){ return { name:p.name, val:0 }; }
+                })
+                .sort((a,b) => b.val - a.val).slice(0, 10);
+            renderRankList(list, sorted, v => fmtNum(v) + ' SM');
+        } else {
+            const naps = await api('napthe');
+            const map = {};
+            naps.filter(r => Number(r.status)===1).forEach(r => {
+                map[r.user_nap] = (map[r.user_nap]||0) + Number(r.amount||0);
+            });
+            const sorted = Object.entries(map).map(([name,val])=>({name,val}))
+                .sort((a,b)=>b.val-a.val).slice(0,10);
+            renderRankList(list, sorted, v => fmtVnd(v));
+        }
+    }
+
+    function renderRankList(container, rows, fmt) {
+        const medals = ['🥇','🥈','🥉'];
+        container.innerHTML = rows.map((r,i) => `
+            <div class="op-rank-row" style="animation-delay:${i*50}ms">
+                <span class="op-rank-medal">${medals[i] || (i+1)}</span>
+                <span class="op-rank-name">${r.name || '—'}</span>
+                <span class="op-rank-val">${fmt(r.val)}</span>
+            </div>`).join('');
+    }
+
+    /* ════════════════════════════
+       DEFAULT (coming soon)
+    ════════════════════════════ */
+    const TITLES = {
+        announce:    '📢 Thông Báo Server',
+        event:       '🎉 Quản Lý Sự Kiện',
+        maintenance: '🔧 Bảo Trì Server',
+        chatlog:     '💬 Nhật Ký Chat',
+        bulkgift:    '🎁 Phát Quà Hàng Loạt',
+        ipban:       '🚫 Quản Lý Ban / IP',
+        backup:      '💾 Sao Lưu Dữ Liệu',
+        chinhboss:   '🩸 Chỉnh Boss',
+        tiledapdo:   '💎 Tỉ Lệ Đập Đồ',
+        tileexp:     '⚡ Tỉ Lệ EXP',
+        tileroidO:   '🍀 Tỉ Lệ Rơi Đồ',
+    };
+
+    function openDefault(feature) {
+        showFeature(tplHTML('op-tpl-default'));
+        const t = document.getElementById('op-default-title');
+        if (t) t.textContent = TITLES[feature] || feature;
+    }
+
+    /* ── Helpers ── */
+    function setText(id, val) {
+        const el = document.getElementById(id); if (el) el.textContent = val;
+    }
+    function fmtNum(n) {
+        const v = Number(n)||0;
+        if (v>=1e9) return (v/1e9).toFixed(1)+'Tỷ';
+        if (v>=1e6) return (v/1e6).toFixed(1)+'Tr';
+        if (v>=1e3) return (v/1e3).toFixed(1)+'K';
+        return v.toLocaleString('vi-VN');
+    }
+
+    /* ── Card click ── */
+    document.addEventListener('click', function (e) {
+        const card = e.target.closest('.op-card, .op-section-card');
+        if (!card || !document.getElementById('operation')?.classList.contains('active')) return;
+
+        const f = card.dataset.feature;
+        if      (f === 'napthe')      openNapthe();
+        else if (f === 'rank')        openRank();
+        else if (f === 'chinhboss')   openBossModal();
+        else if (f === 'tileexp')     openExpModal();
+        else if (f === 'tiledapdo')   openRateModal('rateCombine', '💎 Tỉ Lệ Đập Đồ', 'Nhân hệ số thành công khi nâng cấp / đập đồ trang bị', '#a855f7', '#7c3aed');
+        else if (f === 'tileroidO')   openRateModal('rateDrop',    '🍀 Tỉ Lệ Rơi Đồ',  'Nhân xác suất quái vật rơi vật phẩm khi bị tiêu diệt', '#14b8a6', '#0f766e');
+        else if (f === 'announce')    openAnnounceModal();
+        else if (f === 'maintenance') openMaintenanceModal();
+        else                          openDefault(f);
+    });
+
+})();
+</script>
+
+<!-- RATE MODAL CHUNG (Đập Đồ / Rơi Đồ) -->
+<div id="op-rate-modal" class="op-exp-overlay op-hidden">
+    <div class="op-exp-dialog">
+        <div class="op-exp-header" id="op-rate-header" style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);border-color:#ddd6fe">
+            <div class="op-exp-title-wrap">
+                <span class="op-exp-icon-big" id="op-rate-icon">💎</span>
+                <div>
+                    <h3 class="op-exp-title" id="op-rate-title" style="color:#7c3aed">Tỉ Lệ Đập Đồ</h3>
+                    <p class="op-exp-sub" id="op-rate-sub" style="color:#9333ea">Nhân hệ số thành công khi đập đồ</p>
+                </div>
+            </div>
+            <button class="op-exp-close" id="op-rate-close">✕</button>
+        </div>
+        <div class="op-exp-body">
+            <div class="op-exp-current" id="op-rate-current-box">
+                <div class="op-exp-current-label">Tỉ lệ hiện tại</div>
+                <div class="op-exp-current-val"><span id="op-rate-display">—</span><span class="op-exp-unit">%</span></div>
+            </div>
+            <div class="op-exp-presets-label">Chọn nhanh</div>
+            <div class="op-exp-presets">
+                <button class="op-exp-preset" data-rval="50">50%<br><small>Giảm nửa</small></button>
+                <button class="op-exp-preset" data-rval="75">75%<br><small>Giảm nhẹ</small></button>
+                <button class="op-exp-preset" data-rval="100">100%<br><small>Bình thường</small></button>
+                <button class="op-exp-preset" data-rval="150">150%<br><small>Tăng nhẹ</small></button>
+                <button class="op-exp-preset" data-rval="200">200%<br><small>Gấp đôi</small></button>
+                <button class="op-exp-preset" data-rval="300">300%<br><small>Sự kiện</small></button>
+            </div>
+            <div class="op-exp-custom-label">Hoặc nhập tay (%)</div>
+            <div class="op-exp-custom-row">
+                <button class="op-exp-stepper" id="op-rate-minus">−</button>
+                <input class="op-exp-input" type="number" id="op-rate-input" min="1" max="9999" value="100" />
+                <button class="op-exp-stepper" id="op-rate-plus">+</button>
+                <span class="op-exp-unit2">% tỉ lệ</span>
+            </div>
+        </div>
+        <div class="op-exp-footer">
+            <button class="op-exp-save-btn" id="op-rate-save" style="background:linear-gradient(135deg,#a855f7,#7c3aed)">💾 Áp dụng</button>
+            <button class="op-exp-cancel-btn" id="op-rate-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<!-- ANNOUNCE MODAL -->
+<div id="op-ann-modal" class="op-exp-overlay op-hidden">
+    <div class="op-exp-dialog" style="max-width:460px">
+        <div class="op-exp-header" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-color:#93c5fd">
+            <div class="op-exp-title-wrap">
+                <span class="op-exp-icon-big">📢</span>
+                <div>
+                    <h3 class="op-exp-title" style="color:#1e40af">Thông Báo Server</h3>
+                    <p class="op-exp-sub" style="color:#2563eb">Gửi tới tất cả người chơi đang online</p>
+                </div>
+            </div>
+            <button class="op-exp-close" id="op-ann-close">✕</button>
+        </div>
+        <div class="op-exp-body">
+            <div class="op-exp-presets-label">Mẫu nhanh</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+                <button class="op-ann-tpl" data-msg="🔔 [Thông báo] Server sẽ bảo trì sau 15 phút. Vui lòng đăng xuất an toàn!">⏰ Cảnh báo bảo trì</button>
+                <button class="op-ann-tpl" data-msg="🎉 [Sự kiện] EXP x3 trong 1 giờ! Tranh thủ lên cấp nào!">🎉 Sự kiện EXP</button>
+                <button class="op-ann-tpl" data-msg="🎁 [Gift] Nhập code ADMIN2025 để nhận quà đặc biệt!">🎁 Phát gift code</button>
+                <button class="op-ann-tpl" data-msg="⚠️ [Cảnh báo] Không được mua bán tài khoản hoặc dùng hack. Vi phạm sẽ bị ban vĩnh viễn!">⚠️ Cảnh báo vi phạm</button>
+            </div>
+            <div class="op-exp-custom-label" style="margin-top:4px">Hoặc nhập thủ công</div>
+            <textarea id="op-ann-text" style="width:100%;height:90px;border:1.5px solid #e2eaf5;border-radius:10px;padding:10px;font-size:.85rem;resize:vertical;outline:none;box-sizing:border-box;font-family:inherit" placeholder="Nhập nội dung thông báo..."></textarea>
+        </div>
+        <div class="op-exp-footer" style="background:#eff6ff;border-color:#bfdbfe">
+            <button class="op-exp-save-btn" id="op-ann-send" style="background:linear-gradient(135deg,#3b82f6,#1d4ed8)">📢 Gửi ngay</button>
+            <button class="op-exp-cancel-btn" id="op-ann-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<!-- MAINTENANCE MODAL -->
+<div id="op-maint-modal" class="op-exp-overlay op-hidden">
+    <div class="op-exp-dialog" style="max-width:400px">
+        <div class="op-exp-header" style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border-color:#fed7aa">
+            <div class="op-exp-title-wrap">
+                <span class="op-exp-icon-big">🔧</span>
+                <div>
+                    <h3 class="op-exp-title" style="color:#9a3412">Bảo Trì Server</h3>
+                    <p class="op-exp-sub" style="color:#c2410c">Bật / tắt chế độ bảo trì</p>
+                </div>
+            </div>
+            <button class="op-exp-close" id="op-maint-close">✕</button>
+        </div>
+        <div class="op-exp-body" style="align-items:center">
+            <div id="op-maint-status" style="text-align:center;padding:20px">
+                <div style="font-size:3.5rem" id="op-maint-icon">🟢</div>
+                <div style="font-size:1.1rem;font-weight:800;margin-top:8px" id="op-maint-label">Server đang hoạt động</div>
+                <div style="font-size:.8rem;color:#64748b;margin-top:4px" id="op-maint-sub">Người chơi có thể đăng nhập bình thường</div>
+            </div>
+            <div style="width:100%;display:flex;gap:10px">
+                <button id="op-maint-on"  class="op-exp-save-btn" style="flex:1;background:linear-gradient(135deg,#ef4444,#b91c1c)">🔧 Bật Bảo Trì</button>
+                <button id="op-maint-off" class="op-exp-save-btn" style="flex:1;background:linear-gradient(135deg,#22c55e,#15803d)">✅ Tắt Bảo Trì</button>
+            </div>
+        </div>
+        <div class="op-exp-footer" style="background:#fff7ed;border-color:#fed7aa">
+            <button class="op-exp-cancel-btn" id="op-maint-cancel">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    /* ── Rate Modal chung (Đập Đồ / Rơi Đồ) ── */
+    let _rateKey = 'rateCombine';
+
+    async function openRateModal(key, title, sub, c1, c2) {
+        _rateKey = key;
+        document.getElementById('op-rate-title').textContent = title;
+        document.getElementById('op-rate-sub').textContent   = sub;
+        document.getElementById('op-rate-icon').textContent  = title.split(' ')[0];
+        const saveBtn = document.getElementById('op-rate-save');
+        if (saveBtn) saveBtn.style.background = `linear-gradient(135deg,${c1},${c2})`;
+        document.getElementById('op-rate-modal').classList.remove('op-hidden');
+        document.body.style.overflow = 'hidden';
+        try {
+            const s = await fetch('/api/settings').then(r => r.json());
+            const v = s[key] ?? 100;
+            document.getElementById('op-rate-display').textContent = v;
+            document.getElementById('op-rate-input').value = v;
+            hlRate(v);
+        } catch (_) {}
+    }
+    window.openRateModal = openRateModal;
+
+    function hlRate(v) {
+        document.querySelectorAll('.op-exp-preset[data-rval]').forEach(b =>
+            b.classList.toggle('active', Number(b.dataset.rval) === Number(v))
+        );
+    }
+    async function applyRate() {
+        const val = Number(document.getElementById('op-rate-input').value) || 1;
+        if (val < 1 || val > 9999) { toast('Giá trị phải từ 1 đến 9999', 'warning'); return; }
+        const body = {}; body[_rateKey] = val;
+        try {
+            const data = await fetch('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }).then(r=>r.json());
+            if (data.success) {
+                document.getElementById('op-rate-display').textContent = data[_rateKey];
+                hlRate(data[_rateKey]);
+                toast(`Đã đặt ${document.getElementById('op-rate-title').textContent}: ${data[_rateKey]}%`, 'success');
+                closeRateModal();
+            } else { toast('Lỗi: ' + (data.message||''), 'error'); }
+        } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+    }
+    function closeRateModal() { document.getElementById('op-rate-modal')?.classList.add('op-hidden'); document.body.style.overflow=''; }
+
+    /* ── Announce Modal ── */
+    window.openAnnounceModal = function () {
+        document.getElementById('op-ann-modal').classList.remove('op-hidden');
+        document.getElementById('op-ann-text').value = '';
+        document.body.style.overflow = 'hidden';
+    };
+    function closeAnnModal() { document.getElementById('op-ann-modal')?.classList.add('op-hidden'); document.body.style.overflow=''; }
+    async function sendAnnounce() {
+        const text = document.getElementById('op-ann-text').value.trim();
+        if (!text) { toast('Vui lòng nhập nội dung thông báo', 'warning'); return; }
+        try {
+            const data = await fetch('/api/announce', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ text }) }).then(r=>r.json());
+            if (data.success) { toast('Đã gửi thông báo!', 'success'); closeAnnModal(); }
+            else { toast('Lỗi: ' + (data.message||''), 'error'); }
+        } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+    }
+
+    /* ── Maintenance Modal ── */
+    window.openMaintenanceModal = async function () {
+        document.getElementById('op-maint-modal').classList.remove('op-hidden');
+        document.body.style.overflow = 'hidden';
+        try {
+            const s = await fetch('/api/settings').then(r=>r.json());
+            updateMaintUI(s.maintenance);
+        } catch (_) {}
+    };
+    function updateMaintUI(on) {
+        document.getElementById('op-maint-icon').textContent  = on ? '🔴' : '🟢';
+        document.getElementById('op-maint-label').textContent = on ? 'Server đang Bảo Trì' : 'Server đang hoạt động';
+        document.getElementById('op-maint-sub').textContent   = on ? 'Người chơi không thể đăng nhập' : 'Người chơi có thể đăng nhập bình thường';
+    }
+    async function setMaintenance(val) {
+        try {
+            const data = await fetch('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ maintenance: String(val) }) }).then(r=>r.json());
+            if (data.success) {
+                updateMaintUI(data.maintenance);
+                toast(val ? '🔧 Đã bật chế độ Bảo Trì!' : '✅ Đã tắt Bảo Trì, server hoạt động bình thường!', val ? 'warning' : 'success');
+            }
+        } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+    }
+    function closeMaintModal() { document.getElementById('op-maint-modal')?.classList.add('op-hidden'); document.body.style.overflow=''; }
+
+    /* ── Event delegation ── */
+    document.addEventListener('click', function (e) {
+        // Rate modal
+        if (e.target.id==='op-rate-close'||e.target.id==='op-rate-cancel'||e.target.id==='op-rate-modal') { closeRateModal(); return; }
+        if (e.target.id==='op-rate-save')   { applyRate(); return; }
+        if (e.target.id==='op-rate-plus')   { const i=document.getElementById('op-rate-input'); i.value=Math.min(9999,+i.value+5); hlRate(i.value); return; }
+        if (e.target.id==='op-rate-minus')  { const i=document.getElementById('op-rate-input'); i.value=Math.max(1,+i.value-5);   hlRate(i.value); return; }
+        const rpreset = e.target.closest('.op-exp-preset[data-rval]');
+        if (rpreset) { const v=Number(rpreset.dataset.rval); document.getElementById('op-rate-input').value=v; hlRate(v); return; }
+
+        // Announce modal
+        if (e.target.id==='op-ann-close'||e.target.id==='op-ann-cancel'||e.target.id==='op-ann-modal') { closeAnnModal(); return; }
+        if (e.target.id==='op-ann-send')    { sendAnnounce(); return; }
+        const tpl = e.target.closest('.op-ann-tpl');
+        if (tpl) { document.getElementById('op-ann-text').value = tpl.dataset.msg; return; }
+
+        // Maintenance modal
+        if (e.target.id==='op-maint-close'||e.target.id==='op-maint-cancel'||e.target.id==='op-maint-modal') { closeMaintModal(); return; }
+        if (e.target.id==='op-maint-on')    { setMaintenance(true); return; }
+        if (e.target.id==='op-maint-off')   { setMaintenance(false); return; }
+    });
+    document.addEventListener('input', function (e) {
+        if (e.target.id==='op-rate-input') hlRate(e.target.value);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key==='Escape') { closeRateModal(); closeAnnModal(); closeMaintModal(); }
+    });
+})();
+</script>
+<div id="op-exp-modal" class="op-exp-overlay op-hidden">
+    <div class="op-exp-dialog">
+        <div class="op-exp-header">
+            <div class="op-exp-title-wrap">
+                <span class="op-exp-icon-big">⚡</span>
+                <div>
+                    <h3 class="op-exp-title">Tỉ Lệ EXP</h3>
+                    <p class="op-exp-sub">Nhân hệ số kinh nghiệm nhận được khi đánh quái</p>
+                </div>
+            </div>
+            <button class="op-exp-close" id="op-exp-close">✕</button>
+        </div>
+
+        <div class="op-exp-body">
+            <!-- Hiển thị giá trị hiện tại -->
+            <div class="op-exp-current">
+                <div class="op-exp-current-label">Tỉ lệ hiện tại</div>
+                <div class="op-exp-current-val" id="op-exp-current-val">
+                    <span id="op-exp-display">—</span><span class="op-exp-unit">x</span>
+                </div>
+            </div>
+
+            <!-- Các preset nhanh -->
+            <div class="op-exp-presets-label">Chọn nhanh</div>
+            <div class="op-exp-presets">
+                <button class="op-exp-preset" data-val="1">1x<br><small>Bình thường</small></button>
+                <button class="op-exp-preset" data-val="2">2x<br><small>Gấp đôi</small></button>
+                <button class="op-exp-preset" data-val="3">3x<br><small>Gấp ba</small></button>
+                <button class="op-exp-preset" data-val="5">5x<br><small>Sự kiện</small></button>
+                <button class="op-exp-preset" data-val="10">10x<br><small>Happy Hour</small></button>
+                <button class="op-exp-preset" data-val="20">20x<br><small>VIP</small></button>
+            </div>
+
+            <!-- Nhập tùy chỉnh -->
+            <div class="op-exp-custom-label">Hoặc nhập tay</div>
+            <div class="op-exp-custom-row">
+                <button class="op-exp-stepper" id="op-exp-minus">−</button>
+                <input class="op-exp-input" type="number" id="op-exp-input"
+                       min="1" max="9999" value="5" />
+                <button class="op-exp-stepper" id="op-exp-plus">+</button>
+                <span class="op-exp-unit2">x EXP</span>
+            </div>
+        </div>
+
+        <div class="op-exp-footer">
+            <button class="op-exp-save-btn" id="op-exp-save">⚡ Áp dụng</button>
+            <button class="op-exp-cancel-btn" id="op-exp-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    async function openExpModal() {
+        const modal = document.getElementById('op-exp-modal');
+        if (!modal) return;
+        modal.classList.remove('op-hidden');
+        document.body.style.overflow = 'hidden';
+
+        // Load giá trị hiện tại
+        try {
+            const s = await fetch('/api/settings').then(r => r.json());
+            console.log("exp",s)
+            const v = s.rateExp ?? 5;
+            document.getElementById('op-exp-display').textContent = v;
+            document.getElementById('op-exp-input').value = v;
+            highlightPreset(v);
+        } catch (_) {}
+    }
+
+    function closeExpModal() {
+        document.getElementById('op-exp-modal')?.classList.add('op-hidden');
+        document.body.style.overflow = '';
+    }
+
+    function highlightPreset(v) {
+        document.querySelectorAll('.op-exp-preset').forEach(b => {
+            b.classList.toggle('active', Number(b.dataset.val) === Number(v));
+        });
+    }
+
+    async function applyExp() {
+        const val = Number(document.getElementById('op-exp-input').value) || 1;
+        if (val < 1 || val > 9999) { toast('Giá trị phải từ 1 đến 9999', 'warning'); return; }
+        try {
+            const res  = await fetch('/api/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rateExp: val }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('op-exp-display').textContent = data.rateExp;
+                highlightPreset(data.rateExp);
+                toast(`Đã đặt tỉ lệ EXP: ${data.rateExp}x`, 'success');
+                closeExpModal();
+            } else {
+                toast('Lỗi: ' + (data.message || ''), 'error');
+            }
+        } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+    }
+
+    // Expose ra ngoài để card click gọi
+    window.openExpModal = openExpModal;
+
+    document.addEventListener('click', function (e) {
+        if (e.target.id === 'op-exp-close' || e.target.id === 'op-exp-cancel'
+                || e.target.id === 'op-exp-modal') { closeExpModal(); return; }
+        if (e.target.id === 'op-exp-save') { applyExp(); return; }
+        if (e.target.id === 'op-exp-plus') {
+            const inp = document.getElementById('op-exp-input');
+            inp.value = Math.min(9999, Number(inp.value) + 1);
+            highlightPreset(inp.value); return;
+        }
+        if (e.target.id === 'op-exp-minus') {
+            const inp = document.getElementById('op-exp-input');
+            inp.value = Math.max(1, Number(inp.value) - 1);
+            highlightPreset(inp.value); return;
+        }
+        const preset = e.target.closest('.op-exp-preset');
+        if (preset) {
+            const v = Number(preset.dataset.val);
+            document.getElementById('op-exp-input').value = v;
+            highlightPreset(v); return;
+        }
+    });
+    document.addEventListener('input', function (e) {
+        if (e.target.id === 'op-exp-input') highlightPreset(e.target.value);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeExpModal();
+    });
+})();
+</script>
+<script>
+(function () {
+
+    let _allBosses  = [];
+    let _selBoss    = null;
+    let _filterTimer= null;
+
+    const REST_OPTS = [
+        { v: 60,    l: '1 phút'   },
+        { v: 300,   l: '5 phút'   },
+        { v: 600,   l: '10 phút'  },
+        { v: 900,   l: '15 phút'  },
+        { v: 1800,  l: '30 phút'  },
+        { v: 3600,  l: '1 giờ'    },
+        { v: 7200,  l: '2 giờ'    },
+        { v: 21600, l: '6 giờ'    },
+        { v: 43200, l: '12 giờ'   },
+        { v: 86400, l: '24 giờ'   },
+    ];
+
+    function fmtNum(n) {
+        const v = Number(n)||0;
+        if (v>=1e9) return (v/1e9).toFixed(3).replace(/\.?0+$/,'') + ' Tỷ';
+        if (v>=1e6) return (v/1e6).toFixed(3).replace(/\.?0+$/,'') + ' Tr';
+        if (v>=1e3) return (v/1e3).toFixed(0) + ' K';
+        return v.toLocaleString('vi-VN');
+    }
+
+    /* ── Mở modal ── */
+    window.openBossModal = async function () {
+        const modal = document.getElementById('op-boss-modal');
+        if (!modal) return;
+        modal.classList.remove('op-hidden');
+        document.body.style.overflow = 'hidden';
+
+        const grid = document.getElementById('op-boss-grid');
+        grid.innerHTML = '<div class="op-loading">⏳ Đang tải danh sách Boss...</div>';
+
+        try {
+            _allBosses = await fetch('/api/bosses').then(r => r.json());
+        } catch (_) { _allBosses = []; }
+
+        renderBossGrid('');
+        document.getElementById('op-boss-search').value = '';
+        document.getElementById('op-boss-detail').innerHTML =
+            '<div class="op-boss-no-select">← Chọn Boss để chỉnh sửa</div>';
+        _selBoss = null;
+    };
+
+    /* ── Render grid ── */
+    function renderBossGrid(q) {
+        const grid = document.getElementById('op-boss-grid');
+        const count = document.getElementById('op-boss-count');
+        if (!grid) return;
+
+        const query = q.trim().toLowerCase();
+        const list  = query
+            ? _allBosses.filter(b => (b.name||'').toLowerCase().includes(query))
+            : _allBosses;
+
+        if (count) count.textContent = list.length + ' boss';
+
+        if (!list.length) {
+            grid.innerHTML = '<div class="op-boss-empty">Không tìm thấy Boss nào</div>';
+            return;
+        }
+
+        grid.innerHTML = list.map(b => {
+            const headIcon = b.headIcon > 0 ? b.headIcon : null;
+            const isActive = b.status !== 'REST';
+            const isSelected = _selBoss && _selBoss.id === b.id;
+            return `
+            <div class="op-boss-card${isSelected ? ' selected' : ''}" data-boss-id="${b.id}">
+                <div class="op-boss-status-dot ${isActive ? 'active' : 'rest'}"></div>
+                <div class="op-boss-card-avatar">
+                    ${headIcon
+                        ? `<img src="/data/icon/x2/${headIcon}.png" onerror="this.style.display='none'" />`
+                        : '<span class="op-boss-no-img">👹</span>'}
+                </div>
+                <div class="op-boss-card-name">${b.name}</div>
+                <div class="op-boss-card-hp">HP: ${fmtNum(b.hp)}</div>
+            </div>`;
+        }).join('');
+
+        grid.querySelectorAll('.op-boss-card').forEach(el =>
+            el.addEventListener('click', () => selectBoss(Number(el.dataset.bossId)))
+        );
+    }
+
+    /* ── Chọn boss ── */
+    function selectBoss(id) {
+        _selBoss = _allBosses.find(b => b.id === id) || null;
+        if (!_selBoss) return;
+
+        // Highlight card
+        document.querySelectorAll('.op-boss-card').forEach(c =>
+            c.classList.toggle('selected', Number(c.dataset.bossId) === id)
+        );
+
+        const restOpts = REST_OPTS.map(o =>
+            `<option value="${o.v}" ${_selBoss.secondsRest === o.v ? 'selected' : ''}>${o.l}</option>`
+        ).join('');
+        const isActive = _selBoss.status !== 'REST';
+
+        document.getElementById('op-boss-detail').innerHTML = `
+            <div class="op-boss-form">
+                <div class="op-boss-form-avatar">
+                    ${_selBoss.headIcon > 0
+                        ? `<img src="/data/icon/x2/${_selBoss.headIcon}.png" onerror="this.style.display='none'" />`
+                        : '<span style="font-size:3rem">👹</span>'}
+                    <div class="op-boss-form-status ${isActive ? 'active' : 'rest'}">
+                        ${isActive ? '🟢 Đang hoạt động' : '🔴 Nghỉ ngơi'}
+                    </div>
+                </div>
+
+                <div class="op-boss-field">
+                    <label>Tên Boss</label>
+                    <input class="op-boss-input" id="ob-name" type="text" value="${_selBoss.name || ''}" />
+                </div>
+                <div class="op-boss-field">
+                    <label>HP</label>
+                    <input class="op-boss-input" id="ob-hp" type="number" value="${_selBoss.hp}" min="1" />
+                </div>
+                <div class="op-boss-field">
+                    <label>Dame</label>
+                    <input class="op-boss-input" id="ob-dame" type="number" value="${_selBoss.dame}" min="0" />
+                </div>
+                <div class="op-boss-field">
+                    <label>Rest (thời gian hồi)</label>
+                    <select class="op-boss-input" id="ob-rest">${restOpts}</select>
+                </div>
+
+                <div class="op-boss-btn-row">
+                    <button class="op-boss-save-btn" id="ob-save-btn">💾 Lưu</button>
+                    <button class="op-boss-cancel-btn" id="ob-cancel-btn">✕ Hủy</button>
+                </div>
+            </div>`;
+
+        document.getElementById('ob-save-btn').addEventListener('click', saveBoss);
+        document.getElementById('ob-cancel-btn').addEventListener('click', () => {
+            document.getElementById('op-boss-detail').innerHTML =
+                '<div class="op-boss-no-select">← Chọn Boss để chỉnh sửa</div>';
+            _selBoss = null;
+            document.querySelectorAll('.op-boss-card').forEach(c => c.classList.remove('selected'));
+        });
+    }
+
+    /* ── Lưu boss (PUT /api/bosses/:id) ── */
+    async function saveBoss() {
+        if (!_selBoss) return;
+        const name = document.getElementById('ob-name')?.value?.trim();
+        const hp   = Number(document.getElementById('ob-hp')?.value) || 1;
+        const dame = Number(document.getElementById('ob-dame')?.value) || 0;
+        const rest = Number(document.getElementById('ob-rest')?.value) || 300;
+
+        try {
+            const res  = await fetch(`/api/bosses/${Math.abs(_selBoss.id)}`, {
+                method:  'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ name, hp, dame, secondsRest: rest }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Cập nhật local cache
+                const b = _allBosses.find(x => x.id === _selBoss.id);
+                if (b) { b.name = name; b.hp = hp; b.dame = dame; b.secondsRest = rest; }
+                toast(`Đã cập nhật Boss "${name}"`, 'success');
+                renderBossGrid(document.getElementById('op-boss-search')?.value || '');
+                selectBoss(_selBoss.id); // re-render detail
+            } else {
+                toast('Lỗi: ' + (data.message || 'Server chưa hỗ trợ PUT boss'), 'warning');
+            }
+        } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+    }
+
+    /* ── Đóng modal ── */
+    function closeBossModal() {
+        const modal = document.getElementById('op-boss-modal');
+        if (!modal) return;
+        modal.classList.add('op-hidden');
+        document.body.style.overflow = '';
+    }
+
+    /* ── Events ── */
+    document.addEventListener('click', function (e) {
+        if (e.target.id === 'op-boss-close'     ) { closeBossModal(); return; }
+        if (e.target.id === 'op-boss-modal'      ) { closeBossModal(); return; }
+    });
+    document.addEventListener('input', function (e) {
+        if (e.target.id !== 'op-boss-search') return;
+        clearTimeout(_filterTimer);
+        _filterTimer = setTimeout(() => renderBossGrid(e.target.value), 180);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeBossModal();
+    });
+
+})();
+</script>

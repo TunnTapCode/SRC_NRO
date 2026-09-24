@@ -459,6 +459,14 @@
     padding: 8px 10px;
 }
 
+/* Wrap flex — tất cả chip cùng chiều cao, không bị lệch */
+.mp-npc-chips-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
 .mp-col-empty { color: #94a3b8; font-size: .82rem; }
 
 /* Badge quái */
@@ -490,12 +498,16 @@
     justify-content: center;
     width: 36px;
     height: 36px;
+    min-width: 36px;
+    min-height: 36px;
     border-radius: 10px;
     background: #f0f9ff;
     border: 2px solid #bae6fd;
     margin: 2px 3px 2px 0;
     overflow: hidden;
     cursor: default;
+    flex-shrink: 0;
+    vertical-align: middle;
     transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .15s ease, border-color .15s ease;
     box-shadow: 0 2px 6px rgba(14,165,233,.12);
 }
@@ -506,12 +518,21 @@
     z-index: 2;
 }
 .mp-npc-chip img {
-    width: 100%;
-    height: 100%;
+    width: 32px;
+    height: 32px;
     object-fit: contain;
+    display: block;
+    flex-shrink: 0;
 }
 .mp-npc-chip-fallback {
     font-size: 1.1rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
 }
 
 /* ── JSON textarea + Format button ── */

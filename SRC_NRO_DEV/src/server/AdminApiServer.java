@@ -25,6 +25,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import utils.Logger;
 
+// Runtime server references
+import static server.Maintenance.isRunning;
+
 public final class AdminApiServer {
 
     private static final int START_PORT = 8080;
@@ -255,6 +258,18 @@ public final class AdminApiServer {
             case "item-options":
                 // GET /api/item-options → toàn bộ { id, NAME } từ bảng item_option_template
                 handleCrud(exchange, method, idParam, payload, "item_option_template", "id", "NAME");
+                return;
+            case "napthe":
+                handleCrud(exchange, method, idParam, payload, "napthe", "id", "user_nap", "telco", "serial", "code", "amount", "status", "request_id");
+                return;
+            case "settings":
+                handleSettings(exchange, method, payload);
+                return;
+            case "announce":
+                handleAnnounce(exchange, payload);
+                return;
+            case "bosses":
+                sendJson(exchange, 200, queryBosses());
                 return;
             case "mobs":
                 handleCrud(exchange, method, idParam, payload, "mob_template", "id", "TYPE", "NAME", "hp");
@@ -657,5 +672,121 @@ public final class AdminApiServer {
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t");
+    }
+
+    /** GET /api/settings → trả về các thông số server hiện tại
+     *  PUT /api/settings { "rateExp": 10, "rateDrop": 150, "rateCombine": 80 } */
+    private static void handleSettings(HttpExchange exchange, String method, Map<String, String> payload) throws IOException {
+        if ("GET".equalsIgnoreCase(method)) {
+            Map<String, Object> s = new LinkedHashMap<>();
+            s.put("rateExp",     (Object)(Integer) Manager.RATE_EXP_SERVER);
+            s.put("rateDrop",    (Object)(Integer) Manager.RATE_DROP_ITEM);
+            s.put("rateCombine", (Object)(Integer) Manager.RATE_COMBINE);
+            s.put("maintenance", (Object) Maintenance.isRunning);
+            sendJson(exchange, 200, s);
+            return;
+        }
+        if ("PUT".equalsIgnoreCase(method) || "POST".equalsIgnoreCase(method)) {
+            if (payload.containsKey("rateExp")) {
+                try { int v = Integer.parseInt(payload.get("rateExp")); if (v>=1) Manager.RATE_EXP_SERVER = v; } catch (NumberFormatException ignored) {}
+            }
+            if (payload.containsKey("rateDrop")) {
+                try { int v = Integer.parseInt(payload.get("rateDrop")); if (v>=1) Manager.RATE_DROP_ITEM = v; } catch (NumberFormatException ignored) {}
+            }
+            if (payload.containsKey("rateCombine")) {
+                try { int v = Integer.parseInt(payload.get("rateCombine")); if (v>=1) Manager.RATE_COMBINE = v; } catch (NumberFormatException ignored) {}
+            }
+            if (payload.containsKey("maintenance")) {
+                Maintenance.isRunning = "true".equalsIgnoreCase(payload.get("maintenance"));
+            }
+            Map<String, Object> s = new LinkedHashMap<>();
+            s.put("success",     (Object) Boolean.TRUE);
+            s.put("rateExp",     (Object)(Integer) Manager.RATE_EXP_SERVER);
+            s.put("rateDrop",    (Object)(Integer) Manager.RATE_DROP_ITEM);
+            s.put("rateCombine", (Object)(Integer) Manager.RATE_COMBINE);
+            s.put("maintenance", (Object) Maintenance.isRunning);
+            sendJson(exchange, 200, s);
+            return;
+        }
+        exchange.getResponseHeaders().set("Allow", "GET, PUT");
+        sendText(exchange, 405, "Method Not Allowed");
+    }
+
+    /** POST /api/announce { "text": "Thông báo..." } → gửi thông báo toàn server */
+    private static void handleAnnounce(HttpExchange exchange, Map<String, String> payload) throws IOException {
+        String method = exchange.getRequestMethod();
+        if (!"POST".equalsIgnoreCase(method) && !"PUT".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().set("Allow", "POST");
+            sendJson(exchange, 405, mapOf("success", false, "message", "Method Not Allowed"));
+            return;
+        }
+        String text = payload.getOrDefault("text", "").trim();
+        if (text.isEmpty()) {
+            sendJson(exchange, 400, mapOf("success", false, "message", "text is required"));
+            return;
+        }
+        ServerNotify.gI().notify(text);
+        sendJson(exchange, 200, mapOf("success", true, "message", "Đã gửi thông báo"));
+    }
+
+    /** Trả về danh sách boss từ tất cả BossManager runtime */
+    private static List<Map<String, Object>> queryBosses() {
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        // Load head_avatar map: { head_item_id -> avatar_icon_id }
+        java.util.Map<Integer, Integer> headAvatarMap = new java.util.HashMap<>();
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT head_id, avatar_id FROM head_avatar");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                headAvatarMap.put(rs.getInt("head_id"), rs.getInt("avatar_id"));
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+
+        // Gom boss từ tất cả manager
+        List<boss.Boss> allBosses = new ArrayList<>();
+        allBosses.addAll(boss.BossManager.BossManager.gI().getBosses());
+        allBosses.addAll(boss.BossManager.FinalBossManager.gI().getBosses());
+        allBosses.addAll(boss.BossManager.BrolyManager.gI().getBosses());
+
+        try {
+            java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+            for (boss.Boss b : allBosses) {
+                if (b == null || b.name == null) continue;
+
+                String key = String.valueOf(b.id);
+                if (seen.contains(key)) continue;
+                seen.add(key);
+
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("id",          b.id);
+                row.put("name",        b.name);
+                row.put("hp",          b.nPoint != null ? b.nPoint.hpMax : 0);
+                row.put("dame",        b.nPoint != null ? b.nPoint.dame  : 0);
+                row.put("secondsRest", b.getSecondsRest());
+                row.put("status",      b.bossStatus != null ? b.bossStatus.toString() : "REST");
+
+                // outfit[0] = head item id → tra head_avatar
+                int avatarId = -1;
+                try {
+                    if (b.data != null && b.data.length > 0
+                            && b.data[0] != null
+                            && b.data[0].getOutfit() != null
+                            && b.data[0].getOutfit().length > 0) {
+                        int headItemId = b.data[0].getOutfit()[0];
+                        System.out.println("[Boss] " + b.name + " headItemId=" + headItemId);
+                        avatarId = headAvatarMap.getOrDefault(headItemId, -1);
+                    }
+                } catch (Exception ignored) {}
+
+                row.put("headIcon", avatarId);
+                result.add(row);
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+        return result;
     }
 }

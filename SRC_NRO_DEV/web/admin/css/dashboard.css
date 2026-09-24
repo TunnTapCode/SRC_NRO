@@ -117,7 +117,7 @@
 .db-card-players   { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: #fff; }
 .db-card-items     { background: linear-gradient(135deg, #f59e0b, #b45309); color: #fff; }
 .db-card-giftcodes { background: linear-gradient(135deg, #10b981, #047857); color: #fff; }
-.db-card-npcs      { background: linear-gradient(135deg, #ef4444, #b91c1c); color: #fff; }
+.db-card-revenue   { background: linear-gradient(135deg, #f43f5e, #be123c); color: #fff; }
 .db-card-shops     { background: linear-gradient(135deg, #06b6d4, #0e7490); color: #fff; }
 
 /* Staggered animation */
@@ -128,11 +128,12 @@
 .db-card:nth-child(5) { animation-delay: .25s; }
 .db-card:nth-child(6) { animation-delay: .30s; }
 
-/* ── Bottom 2 columns ── */
-.db-bottom {
+/* ── Bottom rows ── */
+.db-row2 {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 20px;
+    margin-bottom: 20px;
 }
 
 .db-panel {
@@ -223,6 +224,24 @@
     flex-shrink: 0;
 }
 
+/* Top value variants */
+.db-top-value  { font-size:.80rem; font-weight:700; white-space:nowrap; flex-shrink:0; }
+.db-val-power  { color:#7c3aed; }
+.db-val-nap    { color:#f43f5e; }
+.db-val-quest  { color:#16a34a; }
+.db-top-sub    { display:block; font-size:.70rem; color:#94a3b8; margin-top:1px; }
+
+/* Chart */
+.db-chart-wrap {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+.db-chart-wrap canvas {
+    width: 100% !important;
+    max-height: 240px;
+}
+
 /* Quick links */
 .db-quick-links {
     display: grid;
@@ -269,3 +288,7 @@
     .db-quick-links      { grid-template-columns: 1fr; }
     .db-card-value       { font-size: 1.5rem; }
 }
+
+/* ── Responsive rows ── */
+@media (max-width: 1100px) { .db-row2 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 960px)  { .db-row2 { grid-template-columns: 1fr; } }
