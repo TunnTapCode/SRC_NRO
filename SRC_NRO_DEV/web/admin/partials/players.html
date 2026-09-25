@@ -183,6 +183,45 @@
      *   [2] = options     (string: "[[\"[optId,param]\"],...]")
      *   [3] = createTime  (long)
      */
+    function normalizeItemOption(entry) {
+        if (Array.isArray(entry) && entry.length >= 2) {
+            const optId = Number(entry[0]);
+            const param = Number(entry[1]);
+            if (Number.isFinite(optId) && Number.isFinite(param)) return [optId, param];
+            return null;
+        }
+
+        if (entry && typeof entry === 'object') {
+            const optId = Number(entry.optId ?? entry.optionId ?? entry.id ?? entry[0]);
+            const param = Number(entry.param ?? entry.value ?? entry.optionParam ?? entry[1]);
+            if (Number.isFinite(optId) && Number.isFinite(param)) return [optId, param];
+            return null;
+        }
+
+        if (typeof entry === 'string') {
+            const s = entry.trim();
+            if (!s || s === 'null' || s === '[]') return null;
+
+            try {
+                const parsed = JSON.parse(s);
+                if (Array.isArray(parsed) && parsed.length >= 2) {
+                    const optId = Number(parsed[0]);
+                    const param = Number(parsed[1]);
+                    if (Number.isFinite(optId) && Number.isFinite(param)) return [optId, param];
+                }
+            } catch (_) {}
+
+            const match = s.match(/^\s*\[\s*(\d+)\s*,\s*([^\],]+)\s*\]\s*$/);
+            if (match) {
+                const optId = Number(match[1]);
+                const param = Number(match[2]);
+                if (Number.isFinite(optId) && Number.isFinite(param)) return [optId, param];
+            }
+        }
+
+        return null;
+    }
+
     function parseItems(raw) {
         try {
             const outerArr = JSON.parse(raw || '[]');
@@ -193,13 +232,28 @@
                     const templateId = Number(item[0]);
                     if (templateId === -1) return null;   // slot trống
 
-                    // Parse options: mỗi phần tử là chuỗi "[optId, param]"
                     let opts = [];
                     try {
-                        const rawOpts = JSON.parse(item[2] || '[]');
-                        opts = rawOpts.map((o) => JSON.parse(o));
-                        // opts[i] = [optionTemplateId, param]
-                    } catch (_) {}
+                        let rawOpts = item[2];
+                        if (typeof rawOpts === 'string') {
+                            rawOpts = JSON.parse(rawOpts);
+                        }
+                        if (Array.isArray(rawOpts)) {
+                            opts = rawOpts
+                                .map((o) => normalizeItemOption(o))
+                                .filter(Boolean);
+                        }
+                    } catch (_) {
+                        const fallback = String(item[2] || '').trim();
+                        if (fallback && fallback !== 'null') {
+                            try {
+                                const direct = JSON.parse(fallback.replace(/"\[/g, '[').replace(/\]"/g, ']'));
+                                if (Array.isArray(direct)) {
+                                    opts = direct.map((o) => normalizeItemOption(o)).filter(Boolean);
+                                }
+                            } catch (_) {}
+                        }
+                    }
 
                     return {
                         id:         templateId,
@@ -478,12 +532,14 @@
             const count  = item.count > 1 ? `<span class="bag-slot-count">x${item.count}</span>` : '';
 
             // Build tooltip options — dùng tên từ item_option_template
-            const optLines = (item.opts || []).map(([optId, param]) => {
+            const optLines = (item.opts || []).map((opt) => {
+                const pair = Array.isArray(opt) && opt.length >= 2 ? opt : normalizeItemOption(opt);
+                if (!pair) return '';
+                const [optId, param] = pair;
                 const rawName = optNames[String(optId)] || `opt${optId}`;
-                // Thay # bằng giá trị param nếu có
                 const label = rawName.includes('#') ? rawName.replace('#', param) : `${rawName}: ${param}`;
                 return `<span>${label}</span>`;
-            }).join('');
+            }).filter(Boolean).join('');
 
             return `
                 <div class="bag-slot" title="${name}" style="animation-delay:${idx * 12}ms">
