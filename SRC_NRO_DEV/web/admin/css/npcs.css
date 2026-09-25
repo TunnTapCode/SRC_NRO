@@ -2,21 +2,286 @@
    NPCs — CSS riêng, prefix .np-
    ═══════════════════════════════════════════════════════ */
 
-@keyframes np-slide-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes np-row-in   { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes np-slide-up { from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);} }
+@keyframes np-row-in   { from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);} }
+@keyframes np-modal-in { from{opacity:0;transform:scale(.94) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);} }
+@keyframes np-modal-bg { from{opacity:0;}to{opacity:1;} }
 
-#npcs { animation: np-slide-up 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+.np-hidden { display:none !important; }
 
-#npcs tbody tr { animation: np-row-in 0.3s ease both; }
-#npcs tbody tr:nth-child(1)  { animation-delay: .04s; }
-#npcs tbody tr:nth-child(2)  { animation-delay: .07s; }
-#npcs tbody tr:nth-child(3)  { animation-delay: .10s; }
-#npcs tbody tr:nth-child(4)  { animation-delay: .13s; }
-#npcs tbody tr:nth-child(5)  { animation-delay: .16s; }
-#npcs tbody tr:nth-child(6)  { animation-delay: .19s; }
-#npcs tbody tr:nth-child(7)  { animation-delay: .22s; }
-#npcs tbody tr:nth-child(8)  { animation-delay: .25s; }
-#npcs tbody tr:nth-child(9)  { animation-delay: .28s; }
-#npcs tbody tr:nth-child(10) { animation-delay: .31s; }
+/* ── Nút tạo NPC trên banner ── */
+.np-btn-create {
+    background: linear-gradient(135deg, #a855f7, #7c3aed) !important;
+    color: #fff !important;
+    box-shadow: 0 3px 12px rgba(124,58,237,.28);
+}
+.np-btn-create:hover { box-shadow: 0 6px 18px rgba(124,58,237,.40); }
 
-/* Thêm style tuỳ chỉnh cho màn NPCs tại đây */
+/* ══════════════════════════════════════════════════
+   BẢNG NPC
+══════════════════════════════════════════════════ */
+#npcs { animation: np-slide-up .45s cubic-bezier(.16,1,.3,1) both; }
+
+.np-table { width:100%; border-collapse:collapse; }
+
+.np-table thead tr {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+}
+.np-table thead th {
+    color: #fff;
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: 13px 12px;
+    text-align: left;
+    border: none;
+    white-space: nowrap;
+}
+
+.np-table tbody tr {
+    border-bottom: 1px solid #f5f3ff;
+    transition: background .15s, transform .12s;
+    animation: np-row-in .28s ease both;
+}
+.np-table tbody tr:nth-child(even) { background: #fdfcff; }
+.np-table tbody tr:hover {
+    background: linear-gradient(90deg, rgba(124,58,237,.05), transparent 80%);
+    transform: translateX(3px);
+}
+
+.np-table tbody td {
+    padding: 9px 12px;
+    vertical-align: middle;
+    border: none;
+    font-size: .83rem;
+    color: #1e293b;
+}
+
+/* Staggered rows */
+.np-table tbody tr:nth-child(1)  { animation-delay:.03s; }
+.np-table tbody tr:nth-child(2)  { animation-delay:.06s; }
+.np-table tbody tr:nth-child(3)  { animation-delay:.09s; }
+.np-table tbody tr:nth-child(4)  { animation-delay:.12s; }
+.np-table tbody tr:nth-child(5)  { animation-delay:.15s; }
+.np-table tbody tr:nth-child(6)  { animation-delay:.18s; }
+.np-table tbody tr:nth-child(7)  { animation-delay:.21s; }
+.np-table tbody tr:nth-child(8)  { animation-delay:.24s; }
+.np-table tbody tr:nth-child(9)  { animation-delay:.27s; }
+.np-table tbody tr:nth-child(10) { animation-delay:.30s; }
+
+/* Cells */
+.np-td-id   { font-weight:700; color:#7c3aed; text-align:center; font-size:.80rem; width:52px; }
+.np-td-name { font-weight:600; color:#1e293b; }
+.np-td-num  { text-align:center; color:#475569; font-size:.80rem; width:70px; }
+.np-td-act  { white-space:nowrap; text-align:center; width:80px; }
+.np-empty   { text-align:center; padding:28px; color:#94a3b8; font-style:italic; }
+
+/* Avatar trong bảng */
+.np-td-avatar { text-align:center; width:56px; }
+
+.np-row-avatar {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: #ede9fe;
+    border: 2px solid #ddd6fe;
+    display: block;
+    margin: auto;
+    transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
+}
+.np-row-avatar:hover {
+    transform: scale(1.22);
+    box-shadow: 0 4px 14px rgba(124,58,237,.25);
+    z-index: 2;
+}
+
+.np-row-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    font-size: 1.4rem;
+    background: #f5f3ff;
+    border-radius: 10px;
+    border: 2px dashed #ddd6fe;
+    margin: auto;
+}
+
+/* Action buttons */
+.np-act-btn {
+    width: 30px; height: 30px;
+    border: none; border-radius: 8px;
+    cursor: pointer; font-size: .88rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .15s;
+    margin: 0 2px;
+}
+.np-act-btn:hover  { transform: scale(1.18); }
+.np-act-btn:active { transform: scale(.9); }
+
+.np-act-edit   { background: #ede9fe; color: #7c3aed; }
+.np-act-edit:hover { background: #ddd6fe; box-shadow: 0 3px 8px rgba(124,58,237,.22); }
+
+.np-act-delete { background: #fee2e2; color: #dc2626; }
+.np-act-delete:hover { background: #fca5a5; box-shadow: 0 3px 8px rgba(220,38,38,.22); }
+
+/* ══════════════════════════════════════════════════
+   MODAL TẠO / SỬA NPC
+══════════════════════════════════════════════════ */
+.np-modal-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(15,23,42,.50);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    animation: np-modal-bg .2s ease both;
+}
+
+.np-modal-dialog {
+    width: min(480px, 100%);
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 24px 64px rgba(15,23,42,.22);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    animation: np-modal-in .28s cubic-bezier(.16,1,.3,1) both;
+}
+
+.np-modal-header {
+    display: flex; align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1.5px solid #ede9fe;
+    background: linear-gradient(135deg, #faf5ff, #f5f3ff);
+    flex-shrink: 0;
+}
+.np-modal-header h3 {
+    margin: 0; flex: 1;
+    font-size: 1rem; font-weight: 800; color: #7c3aed;
+}
+.np-modal-close {
+    width: 32px; height: 32px;
+    border: none; background: #f1f5f9; border-radius: 50%;
+    font-size: 1rem; cursor: pointer; color: #64748b;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, color .15s, transform .18s cubic-bezier(.34,1.56,.64,1);
+}
+.np-modal-close:hover { background: #fee2e2; color: #dc2626; transform: rotate(90deg) scale(1.1); }
+
+.np-modal-body {
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 16px;
+    overflow-y: auto; max-height: 70vh;
+}
+
+/* Preview avatar */
+.np-preview-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 16px;
+    background: #faf5ff;
+    border-radius: 12px;
+    border: 1.5px solid #ede9fe;
+}
+
+.np-avatar-preview {
+    width: 64px; height: 64px;
+    border-radius: 14px;
+    background: #ede9fe;
+    border: 2.5px solid #ddd6fe;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; flex-shrink: 0;
+    box-shadow: 0 2px 10px rgba(124,58,237,.15);
+}
+.np-avatar-preview img {
+    width: 60px; height: 60px; object-fit: contain;
+}
+.np-avatar-placeholder { font-size: 2rem; }
+
+.np-preview-info { flex: 1; min-width: 0; }
+.np-preview-name {
+    font-size: .92rem; font-weight: 700; color: #1e293b;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.np-preview-id { font-size: .75rem; color: #94a3b8; margin-top: 3px; }
+
+/* Form grid */
+.np-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.np-field {
+    display: flex; flex-direction: column; gap: 5px;
+}
+.np-field label {
+    font-size: .72rem; font-weight: 700;
+    color: #64748b; text-transform: uppercase; letter-spacing: .06em;
+}
+.np-required { color: #ef4444; }
+
+.np-input {
+    border: 1.5px solid #e2eaf5;
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: .86rem;
+    color: #1e293b;
+    background: #f8faff;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color .15s, box-shadow .15s;
+}
+.np-input:focus {
+    border-color: #a855f7;
+    box-shadow: 0 0 0 3px rgba(168,85,247,.13);
+    background: #fff;
+}
+
+/* Tên NPC span toàn bộ */
+.np-field:first-child { grid-column: 1 / -1; }
+
+/* Footer */
+.np-modal-footer {
+    display: flex; gap: 10px; justify-content: flex-end;
+    padding: 14px 20px;
+    border-top: 1.5px solid #ede9fe;
+    background: #faf5ff;
+    flex-shrink: 0;
+}
+
+.np-save-btn {
+    border: none; border-radius: 10px;
+    padding: 9px 22px; font-size: .86rem; font-weight: 700;
+    cursor: pointer;
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(124,58,237,.28);
+    transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s;
+}
+.np-save-btn:hover  { transform: translateY(-2px); box-shadow: 0 5px 16px rgba(124,58,237,.38); }
+.np-save-btn:active { transform: scale(.95); }
+
+.np-cancel-btn {
+    border: 1.5px solid #cbd5e1; background: #f1f5f9;
+    color: #475569; border-radius: 10px;
+    padding: 9px 18px; font-size: .84rem; font-weight: 700;
+    cursor: pointer;
+    transition: background .15s, transform .15s cubic-bezier(.34,1.56,.64,1);
+}
+.np-cancel-btn:hover  { background: #e2e8f0; transform: translateY(-1px); }
+.np-cancel-btn:active { transform: scale(.95); }
+
+/* Scrollbar */
+.np-modal-body::-webkit-scrollbar { width: 6px; }
+.np-modal-body::-webkit-scrollbar-track { background: #f5f3ff; border-radius: 3px; }
+.np-modal-body::-webkit-scrollbar-thumb { background: #ddd6fe; border-radius: 3px; }
+.np-modal-body::-webkit-scrollbar-thumb:hover { background: #c4b5fd; }
+
+/* Responsive */
+@media (max-width: 500px) {
+    .np-form-grid { grid-template-columns: 1fr; }
+    .np-field:first-child { grid-column: 1; }
+}

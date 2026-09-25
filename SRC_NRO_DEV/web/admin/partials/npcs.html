@@ -2,6 +2,7 @@
 
 <section class="module" id="npcs">
 
+    <!-- Banner -->
     <div class="mb-banner">
         <div class="mb-left">
             <div class="mb-avatar">🤖</div>
@@ -13,6 +14,7 @@
                 <div class="mb-actions">
                     <button class="mb-btn mb-btn-primary" onclick="showTab('dashboard')">🏠 Go Panel</button>
                     <button class="mb-btn mb-btn-refresh" onclick="loadTableData('npcs')">🔄 Làm Mới</button>
+                    <button class="mb-btn np-btn-create" id="np-create-btn">+ Tạo NPC</button>
                 </div>
             </div>
         </div>
@@ -23,17 +25,19 @@
         </div>
     </div>
 
+    <!-- Bảng NPC -->
     <div class="card">
         <div class="table-wrap">
-            <table>
+            <table class="np-table">
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>NAME</th>
+                        <th>Avatar</th>
+                        <th>Tên NPC</th>
                         <th>Head</th>
                         <th>Body</th>
                         <th>Leg</th>
-                        <th>Avatar</th>
+                        <th>Avatar ID</th>
                         <th>Hành động</th>
                     </tr>
                 </thead>
@@ -42,17 +46,254 @@
         </div>
     </div>
 
+    <!-- Modal tạo / sửa NPC -->
+    <div id="np-modal" class="np-modal-overlay np-hidden">
+        <div class="np-modal-dialog">
+            <div class="np-modal-header">
+                <h3 id="np-modal-title">Tạo NPC mới</h3>
+                <button class="np-modal-close" id="np-modal-close">✕</button>
+            </div>
+            <div class="np-modal-body">
+                <input type="hidden" id="np-id" />
+
+                <!-- Preview avatar -->
+                <div class="np-preview-row">
+                    <div class="np-avatar-preview" id="np-avatar-preview">
+                        <span class="np-avatar-placeholder">🤖</span>
+                    </div>
+                    <div class="np-preview-info">
+                        <div class="np-preview-name" id="np-preview-name">Chưa nhập tên</div>
+                        <div class="np-preview-id" id="np-preview-id">Avatar ID: —</div>
+                    </div>
+                </div>
+
+                <div class="np-form-grid">
+                    <div class="np-field">
+                        <label>Tên NPC <span class="np-required">*</span></label>
+                        <input class="np-input" type="text" id="np-name" placeholder="Nhập tên NPC..." />
+                    </div>
+                    <div class="np-field">
+                        <label>Avatar ID</label>
+                        <input class="np-input" type="number" id="np-avatar-id" placeholder="ID ảnh đại diện..." min="0" />
+                    </div>
+                    <div class="np-field">
+                        <label>Head</label>
+                        <input class="np-input" type="number" id="np-head" placeholder="0" />
+                    </div>
+                    <div class="np-field">
+                        <label>Body</label>
+                        <input class="np-input" type="number" id="np-body" placeholder="0" />
+                    </div>
+                    <div class="np-field">
+                        <label>Leg</label>
+                        <input class="np-input" type="number" id="np-leg" placeholder="0" />
+                    </div>
+                </div>
+            </div>
+            <div class="np-modal-footer">
+                <button class="np-save-btn" id="np-save-btn">💾 Lưu</button>
+                <button class="np-cancel-btn" id="np-cancel-btn">Hủy</button>
+            </div>
+        </div>
+    </div>
+
 </section>
 
 <script>
 (function () {
-    const _origRender = window.renderTable;
+
+    /* ── Intercept renderTable → render custom ── */
+    const _origRenderTable = window.renderTable;
     window.renderTable = function (key, rows, columns) {
-        if (key === 'npcs') {
-            const badge = document.getElementById('npcs-total-badge');
-            if (badge) badge.textContent = 'Tổng: ' + (rows ? rows.length : 0);
-        }
-        return _origRender(key, rows, columns);
+        if (key !== 'npcs') return _origRenderTable(key, rows, columns);
+        renderNpcsTable(rows);
     };
+
+    function renderNpcsTable(rows) {
+        const badge = document.getElementById('npcs-total-badge');
+        if (badge) badge.textContent = 'Tổng: ' + (rows ? rows.length : 0);
+
+        const tbody = document.getElementById('npcs-table');
+        if (!tbody) return;
+
+        if (!rows || rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="np-empty">Không có dữ liệu</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = rows.map(row => {
+            const av = row.avatar;
+            const avatarHtml = av
+                ? `<img class="np-row-avatar" src="/data/icon/x4/${av}.png"
+                        onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'np-row-fallback',textContent:'🤖'}))"
+                        alt="${row.NAME}" />`
+                : `<span class="np-row-fallback">🤖</span>`;
+
+            return `
+            <tr>
+                <td class="np-td-id">${row.id}</td>
+                <td class="np-td-avatar">${avatarHtml}</td>
+                <td class="np-td-name">${row.NAME || ''}</td>
+                <td class="np-td-num">${row.head ?? ''}</td>
+                <td class="np-td-num">${row.body ?? ''}</td>
+                <td class="np-td-num">${row.leg  ?? ''}</td>
+                <td class="np-td-num">${row.avatar ?? ''}</td>
+                <td class="np-td-act">
+                    <button class="np-act-btn np-act-edit"
+                            data-id="${row.id}" title="Sửa">✏️</button>
+                    <button class="np-act-btn np-act-delete"
+                            data-id="${row.id}" title="Xóa">🗑</button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        tbody.querySelectorAll('.np-act-edit').forEach(b =>
+            b.addEventListener('click', () => openEdit(Number(b.dataset.id)))
+        );
+        tbody.querySelectorAll('.np-act-delete').forEach(b =>
+            b.addEventListener('click', () => deleteNpc(Number(b.dataset.id)))
+        );
+    }
+
+    /* ── Modal ── */
+    function openCreate() {
+        document.getElementById('np-modal-title').textContent = 'Tạo NPC mới';
+        document.getElementById('np-id').value       = '';
+        document.getElementById('np-name').value     = '';
+        document.getElementById('np-avatar-id').value= '';
+        document.getElementById('np-head').value     = '0';
+        document.getElementById('np-body').value     = '0';
+        document.getElementById('np-leg').value      = '0';
+        updatePreview('', '');
+        openModal();
+    }
+
+    function openEdit(id) {
+        const rows = state.data['npcs'] || [];
+        const row  = rows.find(r => Number(r.id) === id);
+        if (!row) return;
+        document.getElementById('np-modal-title').textContent = `Sửa NPC #${id}`;
+        document.getElementById('np-id').value        = row.id;
+        document.getElementById('np-name').value      = row.NAME || '';
+        document.getElementById('np-avatar-id').value = row.avatar || '';
+        document.getElementById('np-head').value      = row.head ?? 0;
+        document.getElementById('np-body').value      = row.body ?? 0;
+        document.getElementById('np-leg').value       = row.leg  ?? 0;
+        updatePreview(row.NAME || '', row.avatar || '');
+        openModal();
+    }
+
+    function openModal()  {
+        document.getElementById('np-modal').classList.remove('np-hidden');
+        document.body.style.overflow = 'hidden';
+        document.getElementById('np-name').focus();
+    }
+    function closeModal() {
+        document.getElementById('np-modal').classList.add('np-hidden');
+        document.body.style.overflow = '';
+    }
+
+    /* ── Live preview avatar khi nhập ── */
+    function updatePreview(name, avatarId) {
+        const nameEl = document.getElementById('np-preview-name');
+        const idEl   = document.getElementById('np-preview-id');
+        const box    = document.getElementById('np-avatar-preview');
+        if (nameEl) nameEl.textContent = name || 'Chưa nhập tên';
+        if (idEl)   idEl.textContent   = `Avatar ID: ${avatarId || '—'}`;
+        if (box) {
+            if (avatarId) {
+                box.innerHTML = `<img src="/data/icon/x4/${avatarId}.png"
+                    onerror="this.parentElement.innerHTML='<span class=\\'np-avatar-placeholder\\'>🤖</span>'"
+                    alt="preview" />`;
+            } else {
+                box.innerHTML = `<span class="np-avatar-placeholder">🤖</span>`;
+            }
+        }
+    }
+
+    document.addEventListener('input', function (e) {
+        const name = document.getElementById('np-name')?.value || '';
+        const av   = document.getElementById('np-avatar-id')?.value || '';
+        if (e.target.id === 'np-name')      updatePreview(name, av);
+        if (e.target.id === 'np-avatar-id') updatePreview(name, av);
+    });
+
+    /* ── Save ── */
+    async function saveNpc() {
+        const id     = document.getElementById('np-id').value;
+        const name   = document.getElementById('np-name').value.trim();
+        const avatar = document.getElementById('np-avatar-id').value || null;
+        const head   = Number(document.getElementById('np-head').value) || 0;
+        const body   = Number(document.getElementById('np-body').value) || 0;
+        const leg    = Number(document.getElementById('np-leg').value)  || 0;
+
+        if (!name) { toast('Vui lòng nhập tên NPC.', 'warning'); return; }
+
+        const payload = { NAME: name, head, body, leg, avatar: avatar || 0 };
+
+        try {
+            const url    = id ? `/api/npcs/${id}` : '/api/npcs';
+            const method = id ? 'PUT' : 'POST';
+            const res    = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast(id ? `Cập nhật NPC thành công!` : `Tạo NPC "${name}" thành công!`, 'success');
+                closeModal();
+                loadTableData('npcs');
+            } else {
+                toast('Lỗi: ' + (data.message || 'Không xác định'), 'error');
+            }
+        } catch (e) {
+            toast('Lỗi kết nối: ' + e.message, 'error');
+        }
+    }
+
+    /* ── Delete ── */
+    async function deleteNpc(id) {
+        if (!confirm(`Xóa NPC #${id}?`)) return;
+        try {
+            const res  = await fetch(`/api/npcs/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                toast(`Đã xóa NPC #${id}.`, 'success');
+                loadTableData('npcs');
+            } else {
+                toast('Xóa thất bại: ' + (data.message || ''), 'error');
+            }
+        } catch (e) {
+            toast('Lỗi kết nối: ' + e.message, 'error');
+        }
+    }
+
+    /* ── Intercept openAddForm ── */
+    const _origOpenAddForm = window.openAddForm;
+    window.openAddForm = function (type) {
+        if (type === 'npcs') { openCreate(); return; }
+        if (typeof _origOpenAddForm === 'function') _origOpenAddForm(type);
+    };
+
+    /* ── Intercept editData ── */
+    const _origEditData = window.editData;
+    window.editData = function (type, id) {
+        if (type === 'npcs') { openEdit(Number(id)); return; }
+        if (typeof _origEditData === 'function') _origEditData(type, id);
+    };
+
+    /* ── Events ── */
+    document.addEventListener('click', function (e) {
+        if (e.target.id === 'np-create-btn')  { openCreate(); return; }
+        if (e.target.id === 'np-modal-close'
+         || e.target.id === 'np-cancel-btn'
+         || e.target.id === 'np-modal')       { closeModal(); return; }
+        if (e.target.id === 'np-save-btn')    { saveNpc(); return; }
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeModal();
+    });
+
 })();
 </script>

@@ -345,7 +345,7 @@
 
             // Danh sách NPC — avatar icon
             const npcsHtml = npcs.length
-                ? npcs.map(n => {
+                ? `<div class="mp-npc-chips-wrap">${npcs.map(n => {
                     const nd = _npcCache[String(n.id)] || {};
                     const av = nd.avatar;
                     return `<span class="mp-npc-chip" title="${nd.NAME || 'NPC #'+n.id}">
@@ -353,7 +353,7 @@
                                     ? `<img src="/data/icon/x1/${av}.png" onerror="this.style.display='none'" />`
                                     : '<span class="mp-npc-chip-fallback">🤖</span>'}
                             </span>`;
-                  }).join('')
+                  }).join('')}</div>`
                 : '<span class="mp-col-empty">—</span>';
 
             return `

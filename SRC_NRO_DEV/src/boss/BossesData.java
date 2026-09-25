@@ -71,7 +71,9 @@ public class BossesData {
     public static final BossData MAP_DAU_DINH = new BossData(
             "Mập Đầu Đinh", // name
             ConstPlayer.XAYDA, // gender
-            new short[] { 165, 166, 167, -1, -1, -1 }, // outfit {head, body, leg, bag, aura, eff}
+        //     new short[] { 165, 166, 167, -1, -1, -1 }, // outfit {head, body, leg, bag, aura, eff}
+            new short[] { 1701, 1702, 1703, -1, -1, -1 }, // outfit {head, body, leg, bag, aura, eff}
+
             5000, // dame
             new int[] { 10000000 }, // hp
             new int[] { 63, 64, 65, 66, 67 }, // map join

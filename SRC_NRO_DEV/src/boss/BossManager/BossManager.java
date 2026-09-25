@@ -134,6 +134,10 @@ public class BossManager implements Runnable {
         this.bosses.remove(boss);
     }
 
+    public List<Boss> getBosses() {
+        return this.bosses;
+    }
+
     public void loadBoss() {
         this.createBoss(BossID.BROLY, 50);
         this.createBoss(BossID.TIEU_DOI_TRUONG);

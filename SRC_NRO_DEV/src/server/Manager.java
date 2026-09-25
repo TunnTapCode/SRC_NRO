@@ -65,6 +65,8 @@ public final class Manager {
     public static int MAX_PER_IP = 10;
     public static int MAX_PLAYER = 2000;
     public static int RATE_EXP_SERVER = 5;
+    public static int RATE_DROP_ITEM = 100;   // % tỉ lệ rơi đồ (100 = bình thường)
+    public static int RATE_COMBINE   = 100;   // % tỉ lệ đập đồ (100 = bình thường)
     public static boolean LOCAL = false;
     public static boolean TEST = false;
     public static boolean DAO_AUTO_UPDATER = false;
