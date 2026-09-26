@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import item.Template;
@@ -11,7 +13,7 @@ import utils.Util;
 
 public class CheTaoDuiDuc {
     private static final int GOLD_REQUIRED = 50_000_000;
-    private static final int COMBINE_SUCCESS_RATE = 100;
+    public static final int COMBINE_SUCCESS_RATE = 100;
     private static final int HEMATITE_ID = 1423;
     private static final int DUIDUC_ID = 1438;
     private static final int HEMATITE_REQUIRED_QUANTITY = 5;
@@ -21,7 +23,7 @@ public class CheTaoDuiDuc {
             Item hematite = player.combineNew.itemsCombine.get(0);
             if (hematite.template.id == HEMATITE_ID && hematite.quantity >= HEMATITE_REQUIRED_QUANTITY) {
                 player.combineNew.goldCombine = GOLD_REQUIRED;
-                player.combineNew.ratioCombine = COMBINE_SUCCESS_RATE;
+                player.combineNew.ratioCombine = (float) CombineRateManager.rate("tao_dui_duc", COMBINE_SUCCESS_RATE);
 
                 String npcSay = "|2|Tạo Dùi Đục từ Đá Hematite\n"
                         + "|2|Cần " + HEMATITE_REQUIRED_QUANTITY + " viên Hematite\n"
@@ -59,7 +61,7 @@ public class CheTaoDuiDuc {
                 player.inventory.gold -= GOLD_REQUIRED;
                 InventoryService.gI().subQuantityItemsBag(player, hematite, HEMATITE_REQUIRED_QUANTITY);
 
-                if (Util.isTrue(COMBINE_SUCCESS_RATE, 100)) {
+                if (Util.isTrue(CombineRateManager.rate("tao_dui_duc", COMBINE_SUCCESS_RATE), 100)) {
                     Template.ItemTemplate duiducTemplate = ItemService.gI().getTemplate(DUIDUC_ID);
                     Item duiduc = new Item();
                     duiduc.template = duiducTemplate;

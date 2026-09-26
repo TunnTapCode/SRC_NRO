@@ -6,6 +6,7 @@ import database.DatabaseManager;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,6 +15,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -23,6 +28,8 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import managers.DropRateManager;
+import managers.CombineRateManager;
 import utils.Logger;
 
 // Runtime server references
@@ -34,7 +41,15 @@ public final class AdminApiServer {
     private static HttpServer server;
     private static int actualPort = -1;
     private static final Pattern JSON_VALUE_PATTERN = Pattern
-            .compile("\\\"([^\\\"]+)\\\"\\s*:\\s*(\\\"(?:\\\\.|[^\\\"])*\\\"|\\d+|true|false|null)");
+            .compile("\\\"([^\\\"]+)\\\"\\s*:\\s*(\\\"(?:\\\\.|[^\\\"])*\\\"|-?\\d+(?:\\.\\d+)?|true|false|null)");
+
+    // Format nhãn trục thời gian cho biểu đồ lượng người chơi
+    private static final DateTimeFormatter STATS_DAY_LABEL = DateTimeFormatter.ofPattern("dd/MM");
+    private static final DateTimeFormatter STATS_MONTH_LABEL = DateTimeFormatter.ofPattern("MM/yyyy");
+    // Số mốc thống kê: ngày (30 ngày gần nhất), tuần (12 tuần), tháng (12 tháng)
+    private static final int STATS_DAY_BUCKETS = 30;
+    private static final int STATS_WEEK_BUCKETS = 12;
+    private static final int STATS_MONTH_BUCKETS = 12;
 
     private AdminApiServer() {
     }
@@ -190,7 +205,10 @@ public final class AdminApiServer {
                     "/api/giftcodes",
                     "/api/items",
                     "/api/shops",
-                    "/api/npcs"
+                    "/api/npcs",
+                    "/api/tasks",
+                    "/api/player-stats",
+                    "/api/drop-rates"
             }));
             return;
         }
@@ -319,6 +337,22 @@ public final class AdminApiServer {
             case "head-avatars":
                 // Trả về map { head_id: avatar_id } dạng flat JSON object để frontend tra nhanh
                 sendJson(exchange, 200, queryHeadAvatars());
+                return;
+            case "tasks":
+                // GET /api/tasks → danh sách nhiệm vụ chính + các bước (dùng cho Top nhiệm vụ)
+                sendJson(exchange, 200, queryTasks());
+                return;
+            case "player-stats":
+                // GET /api/player-stats?range=day|week|month → lượng người chơi theo mốc thời gian
+                sendJson(exchange, 200, queryPlayerStats(queryParam(exchange.getRequestURI().getQuery(), "range")));
+                return;
+            case "drop-rates":
+                // GET/PUT /api/drop-rates → bảng tỉ lệ rơi đồ (Admin > Vận hành)
+                handleDropRates(exchange, method, payload);
+                return;
+            case "combine-rates":
+                // GET/PUT /api/combine-rates → bảng tỉ lệ đập đồ (Admin > Vận hành)
+                handleCombineRates(exchange, method, payload);
                 return;
             default:
                 sendText(exchange, 404, "Unknown resource: " + resource);
@@ -499,6 +533,183 @@ public final class AdminApiServer {
         return result;
     }
 
+    /**
+     * GET /api/tasks → nhiệm vụ chính + các bước của nó (task_sub_template).
+     * Mỗi phần tử: { task_id, task_name, sub_index, sub_name, sub_max }
+     * Frontend gom lại thành map task_id → { name, subs[] } để hiển thị
+     * "đang ở nhiệm vụ nào" từ player.data_task ([task_id, sub_index, count, lastTime]).
+     */
+    private static List<Map<String, Object>> queryTasks() {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        String sql = "SELECT tm.id AS task_id, tm.NAME AS task_name, ts.NAME AS sub_name, "
+                + "ts.max_count AS sub_max "
+                + "FROM task_main_template tm "
+                + "JOIN task_sub_template ts ON tm.id = ts.task_main_id "
+                + "ORDER BY tm.id ASC, ts.NguyenTanTaiPro ASC";
+        try (Connection connection = DatabaseManager.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            int currentTask = -1;
+            int subIndex = -1;
+            while (resultSet.next()) {
+                int taskId = resultSet.getInt("task_id");
+                if (taskId != currentTask) {
+                    currentTask = taskId;
+                    subIndex = 0;
+                } else {
+                    subIndex++;
+                }
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("task_id", taskId);
+                row.put("task_name", resultSet.getString("task_name"));
+                row.put("sub_index", subIndex);
+                row.put("sub_name", resultSet.getString("sub_name"));
+                row.put("sub_max", resultSet.getInt("sub_max"));
+                rows.add(row);
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+        return rows;
+    }
+
+    /**
+     * GET /api/player-stats?range=day|week|month
+     * Thống kê lượng người chơi theo từng mốc thời gian, mỗi phần tử gồm:
+     * - label         : nhãn trục X (dd/MM với ngày & tuần, MM/yyyy với tháng)
+     * - from / to     : ngày bắt đầu / kết thúc của mốc (yyyy-MM-dd)
+     * - newPlayers    : số nhân vật tạo mới trong mốc (player.create_time)
+     * - activePlayers : số nhân vật đăng nhập trong mốc (player.firstTimeLogin = ngày login gần nhất)
+     * - totalPlayers  : tổng nhân vật đã tạo tính đến cuối mốc
+     */
+    private static List<Map<String, Object>> queryPlayerStats(String range) {
+        String mode = range == null ? "day" : range.trim().toLowerCase(Locale.ROOT);
+        int bucketCount;
+        if ("week".equals(mode)) {
+            bucketCount = STATS_WEEK_BUCKETS;
+        } else if ("month".equals(mode)) {
+            bucketCount = STATS_MONTH_BUCKETS;
+        } else {
+            mode = "day";
+            bucketCount = STATS_DAY_BUCKETS;
+        }
+
+        LocalDate today = LocalDate.now();
+        List<LocalDate> starts = new ArrayList<>();
+        List<LocalDate> ends = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+
+        switch (mode) {
+            case "week": {
+                LocalDate monday = today.with(DayOfWeek.MONDAY);
+                for (int i = bucketCount - 1; i >= 0; i--) {
+                    LocalDate start = monday.minusWeeks(i);
+                    starts.add(start);
+                    ends.add(start.plusDays(6));
+                    labels.add(start.format(STATS_DAY_LABEL));
+                }
+                break;
+            }
+            case "month": {
+                LocalDate firstOfMonth = today.withDayOfMonth(1);
+                for (int i = bucketCount - 1; i >= 0; i--) {
+                    LocalDate start = firstOfMonth.minusMonths(i);
+                    starts.add(start);
+                    ends.add(start.plusMonths(1).minusDays(1));
+                    labels.add(start.format(STATS_MONTH_LABEL));
+                }
+                break;
+            }
+            default: {
+                for (int i = bucketCount - 1; i >= 0; i--) {
+                    LocalDate day = today.minusDays(i);
+                    starts.add(day);
+                    ends.add(day);
+                    labels.add(day.format(STATS_DAY_LABEL));
+                }
+            }
+        }
+
+        long[] newPlayers = new long[bucketCount];
+        long[] activePlayers = new long[bucketCount];
+        long createdBeforeWindow = 0;
+
+        LocalDate windowStart = starts.get(0);
+        LocalDate windowEnd = ends.get(bucketCount - 1);
+        try (Connection connection = DatabaseManager.getConnection();
+                PreparedStatement statement = connection
+                        .prepareStatement("SELECT create_time, firstTimeLogin FROM player");
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                Timestamp created = resultSet.getTimestamp("create_time");
+                if (created != null) {
+                    LocalDate day = created.toLocalDateTime().toLocalDate();
+                    if (day.isBefore(windowStart)) {
+                        createdBeforeWindow++;
+                    } else if (!day.isAfter(windowEnd)) {
+                        int index = findStatsBucket(starts, ends, day);
+                        if (index >= 0) {
+                            newPlayers[index]++;
+                        }
+                    }
+                }
+                Timestamp lastLogin = resultSet.getTimestamp("firstTimeLogin");
+                if (lastLogin != null) {
+                    int index = findStatsBucket(starts, ends, lastLogin.toLocalDateTime().toLocalDate());
+                    if (index >= 0) {
+                        activePlayers[index]++;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+
+        List<Map<String, Object>> points = new ArrayList<>();
+        long cumulative = createdBeforeWindow;
+        for (int i = 0; i < bucketCount; i++) {
+            cumulative += newPlayers[i];
+            Map<String, Object> point = new LinkedHashMap<>();
+            point.put("label", labels.get(i));
+            point.put("range", mode);
+            point.put("from", starts.get(i).toString());
+            point.put("to", ends.get(i).toString());
+            point.put("newPlayers", newPlayers[i]);
+            point.put("activePlayers", activePlayers[i]);
+            point.put("totalPlayers", cumulative);
+            points.add(point);
+        }
+        return points;
+    }
+
+    /** Tìm mốc thời gian chứa ngày day, trả về -1 nếu nằm ngoài khoảng thống kê */
+    private static int findStatsBucket(List<LocalDate> starts, List<LocalDate> ends, LocalDate day) {
+        for (int i = 0; i < starts.size(); i++) {
+            if (!day.isBefore(starts.get(i)) && !day.isAfter(ends.get(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** Lấy giá trị tham số trên query string. VD: queryParam("range=day", "range") → "day" */
+    private static String queryParam(String query, String name) {
+        if (query == null || query.isEmpty()) {
+            return null;
+        }
+        for (String part : query.split("&")) {
+            if (part.startsWith(name + "=")) {
+                String value = part.substring(name.length() + 1);
+                try {
+                    return URLDecoder.decode(value, StandardCharsets.UTF_8);
+                } catch (Exception e) {
+                    return value;
+                }
+            }
+        }
+        return null;
+    }
+
     private static Map<String, String> readBody(HttpExchange exchange) throws IOException {
         Map<String, String> values = new HashMap<>();
         if (exchange.getRequestBody() == null) {
@@ -668,6 +879,8 @@ public final class AdminApiServer {
                 builder.append(jsonFromStringArray((String[]) value));
             } else if (value instanceof Object[]) {
                 builder.append(jsonFromObjectArray((Object[]) value));
+            } else if (value instanceof List) {
+                builder.append(jsonFromAnyList((List<?>) value));
             } else {
                 builder.append('"').append(escapeJson(String.valueOf(value))).append('"');
             }
@@ -683,6 +896,29 @@ public final class AdminApiServer {
             map.put(String.valueOf(values[i]), values[i + 1]);
         }
         return map;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static String jsonFromAnyList(List<?> values) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("[");
+        for (int i = 0; i < values.size(); i++) {
+            if (i > 0) {
+                builder.append(",");
+            }
+            Object value = values.get(i);
+            if (value == null) {
+                builder.append("null");
+            } else if (value instanceof Map) {
+                builder.append(jsonFromObject((Map<String, Object>) value));
+            } else if (value instanceof Number || value instanceof Boolean) {
+                builder.append(value);
+            } else {
+                builder.append('"').append(escapeJson(String.valueOf(value))).append('"');
+            }
+        }
+        builder.append("]");
+        return builder.toString();
     }
 
     private static String jsonFromStringArray(String[] values) {
@@ -717,6 +953,141 @@ public final class AdminApiServer {
                 .replace("\n", "\\n")
                 .replace("\r", "\\r")
                 .replace("\t", "\\t");
+    }
+
+    /**
+     * GET /api/drop-rates → toàn bộ bảng tỉ lệ rơi đồ + hệ số nhân chung
+     * PUT /api/drop-rates { "<key>": "<phần trăm>", ..., "globalMultiplier": "150", "reset": "true" }
+     *     → cập nhật, lưu vào DropRate.properties rồi trả về bảng mới
+     */
+    private static void handleDropRates(HttpExchange exchange, String method, Map<String, String> payload)
+            throws IOException {
+        if ("GET".equalsIgnoreCase(method)) {
+            sendDropRates(exchange);
+            return;
+        }
+        if (!"PUT".equalsIgnoreCase(method) && !"POST".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().set("Allow", "GET, PUT, POST");
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        boolean changed = false;
+        if ("true".equalsIgnoreCase(payload.get("reset"))) {
+            DropRateManager.resetDefaults();
+            // Khôi phục luôn hệ số nhân chung về 100 (bình thường)
+            Manager.RATE_DROP_ITEM = 100;
+            changed = true;
+        }
+
+        String global = payload.containsKey("globalMultiplier") ? payload.get("globalMultiplier")
+                : payload.get("rateDrop");
+        if (global != null) {
+            try {
+                int v = (int) Math.round(Double.parseDouble(global.trim()));
+                if (v >= 0) {
+                    Manager.RATE_DROP_ITEM = v;
+                    changed = true;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        int updated = 0;
+        for (DropRateManager.Rule rule : DropRateManager.rules()) {
+            String raw = payload.get(rule.key);
+            if (raw == null) {
+                continue;
+            }
+            try {
+                if (DropRateManager.setPercent(rule.key, Double.parseDouble(raw.trim()))) {
+                    updated++;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        if (updated > 0) {
+            changed = true;
+        }
+        if (changed) {
+            DropRateManager.save();
+        }
+        sendDropRates(exchange);
+    }
+
+    private static void sendDropRates(HttpExchange exchange) throws IOException {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", Boolean.TRUE);
+        body.put("globalMultiplier", Manager.RATE_DROP_ITEM);
+        body.put("rules", DropRateManager.forApi());
+        sendJson(exchange, 200, body);
+    }
+
+    /**
+     * GET /api/combine-rates → toàn bộ tỉ lệ đập / nâng cấp đồ + hệ số nhân chung
+     * PUT /api/combine-rates { "<key>": "<phần trăm>", ... (-1 = trở về tỉ lệ gốc),
+     *     "globalMultiplier": "150", "reset": "true" }
+     */
+    private static void handleCombineRates(HttpExchange exchange, String method, Map<String, String> payload)
+            throws IOException {
+        if ("GET".equalsIgnoreCase(method)) {
+            sendCombineRates(exchange);
+            return;
+        }
+        if (!"PUT".equalsIgnoreCase(method) && !"POST".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().set("Allow", "GET, PUT, POST");
+            sendText(exchange, 405, "Method Not Allowed");
+            return;
+        }
+
+        boolean changed = false;
+        if ("true".equalsIgnoreCase(payload.get("reset"))) {
+            CombineRateManager.resetOverrides();
+            Manager.RATE_COMBINE = 100;
+            changed = true;
+        }
+
+        String global = payload.containsKey("globalMultiplier") ? payload.get("globalMultiplier")
+                : payload.get("rateCombine");
+        if (global != null) {
+            try {
+                int v = (int) Math.round(Double.parseDouble(global.trim()));
+                if (v >= 0) {
+                    Manager.RATE_COMBINE = v;
+                    changed = true;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        int updated = 0;
+        for (CombineRateManager.Rule rule : CombineRateManager.rules()) {
+            String raw = payload.get(rule.key);
+            if (raw == null) {
+                continue;
+            }
+            try {
+                if (CombineRateManager.setPercent(rule.key, Double.parseDouble(raw.trim()))) {
+                    updated++;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        if (updated > 0) {
+            changed = true;
+        }
+        if (changed) {
+            CombineRateManager.save();
+        }
+        sendCombineRates(exchange);
+    }
+
+    private static void sendCombineRates(HttpExchange exchange) throws IOException {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", Boolean.TRUE);
+        body.put("globalMultiplier", Manager.RATE_COMBINE);
+        body.put("rules", CombineRateManager.forApi());
+        sendJson(exchange, 200, body);
     }
 
     /**
@@ -759,8 +1130,11 @@ public final class AdminApiServer {
             if (payload.containsKey("rateDrop")) {
                 try {
                     int v = Integer.parseInt(payload.get("rateDrop"));
-                    if (v >= 1)
+                    if (v >= 1) {
                         Manager.RATE_DROP_ITEM = v;
+                        // Lưu lại để giữ sau khi restart
+                        DropRateManager.save();
+                    }
                 } catch (NumberFormatException ignored) {
                 }
             }

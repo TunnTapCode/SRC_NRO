@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import player.Player;
@@ -12,7 +14,7 @@ import utils.Util;
 public class DanhBongSaoPhaLe {
 
     private static final int GOLD_NANG_CAP = 100_000_000;
-    private static final int RATIO_NANG_CAP = 100;
+    public static final int RATIO_NANG_CAP = 100;
 
     private static final int ID_SAO_PHA_LE_START = 1416;
     private static final int ID_SAO_PHA_LE_END = 1422;
@@ -34,7 +36,7 @@ public class DanhBongSaoPhaLe {
 
             if (saoPhaLe != null && daMai != null && saoPhaLe.quantity >= 2) {
                 player.combineNew.goldCombine = GOLD_NANG_CAP;
-                player.combineNew.ratioCombine = RATIO_NANG_CAP;
+                player.combineNew.ratioCombine = (float) CombineRateManager.rate("danh_bong_sao_phale", RATIO_NANG_CAP);
 
                 String npcSay = "|2|Nâng cấp Sao Pha Lê lên Sao Pha Lê Lấp Lánh\n";
                 npcSay += "|2|Tỉ lệ thành công: " + player.combineNew.ratioCombine + "%\n";

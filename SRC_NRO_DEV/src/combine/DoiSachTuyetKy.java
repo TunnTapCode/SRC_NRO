@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstFont;
 import consts.ConstNpc;
 import item.Item;
@@ -12,7 +14,7 @@ import utils.Util;
 public class DoiSachTuyetKy {
     private static final int REQUIRED_CUON_SACH_CU = 10;
     private static final int REQUIRED_KIM_BAM_GIAY = 1;
-    private static final int SUCCESS_RATE_PERCENT = 20;
+    public static final int SUCCESS_RATE_PERCENT = 20;
     private static final int[] SACH_TUYET_KY_IDS = {1044, 1211, 1212};
     private static final int CUON_SACH_CU_ID = 1283;
     private static final int KIM_BAM_GIAY_ID = 1285; 
@@ -56,7 +58,7 @@ public class DoiSachTuyetKy {
 
         CombineService.gI().sendAddItemCombine(player, ConstNpc.BA_HAT_MIT, cuonSachCu, kimBamGiay);
 
-        if (Util.isTrue(SUCCESS_RATE_PERCENT, 100)) {
+        if (Util.isTrue(CombineRateManager.rate("doi_sach_tuyet_ky", SUCCESS_RATE_PERCENT), 100)) {
             processSuccess(player, cuonSachCu, kimBamGiay);
         } else {
             processFailure(player, cuonSachCu, kimBamGiay);

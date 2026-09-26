@@ -605,6 +605,18 @@
 }
 .op-exp-preset.active small { color: rgba(255,255,255,.8); }
 
+/* ── Modal "Tỉ Lệ Đập Đồ" (nền tím, khác modal vàng của Tỉ Lệ Rơi Đồ) ── */
+#op-cmb-modal .op-exp-preset:hover {
+    border-color: #c084fc; background: #faf5ff; color: #7c3aed;
+}
+#op-cmb-modal .op-exp-preset.active {
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, .35);
+}
+#op-cmb-modal .op-drop-group { color: #7c3aed; }
+#op-cmb-modal .op-drop-row-target b { color: #7c3aed; }
+#op-cmb-modal .op-drop-input.changed { color: #7c3aed; font-weight: 700; }
+
 /* Custom input row */
 .op-exp-custom-row {
     display: flex; align-items: center; gap: 8px;
@@ -659,6 +671,174 @@
     transition: background .15s;
 }
 .op-exp-cancel-btn:hover { background: #e2e8f0; }
+
+/* ═══════════════════════════════════════════════════════
+   Drop Rate list — card "Tỉ Lệ Rơi Đồ"
+   ═══════════════════════════════════════════════════════ */
+.op-drop-dialog { width: min(780px, 100%); max-height: 92vh; }
+
+/* Body co lại được (min-height:0) và cuộn dự phòng khi dialog bị giới hạn chiều cao;
+   bên trong danh sách tự cuộn nên hệ số / ô tìm kiếm luôn nhìn thấy */
+.op-drop-body { max-height: none; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+
+.op-drop-global {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #f0fdfa;
+    border: 1.5px solid #99f6e4;
+}
+
+.op-drop-global-label { font-size: .82rem; font-weight: 800; color: #0f766e; }
+.op-drop-global-hint  { font-size: .70rem; color: #0d9488; }
+.op-drop-global-input { display: flex; align-items: center; gap: 6px; }
+.op-drop-global-input .op-exp-input { width: 110px; flex: none; }
+
+.op-drop-presets { grid-template-columns: repeat(5, 1fr); }
+
+.op-drop-toolbar { display: flex; align-items: center; gap: 10px; }
+
+.op-drop-toolbar-label {
+    font-size: .72rem; font-weight: 700; color: #64748b;
+    text-transform: uppercase; letter-spacing: .05em; white-space: nowrap;
+}
+
+.op-drop-search {
+    flex: 1; min-width: 120px;
+    padding: 8px 12px;
+    border: 1.5px solid #e2eaf5; border-radius: 9px;
+    font-size: .82rem; color: #1e293b; background: #f8faff; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.op-drop-search:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,.15); background: #fff; }
+
+.op-drop-list {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    /* Danh sách tự cuộn */
+    min-height: 170px;
+    max-height: min(50vh, 430px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.op-drop-list::-webkit-scrollbar        { width: 9px; }
+.op-drop-list::-webkit-scrollbar-track  { background: #f1f5f9; border-radius: 6px; }
+.op-drop-list::-webkit-scrollbar-thumb  { background: #5eead4; border-radius: 6px; }
+.op-drop-list::-webkit-scrollbar-thumb:hover { background: #14b8a6; }
+
+.op-drop-group {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 8px 12px;
+    font-size: .70rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .05em;
+    color: #0f766e; background: #ecfeff;
+    border-top: 1px solid #e2e8f0;
+}
+.op-drop-group:first-child { border-top: none; }
+
+.op-drop-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    background: #fff;
+    border-top: 1px solid #f1f5f9;
+    transition: background .15s;
+}
+.op-drop-row:hover { background: #f8fafc; }
+
+.op-drop-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+
+.op-drop-item-icon {
+    width: 34px; height: 34px; flex-shrink: 0;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+}
+.op-drop-item-icon--empty {
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; font-weight: 800; color: #94a3b8;
+}
+
+.op-drop-row-label {
+    font-size: .80rem; font-weight: 700; color: #1e293b;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.op-drop-row-target {
+    font-size: .68rem; color: #94a3b8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.op-drop-row-onein {
+    flex-shrink: 0; min-width: 78px; text-align: center;
+    font-size: .70rem; font-weight: 700; color: #0d9488;
+    background: #f0fdfa; border: 1px solid #99f6e4;
+    border-radius: 7px; padding: 3px 7px;
+}
+
+.op-drop-row-input { flex-shrink: 0; display: flex; align-items: center; gap: 4px; }
+
+.op-drop-input {
+    width: 96px;
+    padding: 7px 9px;
+    border: 1.5px solid #e2eaf5; border-radius: 9px;
+    font-size: .82rem; font-weight: 700; text-align: right;
+    color: #0f766e; background: #f8faff; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.op-drop-input:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,.15); background: #fff; }
+.op-drop-input.changed { border-color: #f59e0b; color: #b45309; background: #fffbeb; }
+
+.op-drop-unit { font-size: .74rem; font-weight: 700; color: #94a3b8; }
+
+.op-drop-loading { padding: 22px; text-align: center; font-size: .82rem; color: #94a3b8; }
+
+.op-drop-error {
+    padding: 18px 16px;
+    text-align: center;
+    font-size: .8rem;
+    line-height: 1.5;
+    color: #b91c1c;
+    background: #fef2f2;
+}
+
+.op-drop-note { margin: 0; font-size: .70rem; color: #94a3b8; line-height: 1.45; }
+
+.op-exp-reset-btn {
+    border: 1.5px solid #e2eaf5; background: #f1f5f9; color: #475569;
+    border-radius: 10px; padding: 10px 18px;
+    font-size: .84rem; font-weight: 700; cursor: pointer;
+    transition: background .15s, transform .15s;
+}
+.op-exp-reset-btn:hover { background: #e2e8f0; transform: translateY(-2px); }
+
+/* Màn hình thấp / nhỏ */
+@media (max-height: 760px), (max-width: 700px) {
+    .op-drop-dialog              { max-height: 96vh; }
+    .op-drop-body                { padding: 14px; gap: 10px; }
+    .op-drop-list                { min-height: 150px; max-height: 42vh; }
+    .op-drop-presets             { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .op-drop-presets .op-exp-preset { padding: 7px 4px; font-size: .74rem; }
+    .op-drop-global              { padding: 9px 11px; }
+    .op-drop-global-input .op-exp-input { width: 92px; }
+    .op-drop-row                 { padding: 7px 10px; }
+    .op-drop-note                { display: none; }
+}
+
+@media (max-width: 640px) {
+    .op-drop-dialog       { max-height: 96vh; }
+    .op-drop-list         { min-height: 150px; max-height: 40vh; }
+    .op-drop-presets      { grid-template-columns: repeat(3, 1fr); }
+    .op-drop-row-target   { display: none; }
+    .op-drop-row-onein    { min-width: 62px; font-size: .66rem; }
+    .op-drop-input        { width: 78px; }
+}
 
 /* ── Announce template buttons ── */
 .op-ann-tpl {

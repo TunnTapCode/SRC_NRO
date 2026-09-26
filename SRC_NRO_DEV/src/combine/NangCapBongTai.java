@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import item.Item.ItemOption;
@@ -14,7 +16,7 @@ public class NangCapBongTai {
     // Constants
     private static final int GOLD_BONG_TAI = 200_000_000;
     private static final int GEM_BONG_TAI = 1_000;
-    private static final int RATIO_BONG_TAI = 50;
+    public static final int RATIO_BONG_TAI = 50;
     private static final int ITEM_ID_BONG_TAI_C1 = 454;
     private static final int ITEM_ID_BONG_TAI_C2 = 921;
     private static final int ITEM_ID_MANH_VO_BT = 933;
@@ -40,7 +42,7 @@ public class NangCapBongTai {
             if (bongTai != null && manhVo != null) {
                 player.combineNew.goldCombine = GOLD_BONG_TAI;
                 player.combineNew.gemCombine = GEM_BONG_TAI;
-                player.combineNew.ratioCombine = RATIO_BONG_TAI;
+                player.combineNew.ratioCombine = (float) CombineRateManager.rate("nang_cap_bong_tai", RATIO_BONG_TAI);
 
                 String npcSay = "|2|Bông tai Porata [+2]" + "\n\n";
                 npcSay += "|2|Tỉ lệ thành công: " + RATIO_BONG_TAI + "%\n";
@@ -124,7 +126,7 @@ public class NangCapBongTai {
                 player.inventory.gold -= gold;
                 InventoryService.gI().subGemPreferLocked(player, gem);
 
-                if (Util.isTrue(RATIO_BONG_TAI, 100)) {
+                if (Util.isTrue(CombineRateManager.rate("nang_cap_bong_tai", RATIO_BONG_TAI), 100)) {
                     bongTai.template = ItemService.gI().getTemplate(ITEM_ID_BONG_TAI_C2);
                     bongTai.itemOptions.clear();
                     bongTai.itemOptions.add(new ItemOption(ITEM_OPTION_ID_CAP, ITEM_OPTION_VALUE_CAP_2));

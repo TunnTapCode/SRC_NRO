@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import player.Player;
@@ -12,7 +14,7 @@ import utils.Util;
 public class TaoDaHematite {
 
     private static final int GOLD_TAO_DA = 50_000_000;
-    private static final int RATIO_TAO_DA = 100;  
+    public static final int RATIO_TAO_DA = 100;  
     private static final int REQUIRED_ITEM_QUANTITY = 5;
     private static final short HEMATITE_ITEM_ID = 1423;
 
@@ -21,7 +23,7 @@ public class TaoDaHematite {
             Item saoPhaLe = player.combineNew.itemsCombine.get(0);
             if (isValidSaoPhaLe(saoPhaLe)) {
                 player.combineNew.goldCombine = GOLD_TAO_DA;
-                player.combineNew.ratioCombine = RATIO_TAO_DA;
+                player.combineNew.ratioCombine = (float) CombineRateManager.rate("tao_da_hematite", RATIO_TAO_DA);
 
                 String npcSay = buildCombineInfoMessage(player);
 

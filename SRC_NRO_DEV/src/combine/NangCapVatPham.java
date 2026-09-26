@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import java.util.Objects;
@@ -66,7 +68,7 @@ public class NangCapVatPham {
 
                 if (level < MAX_LEVEL_COMBINE) {
                     player.combineNew.goldCombine = CombineSystem.getGoldNangCapDo(level);
-                    player.combineNew.ratioCombine = (float) CombineSystem.getTileNangCapDo(level);
+                    player.combineNew.ratioCombine = (float) CombineRateManager.rate("nangcap_vatpham_" + level, CombineSystem.getTileNangCapDo(level));
                     player.combineNew.countDaNangCap = CombineSystem.getCountDaNangCapDo(level);
                     player.combineNew.countDaBaoVe = (short) CombineSystem.getCountDaBaoVe(level);
                     String npcSay = "";

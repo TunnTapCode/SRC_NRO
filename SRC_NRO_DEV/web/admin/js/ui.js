@@ -91,3 +91,33 @@ function toast(msg, type = 'info', duration = 5500) {
         node.addEventListener('animationend', () => node.remove(), { once: true });
     }
 }
+
+/**
+ * Xác nhận 2 bước bằng toast góc phải màn hình — không dùng confirm()/alert() của trình duyệt.
+ * Lần 1 hiện toast cảnh báo + đổi nhãn nút, lần 2 mới chạy.
+ * @param {HTMLElement} btn  - Nút cần xác nhận
+ * @param {string} message   - Nội dung toast cảnh báo
+ * @param {Function} onYes   - Hàm chạy khi xác nhận lần 2
+ * @param {string} label     - Nhãn sau khi bấm lần 1
+ */
+function confirmByToast(btn, message, onYes, label = '⚠ Bấm lần nữa để xác nhận') {
+    if (!btn) return;
+    clearTimeout(Number(btn.dataset.confirmTimer) || 0);
+
+    if (btn.dataset.confirming === '1') {
+        delete btn.dataset.confirming;
+        btn.textContent = btn.dataset.originLabel || btn.textContent;
+        onYes();
+        return;
+    }
+
+    btn.dataset.originLabel = btn.textContent;
+    btn.dataset.confirming = '1';
+    btn.textContent = label;
+    toast(message, 'warning', 4000);
+
+    btn.dataset.confirmTimer = String(setTimeout(() => {
+        delete btn.dataset.confirming;
+        btn.textContent = btn.dataset.originLabel;
+    }, 4000));
+}

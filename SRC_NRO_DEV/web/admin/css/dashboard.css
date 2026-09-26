@@ -229,7 +229,7 @@
 .db-val-power  { color:#7c3aed; }
 .db-val-nap    { color:#f43f5e; }
 .db-val-quest  { color:#16a34a; }
-.db-top-sub    { display:block; font-size:.70rem; color:#94a3b8; margin-top:1px; }
+.db-top-sub    { display:block; font-size:.70rem; color:#94a3b8; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* Chart */
 .db-chart-wrap {
@@ -292,3 +292,91 @@
 /* ── Responsive rows ── */
 @media (max-width: 1100px) { .db-row2 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 960px)  { .db-row2 { grid-template-columns: 1fr; } }
+
+/* ═══════════════════════════════════════════════════════
+   Lượng người chơi — range tabs + summary
+   ═══════════════════════════════════════════════════════ */
+
+/* Chú thích nhỏ cạnh tiêu đề panel */
+.db-panel-note {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Bộ chọn mốc thời gian (Ngày / Tuần / Tháng) */
+.db-range-tabs {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    padding: 4px;
+    border-radius: 10px;
+    background: #f1f5fd;
+    flex-shrink: 0;
+}
+
+.db-range-btn {
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+.db-range-btn:hover { color: #1d4ed8; background: #e3edff; }
+.db-range-btn.active {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(37,99,235,0.30);
+}
+.db-range-btn:active { transform: scale(0.95); }
+
+/* Thống kê nhanh dưới biểu đồ */
+.db-player-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.db-sum-item {
+    flex: 1 1 150px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #f8fbff;
+    border: 1px solid #e0ecff;
+}
+
+.db-sum-item b {
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #1e293b;
+}
+
+.db-sum-item span {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.db-sum-item.db-sum-new b    { color: #2563eb; }
+.db-sum-item.db-sum-active b { color: #f43f5e; }
+.db-sum-item.db-sum-total b  { color: #7c3aed; }
+
+.db-sum-note {
+    flex: 1 1 100%;
+    font-size: 0.70rem;
+    color: #94a3b8;
+}
+

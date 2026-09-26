@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import player.Player;
@@ -10,7 +12,7 @@ import utils.Util;
 
 public class LamPhepNhapDa {
     private static final int GOLD_TAO_DA = 10_000_000;
-    private static final int RATIO_TAO_DA = 80;
+    public static final int RATIO_TAO_DA = 80;
     private static final int ITEM_ID_NGOC_TRANG = 225;
     private static final int ITEM_ID_DA_TRUNG = 226; 
     private static final int REQUIRED_QUANTITY_ITEM1 = 10;
@@ -33,7 +35,7 @@ public class LamPhepNhapDa {
         }
 
         player.combineNew.goldCombine = GOLD_TAO_DA;
-        player.combineNew.ratioCombine = RATIO_TAO_DA;
+        player.combineNew.ratioCombine = (float) CombineRateManager.rate("lam_phep_nhap_da", RATIO_TAO_DA);
 
         String npcSay = "|2|Tỉ lệ thành CONG: " + RATIO_TAO_DA + "%\n"
                       + "|2|Cần: " + Util.numberToMoney(GOLD_TAO_DA) + " vàng\n";
@@ -75,7 +77,7 @@ public class LamPhepNhapDa {
         InventoryService.gI().subQuantityItemsBag(player, item1, REQUIRED_QUANTITY_ITEM1);
         InventoryService.gI().subQuantityItemsBag(player, item2, REQUIRED_QUANTITY_ITEM2);
 
-        if (Util.isTrue(RATIO_TAO_DA, 100)) {
+        if (Util.isTrue(CombineRateManager.rate("lam_phep_nhap_da", RATIO_TAO_DA), 100)) {
             int randomId = Util.nextInt(RANDOM_ITEM_ID_START, RANDOM_ITEM_ID_END + 1);
             Item newItem = new Item();
             newItem.template = ItemService.gI().getTemplate(randomId);

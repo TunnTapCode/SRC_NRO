@@ -13,6 +13,7 @@ import map.ItemMap;
 import java.util.List;
 
 import map.Zone;
+import managers.DropRateManager;
 import player.Location;
 import player.Pet;
 import player.Player;
@@ -538,7 +539,7 @@ public class Mob {
         }
         int mapid = player.zone.map.mapId;
         if (player.itemTime.isUseMayDo
-                && (Util.isTrue(10, 100))
+                && (DropRateManager.roll("item_380_use_maydo"))
                 && this.tempId > 57 && this.tempId < 66) {
             list.add(new ItemMap(zone, 380, 1, x, yEnd, player.id));
         }
@@ -556,24 +557,24 @@ public class Mob {
         }
 
         if (MapService.gI().isMapUpPorata(mapid)) {
-            if (Util.isTrue(10, 100)) {
+            if (DropRateManager.roll("item_933_map_porata")) {
                 ItemMap it = new ItemMap(zone, 933, 1, x, yEnd, player.id);
                 it.options.add(new Item.ItemOption(31, 1));
                 list.add(it);
-            } else if (Util.isTrue(5, 100) && player.itemEvent.canDropManhVo(150)) {
+            } else if (DropRateManager.roll("item_934_map_porata") && player.itemEvent.canDropManhVo(150)) {
                 ItemMap it = new ItemMap(zone, 934, 1, x, yEnd, player.id);
                 it.options.add(new Item.ItemOption(31, 1));
                 list.add(it);
-            } else if (Util.isTrue(1, 500)) {
+            } else if (DropRateManager.roll("item_935_map_porata")) {
                 ItemMap it = new ItemMap(zone, 935, 1, x, yEnd, player.id);
                 it.options.add(new Item.ItemOption(31, 1));
                 list.add(it);
             }
         }
         // =======================
-        // RƠI NGẪU NHIÊN 220–224 (1/100)
+        // RƠI NGẪU NHIÊN 220–224 (mặc định 1/200)
         // =======================
-        if (Util.isTrue(1, 200)) { // 1%
+        if (DropRateManager.roll("item_220_224_any_map")) {
             int[] items = { 220, 221, 222, 223, 224 };
             int itemId = items[Util.nextInt(items.length)];
 
@@ -589,7 +590,7 @@ public class Mob {
         }
 
         if (MapService.gI().isMap3Planets(mapid)) {
-            if (Util.isTrue(1, 10)) {
+            if (DropRateManager.roll("gold_map_3planets")) {
                 int vang = Util.nextInt(500, 1000);
                 if (vang < 300) {
                     list.add(new ItemMap(zone, 76, vang, x, yEnd, player.id));
@@ -601,7 +602,7 @@ public class Mob {
             }
         }
         if (MapService.gI().isMapNappa(mapid)) {
-            if (Util.isTrue(1, 10)) {
+            if (DropRateManager.roll("gold_map_nappa")) {
                 int vang = Util.nextInt(1000, 2000);
                 if (vang < 1300) {
                     list.add(new ItemMap(zone, 188, vang, x, yEnd, player.id));
@@ -613,7 +614,7 @@ public class Mob {
             }
         }
         if (MapService.gI().isMapCold(mapid)) {
-            if (Util.isTrue(1, 10)) {
+            if (DropRateManager.roll("gold_map_cold")) {
                 int vang = Util.nextInt(4000, 8000);
                 if (vang < 5000) {
                     list.add(new ItemMap(zone, 189, vang, x, yEnd, player.id)); // Rơi vàng cấp 189
@@ -625,7 +626,7 @@ public class Mob {
             }
         }
         if (MapService.gI().isMapTuongLai(mapid)) {
-            if (Util.isTrue(1, 10)) {
+            if (DropRateManager.roll("gold_map_tuonglai")) {
                 int vang = Util.nextInt(2000, 4000);
                 if (vang < 2500) {
                     list.add(new ItemMap(zone, 188, vang, x, yEnd, player.id));
@@ -637,7 +638,7 @@ public class Mob {
             }
         }
         if (MapService.gI().isMapPhoBan(mapid)) {
-            if (Util.isTrue(1, 100)) {
+            if (DropRateManager.roll("gold_map_phoban")) {
                 int vang = Util.nextInt(8000, 20000);
                 if (vang < 6000) {
                     list.add(new ItemMap(zone, 188, vang, x, yEnd, player.id));
@@ -648,7 +649,7 @@ public class Mob {
                 }
             }
         }
-        if (Util.isTrue(1, 1000000)) {
+        if (DropRateManager.roll("gem_77_any_map")) {
             int ngoc = Util.nextInt(1, 1);
             list.add(new ItemMap(zone, 77, ngoc, x, yEnd, player.id));
         }
@@ -765,7 +766,7 @@ public class Mob {
         // }
         // }
         if (MapService.gI().isMapCold(mapid)) {
-            if (Util.isTrue(1, 100)) {
+            if (DropRateManager.roll("item_220_224_map_cold")) {
                 int rand = Util.nextInt(0, 4);
                 ItemMap it = new ItemMap(zone, 220 + rand, 1, x, yEnd, player.id);
                 it.options.add(new Item.ItemOption(71 - rand, 0));
@@ -773,7 +774,7 @@ public class Mob {
             }
         }
         if (MapService.gI().isMapDoanhTrai(mapid)
-                && (Util.isTrue(10, 100))) {
+                && (DropRateManager.roll("item_225_map_doanhtrai"))) {
             ItemMap it = new ItemMap(zone, 225, 1, x, yEnd, player.id);
             it.options.add(new Item.ItemOption(74, 0));
             list.add(it);
@@ -815,19 +816,19 @@ public class Mob {
         // }
         // }
         int mapId = this.zone.map.mapId;
-        int rate = 0; // tính theo /1000
+        String mapItemKey = null; // key tỉ lệ rơi item 441-443 theo bản đồ
 
         if (MapService.gI().isMap3Planets(mapId)) {
-            rate = 10; // 0.1%
+            mapItemKey = "item_441_443_map_3planets";
         } else if (MapService.gI().isMapNappa(mapId)) {
-            rate = 15; // 0.3%
+            mapItemKey = "item_441_443_map_nappa";
         } else if (MapService.gI().isMapTuongLai(mapId)) {
-            rate = 20; // 0.5%
+            mapItemKey = "item_441_443_map_tuonglai";
         } else if (MapService.gI().isMapCold(mapId)) {
-            rate = 25; // 1%
+            mapItemKey = "item_441_443_map_cold";
         }
 
-        if (rate > 0 && Util.nextInt(1000) < rate) {
+        if (mapItemKey != null && DropRateManager.roll(mapItemKey)) {
             list.add(new ItemMap(
                     Util.spl(zone,
                             Util.nextInt(441, 443), // id vật phẩm
@@ -840,10 +841,10 @@ public class Mob {
         // MAP TƯƠNG LAI & MAP COLD
         if (MapService.gI().isMapTuongLai(mapid) || MapService.gI().isMapCold(mapid)) {
 
-            // Tỉ lệ rơi
+            // Tỉ lệ rơi (chỉnh trong Admin > Vận hành > Tỉ Lệ Rơi Đồ)
             boolean drop = MapService.gI().isMapTuongLai(mapid)
-                    ? Util.isTrue(1, 14000)
-                    : Util.isTrue(1, 18000);
+                    ? DropRateManager.roll("item_set_star_map_tuonglai")
+                    : DropRateManager.roll("item_set_star_map_cold");
 
             if (drop) {
 
@@ -911,8 +912,8 @@ public class Mob {
 
         // MAP NAPPA
 
-        // Rơi item 17 - 2%
-        if (Util.isTrue(1, 400)) {
+        // Rơi item 17 - mặc định 1/400
+        if (DropRateManager.roll("item_18_any_map")) {
             list.add(new ItemMap(
                     zone,
                     18, // id item
@@ -922,8 +923,8 @@ public class Mob {
                     player.id));
         }
 
-        // Rơi item 19 hoặc 20 - 0.5%
-        if (Util.isTrue(1, 250)) { // 0.5%
+        // Rơi item 19 hoặc 20 - mặc định 1/250
+        if (DropRateManager.roll("item_19_20_any_map")) { // 0.4%
             int rand = Util.nextInt(0, 1); // 0 hoặc 1
             list.add(new ItemMap(
                     zone,

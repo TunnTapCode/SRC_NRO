@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import item.Item.ItemOption;
@@ -19,7 +21,7 @@ public class CuongHoaLoSaoPhaLe {
     private static final int OPTION_ID_EFFECT = 218;
     private static final int TARGET_STAR = 9;
     private static final int CURRENT_STAR = 8;
-    private static final int SUCCESS_RATE = 50;
+    public static final int SUCCESS_RATE = 50;
 
     public static void showInfoCombine(Player player) {
         if (InventoryService.gI().getCountEmptyBag(player) > 0) {
@@ -102,13 +104,13 @@ public class CuongHoaLoSaoPhaLe {
                 if (star == CURRENT_STAR && optionPhaLe == null) {
                     item.itemOptions.add(new ItemOption(OPTION_ID_EFFECT, 0));
                     item.itemOptions.add(new ItemOption(OPTION_ID_PHA_LE, CURRENT_STAR));
-                    if (Util.isTrue(SUCCESS_RATE, 100)) {
+                    if (Util.isTrue(CombineRateManager.rate("cuong_hoa_lo_sao_phale", SUCCESS_RATE), 100)) {
                         CombineService.gI().sendEffectSuccessCombine(player);
                     } else {
                         CombineService.gI().sendEffectFailCombine(player);
                     }
                 } else if (star == TARGET_STAR && optionPhaLe != null && optionPhaLe.param == CURRENT_STAR) {
-                    if (Util.isTrue(SUCCESS_RATE, 100)) {
+                    if (Util.isTrue(CombineRateManager.rate("cuong_hoa_lo_sao_phale", SUCCESS_RATE), 100)) {
                         optionPhaLe.param++;
                         CombineService.gI().sendEffectSuccessCombine(player);
                         Service.gI().sendThongBao(player, "Trang bị của bạn đã cường hóa thành công lên sao thứ " + TARGET_STAR + "!");

@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import static combine.CombineService.MAX_STAR_ITEM;
@@ -57,7 +59,7 @@ public class PhaLeHoaTrangBi {
     private static void processPhaLeHoa(Player player, Item item, int star) {
         player.combineNew.goldCombine = CombineSystem.getGoldPhaLeHoa(star);
         player.combineNew.gemCombine = CombineSystem.getGemPhaLeHoa(star);
-        player.combineNew.ratioCombine = CombineSystem.getRatioPhaLeHoa(star);
+        player.combineNew.ratioCombine = (float) CombineRateManager.rate("phalehoa_" + star, CombineSystem.getRatioPhaLeHoa(star));
 
         String npcSay = item.template.name + "\n|2|";
         for (Item.ItemOption io : item.itemOptions) {
@@ -119,7 +121,7 @@ public class PhaLeHoaTrangBi {
                     if (star < MAX_STAR_ITEM) {
                         player.combineNew.goldCombine = CombineSystem.getGoldPhaLeHoa(star);
                         player.combineNew.gemCombine = CombineSystem.getGemPhaLeHoa(star);
-                        player.combineNew.ratioCombine = CombineSystem.getRatioPhaLeHoa(star);
+                        player.combineNew.ratioCombine = (float) CombineRateManager.rate("phalehoa_" + star, CombineSystem.getRatioPhaLeHoa(star));
                         player.inventory.gold -= gold;
                         InventoryService.gI().subGemPreferLocked(player, gem);
 

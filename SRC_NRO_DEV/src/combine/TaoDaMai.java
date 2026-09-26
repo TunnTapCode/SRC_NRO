@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import player.Player;
@@ -12,7 +14,7 @@ import utils.Util;
 public class TaoDaMai {
 
     private static final int GOLD_TAO_DA = 50_000_000;
-    private static final int RATIO_TAO_DA = 100;
+    public static final int RATIO_TAO_DA = 100;
     private static final int REQUIRED_DUIDUC_QUANTITY = 5;
     private static final short ITEM_ID_DUIDUC = 1438;
     private static final short ITEM_ID_DAMAI = 1439;      
@@ -55,7 +57,7 @@ public class TaoDaMai {
                 player.inventory.gold -= gold;
                 InventoryService.gI().subQuantityItemsBag(player, duiDuc, REQUIRED_DUIDUC_QUANTITY);
 
-                if (Util.isTrue(RATIO_TAO_DA, 100)) {
+                if (Util.isTrue(CombineRateManager.rate("tao_da_mai", RATIO_TAO_DA), 100)) {
                     createDaMai(player);
                     CombineService.gI().sendEffectSuccessCombine(player);
                 } else {

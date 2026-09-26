@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import item.Template;
@@ -14,14 +16,14 @@ public class NangCapDeBlackGoku {
     private static final int REQUIRED_TRUNG_MABU = 15;
     private static final int ITEM_ID_DE_BLACK_GOKU = 1774;
     private static final int GOLD_TAO_DE = 50_000_000;
-    private static final int SUCCESS_RATIO = 80;
+    public static final int SUCCESS_RATIO = 80;
 
     public static void showInfoCombine(Player player) {
         if (player.combineNew.itemsCombine.size() == 1) {
             Item trungMabu = player.combineNew.itemsCombine.get(0);
             if (trungMabu.template.id == ITEM_ID_TRUNG_MABU && trungMabu.quantity >= REQUIRED_TRUNG_MABU) {
                 player.combineNew.goldCombine = GOLD_TAO_DE;
-                player.combineNew.ratioCombine = SUCCESS_RATIO;
+                player.combineNew.ratioCombine = (float) CombineRateManager.rate("nang_de_black_goku", SUCCESS_RATIO);
 
                 StringBuilder npcSay = new StringBuilder();
                 npcSay.append("|2|Tạo Đệ Black từ Trứng Mabư\n");
@@ -69,7 +71,7 @@ public class NangCapDeBlackGoku {
             }
             player.inventory.gold -= gold;
             InventoryService.gI().subQuantityItemsBag(player, trungMabu, REQUIRED_TRUNG_MABU);
-            if (Util.isTrue(SUCCESS_RATIO, 100)) {
+            if (Util.isTrue(CombineRateManager.rate("nang_de_black_goku", SUCCESS_RATIO), 100)) {
                 Template.ItemTemplate deBlackTemplate = ItemService.gI().getTemplate(ITEM_ID_DE_BLACK_GOKU);
                 Item deBlack = new Item();
                 deBlack.template = deBlackTemplate;

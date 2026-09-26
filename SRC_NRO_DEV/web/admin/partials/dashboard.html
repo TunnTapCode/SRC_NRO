@@ -122,6 +122,28 @@
         </div>
     </div>
 
+    <!-- Hàng 3: Biểu đồ lượng người chơi (ngày / tuần / tháng) -->
+    <div class="db-row2" style="grid-template-columns:1fr">
+        <div class="db-panel">
+            <div class="db-panel-head">
+                <span class="db-panel-icon">👥</span>
+                <h3>Lượng người chơi</h3>
+                <span class="db-panel-note">Nhân vật mới &amp; người chơi hoạt động</span>
+                <div class="db-range-tabs" id="db-player-range">
+                    <button class="db-range-btn active" data-range="day" title="30 ngày gần nhất">Ngày</button>
+                    <button class="db-range-btn" data-range="week" title="12 tuần gần nhất">Tuần</button>
+                    <button class="db-range-btn" data-range="month" title="12 tháng gần nhất">Tháng</button>
+                </div>
+            </div>
+            <div class="db-chart-wrap">
+                <canvas id="db-chart-players" height="240"></canvas>
+            </div>
+            <div class="db-player-summary" id="db-player-summary">
+                <div class="db-loading">Đang tải...</div>
+            </div>
+        </div>
+    </div>
+
 </section>
 
 <script>
@@ -182,6 +204,55 @@
         } catch (_) { return 0; }
     }
 
+    // player.data_task = [taskMainId, subIndex, count, lastTime]
+    function parseTask(raw) {
+        try {
+            const a = JSON.parse(raw || '[]');
+            if (!Array.isArray(a) || a.length < 2) return null;
+            const id = Number(a[0]);
+            if (Number.isNaN(id) || id < 0) return null;
+            return { id, index: Number(a[1]) || 0, count: Number(a[2]) || 0 };
+        } catch (_) { return null; }
+    }
+
+    // Tra tên nhiệm vụ + các bước từ /api/tasks → { taskId: { name, subs:[{name,max}] } }
+    async function fetchTaskTemplates() {
+        if (window._dbTaskTemplates) return window._dbTaskTemplates;
+        const map = {};
+        try {
+            const r = await fetch('/api/tasks');
+            if (r.ok) {
+                const list = await r.json();
+                (Array.isArray(list) ? list : []).forEach(t => {
+                    const id = Number(t.task_id);
+                    if (!map[id]) map[id] = { name: t.task_name || ('Nhiệm vụ ' + id), subs: [] };
+                    map[id].subs.push({ name: t.sub_name || '', max: Number(t.sub_max) || 0 });
+                });
+            }
+        } catch (_) { /* không có template → chỉ hiển thị ID nhiệm vụ */ }
+        window._dbTaskTemplates = map;
+        return map;
+    }
+
+    async function fetchPlayerStats(range) {
+        try {
+            const r = await fetch('/api/player-stats?range=' + encodeURIComponent(range || 'day'));
+            if (!r.ok) return [];
+            const d = await r.json();
+            return Array.isArray(d) ? d : [];
+        } catch (_) { return []; }
+    }
+
+    function fmtInt(n) {
+        const v = Number(n);
+        return Number.isFinite(v) ? v.toLocaleString('vi-VN') : '0';
+    }
+
+    function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
     const MEDALS = ['🥇','🥈','🥉','4️⃣','5️⃣'];
 
     /* ── Top sức mạnh ── */
@@ -230,24 +301,60 @@
             </div>`).join('');
     }
 
-    /* ── Top nhiệm vụ ── */
-    function renderTopQuest(players) {
+    /* ── Top nhiệm vụ: hiển thị nhân vật đang ở nhiệm vụ nào ── */
+    function renderTopQuest(players, taskMap) {
         const el = document.getElementById('db-top-quest');
         if (!el) return;
         if (!players.length) { el.innerHTML = '<p class="db-empty">Không có dữ liệu</p>'; return; }
-        const sorted = [...players]
-            .map(p => ({ ...p, _quest: parseAchievement(p.data_achievement) }))
-            .sort((a,b) => b._quest - a._quest)
-            .slice(0, 5);
-        el.innerHTML = sorted.map((p,i) => `
+        taskMap = taskMap || {};
+
+        const rows = players.map(p => {
+            const task  = parseTask(p.data_task);
+            const def   = task ? taskMap[task.id] : null;
+            const subs  = def ? def.subs : [];
+            const sub   = (task && subs[task.index]) ? subs[task.index] : null;
+            return {
+                name:      p.name ?? '?',
+                task,
+                taskName:  def ? def.name : (task ? ('Nhiệm vụ #' + task.id) : ''),
+                subName:   sub ? sub.name : '',
+                step:      task ? task.index + 1 : 0,
+                stepTotal: subs.length,
+                subMax:    sub ? sub.max : 0,
+                count:     task ? task.count : 0,
+                done:      parseAchievement(p.data_achievement),
+                // Nhiệm vụ id càng lớn + bước càng cao ⇒ tiến xa hơn
+                _rank:     task ? task.id * 1000 + task.index : -1
+            };
+        }).sort((a, b) => (b._rank - a._rank) || (b.done - a.done)).slice(0, 5);
+
+        el.innerHTML = rows.map((r, i) => {
+            if (!r.task) {
+                return `
             <div class="db-top-row" style="animation-delay:${i*70}ms">
                 <span class="db-top-medal">${MEDALS[i]}</span>
                 <div class="db-top-info">
-                    <span class="db-top-name">${p.name ?? '?'}</span>
-                    <span class="db-top-sub">Nhiệm vụ hoàn thành</span>
+                    <span class="db-top-name">${esc(r.name)}</span>
+                    <span class="db-top-sub">Chưa có dữ liệu nhiệm vụ</span>
                 </div>
-                <span class="db-top-value db-val-quest">📜 ${p._quest}</span>
-            </div>`).join('');
+                <span class="db-top-value db-val-quest">📜 —</span>
+            </div>`;
+            }
+
+            const progress = r.subMax > 0 ? ` (${r.count}/${r.subMax})` : '';
+            const stepText = r.stepTotal > 0 ? ` · bước ${r.step}/${r.stepTotal}` : '';
+            const title    = [r.taskName + stepText, r.subName].filter(Boolean).join(' • ') + progress;
+
+            return `
+            <div class="db-top-row" style="animation-delay:${i*70}ms" title="${esc(title)}">
+                <span class="db-top-medal">${MEDALS[i]}</span>
+                <div class="db-top-info">
+                    <span class="db-top-name">${esc(r.name)}</span>
+                    <span class="db-top-sub">📜 ${esc(r.taskName)}${stepText}${progress}</span>
+                </div>
+                <span class="db-top-value db-val-quest">📜 ${r.step}/${r.stepTotal || '?'}</span>
+            </div>`;
+        }).join('');
     }
 
     /* ── Biểu đồ doanh thu theo nhà mạng ── */
@@ -362,6 +469,182 @@
         });
     }
 
+    /* ── Biểu đồ lượng người chơi theo ngày / tuần / tháng ── */
+    const RANGE_TEXT = { day: 'ngày', week: 'tuần', month: 'tháng' };
+    let _playerChartInstance = null;
+    let _playerPoints = [];
+    let _playerRange = 'day';
+    let _chartJsLoading = false;
+
+    window.dbSetPlayerRange = function (range) {
+        if (!RANGE_TEXT[range]) return;
+        _playerRange = range;
+        document.querySelectorAll('#db-player-range .db-range-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.range === range);
+        });
+        loadPlayerStats(range);
+    };
+
+    async function loadPlayerStats(range) {
+        const summary = document.getElementById('db-player-summary');
+        if (summary) summary.innerHTML = '<div class="db-loading">Đang tải...</div>';
+        const points = await fetchPlayerStats(range);
+        _playerPoints = points;
+        renderPlayerSummary(points, range);
+        renderPlayerChart(points);
+        return points;
+    }
+
+    function renderPlayerSummary(points, range) {
+        const el = document.getElementById('db-player-summary');
+        if (!el) return;
+        if (!points.length) { el.innerHTML = '<p class="db-empty">Không có dữ liệu</p>'; return; }
+
+        const sum = (key) => points.reduce((s, p) => s + Number(p[key] || 0), 0);
+        const latest = points[points.length - 1] || {};
+        const rangeText = RANGE_TEXT[range] || 'ngày';
+
+        el.innerHTML = `
+            <div class="db-sum-item db-sum-new">
+                <b>${fmtInt(sum('newPlayers'))}</b>
+                <span>Nhân vật mới (${points.length} ${rangeText})</span>
+            </div>
+            <div class="db-sum-item db-sum-active">
+                <b>${fmtInt(sum('activePlayers'))}</b>
+                <span>Người chơi hoạt động (${points.length} ${rangeText})</span>
+            </div>
+            <div class="db-sum-item db-sum-total">
+                <b>${fmtInt(latest.totalPlayers)}</b>
+                <span>Tổng nhân vật đến ${esc(latest.label || '—')}</span>
+            </div>
+            <span class="db-sum-note">Hoạt động = nhân vật đăng nhập trong kỳ (theo ngày đăng nhập gần nhất)</span>`;
+    }
+
+    function renderPlayerChart(points) {
+        const canvas = document.getElementById('db-chart-players');
+        if (!canvas) return;
+        // Đang chờ Chart.js từ CDN → chưa vẽ để tránh vẽ 2 lần
+        if (_chartJsLoading && !window.Chart) return;
+
+        const labels = points.map(p => p.label);
+        const newData = points.map(p => Number(p.newPlayers || 0));
+        const activeData = points.map(p => Number(p.activePlayers || 0));
+
+        if (window.Chart) {
+            if (_playerChartInstance) _playerChartInstance.destroy();
+            _playerChartInstance = new window.Chart(canvas, {
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Nhân vật mới',
+                            data: newData,
+                            backgroundColor: 'rgba(37,99,235,0.72)',
+                            borderColor: '#2563eb',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            order: 2
+                        },
+                        {
+                            type: 'line',
+                            label: 'Người chơi hoạt động',
+                            data: activeData,
+                            borderColor: '#f43f5e',
+                            backgroundColor: 'rgba(244,63,94,0.12)',
+                            borderWidth: 2,
+                            tension: 0.35,
+                            fill: true,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#f43f5e',
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                title: items => {
+                                    const p = points[items[0]?.dataIndex];
+                                    return p ? `${p.label} (${p.from} → ${p.to})` : '';
+                                },
+                                label: ctx => ` ${ctx.dataset.label}: ${fmtInt(ctx.raw)}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } },
+                        x: { ticks: { maxRotation: 0, autoSkip: true, autoSkipPadding: 8, font: { size: 10 } } }
+                    }
+                }
+            });
+        } else {
+            drawPlayerFallback(canvas, labels, newData, activeData);
+        }
+    }
+
+    // Vẽ dự phòng bằng canvas khi không tải được Chart.js
+    function drawPlayerFallback(canvas, labels, newData, activeData) {
+        const ctx = canvas.getContext('2d');
+        const W = canvas.offsetWidth || 600;
+        const H = canvas.height || 240;
+        canvas.width = W;
+        ctx.clearRect(0, 0, W, H);
+
+        if (!labels.length) {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Chưa có dữ liệu người chơi', W / 2, H / 2);
+            return;
+        }
+
+        const max = Math.max(...newData, ...activeData, 1);
+        const pad = { t: 24, r: 16, b: 36, l: 40 };
+        const chartH = H - pad.t - pad.b;
+        const step = (W - pad.l - pad.r) / labels.length;
+        const barW = Math.max(3, Math.floor(step / 3));
+
+        // Lưới + nhãn trục Y
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        [0, 1, 2, 3, 4].forEach(k => {
+            const y = pad.t + chartH * (1 - k / 4);
+            ctx.fillStyle = '#64748b';
+            ctx.fillText(String(Math.round(max * k / 4)), pad.l - 6, y + 4);
+            ctx.strokeStyle = '#e2eaf5';
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+        });
+
+        const every = Math.ceil(labels.length / 8);
+        labels.forEach((lbl, i) => {
+            const x = pad.l + i * step;
+            ctx.fillStyle = 'rgba(37,99,235,0.72)';
+            const hNew = (newData[i] / max) * chartH;
+            ctx.fillRect(x + step / 2 - barW, pad.t + chartH - hNew, barW, hNew);
+            ctx.fillStyle = 'rgba(244,63,94,0.85)';
+            const hAct = (activeData[i] / max) * chartH;
+            ctx.fillRect(x + step / 2, pad.t + chartH - hAct, barW, hAct);
+            if (i % every === 0) {
+                ctx.fillStyle = '#475569';
+                ctx.textAlign = 'center';
+                ctx.fillText(lbl, x + step / 2, H - pad.b + 14);
+                ctx.textAlign = 'right';
+            }
+        });
+
+        // Chú thích
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(37,99,235,0.9)'; ctx.fillRect(pad.l, 6, 10, 10);
+        ctx.fillStyle = '#1e293b'; ctx.fillText('Nhân vật mới', pad.l + 15, 15);
+        ctx.fillStyle = 'rgba(244,63,94,0.9)'; ctx.fillRect(pad.l + 110, 6, 10, 10);
+        ctx.fillStyle = '#1e293b'; ctx.fillText('Người chơi hoạt động', pad.l + 125, 15);
+    }
+
     /* ── Main load ── */
     window.dashboardLoad = async function () {
         ['db-total-accounts','db-total-players','db-total-items',
@@ -373,13 +656,15 @@
             if (el) el.innerHTML = '<div class="db-loading">Đang tải...</div>';
         });
 
-        const [accounts, players, items, giftcodes, napList, shops] = await Promise.all([
+        const [accounts, players, items, giftcodes, napList, shops, taskMap, playerPoints] = await Promise.all([
             apiFetch('accounts'),
             apiFetch('players'),
             apiFetch('items'),
             apiFetch('giftcodes'),
             apiFetch('napthe'),
             apiFetch('shops'),
+            fetchTaskTemplates(),
+            fetchPlayerStats(_playerRange),
         ]);
 
         // Cards
@@ -399,18 +684,42 @@
         // Top panels
         renderTopPower(players);
         renderTopNap(napList);
-        renderTopQuest(players);
+        renderTopQuest(players, taskMap);
+
+        // Biểu đồ lượng người chơi
+        _playerPoints = playerPoints;
+        renderPlayerSummary(playerPoints, _playerRange);
 
         // Chart (lazy load Chart.js nếu chưa có)
         if (!window.Chart) {
+            _chartJsLoading = true;
             const script  = document.createElement('script');
             script.src    = 'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js';
-            script.onload = () => renderChart(napList);
+            script.onload = () => {
+                _chartJsLoading = false;
+                renderChart(napList);
+                renderPlayerChart(_playerPoints);
+            };
+            // CDN lỗi → vẽ dự phòng bằng canvas
+            script.onerror = () => {
+                _chartJsLoading = false;
+                renderPlayerChart(_playerPoints);
+            };
             document.head.appendChild(script);
         } else {
             renderChart(napList);
+            renderPlayerChart(playerPoints);
         }
     };
+
+    // Chọn mốc thời gian cho biểu đồ lượng người chơi (Ngày / Tuần / Tháng)
+    const playerRangeTabs = document.getElementById('db-player-range');
+    if (playerRangeTabs) {
+        playerRangeTabs.addEventListener('click', (e) => {
+            const btn = e.target.closest('.db-range-btn');
+            if (btn && btn.dataset.range) window.dbSetPlayerRange(btn.dataset.range);
+        });
+    }
 
     document.addEventListener('dashboardActivated', window.dashboardLoad, { once: false });
     if (document.getElementById('dashboard')?.classList.contains('active')) {

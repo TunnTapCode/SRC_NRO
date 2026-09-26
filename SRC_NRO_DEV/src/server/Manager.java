@@ -882,6 +882,10 @@ public final class Manager {
         if ((value = properties.get("server.daoautoupdater")) != null) {
             DAO_AUTO_UPDATER = String.valueOf(value).equalsIgnoreCase("true");
         }
+        // Nạp bảng tỉ lệ rơi đồ (DropRate.properties) — dùng cho Admin > Vận hành
+        managers.DropRateManager.load();
+        // Nạp các tỉ lệ đập đồ đã chỉnh (CombineRate.properties)
+        managers.CombineRateManager.load();
     }
 
     /**

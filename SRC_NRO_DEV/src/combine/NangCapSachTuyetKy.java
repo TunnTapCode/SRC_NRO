@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstFont;
 import consts.ConstNpc;
 import item.Item;
@@ -13,7 +15,7 @@ public class NangCapSachTuyetKy {
 
     private static final int KIM_BAM_GIAY_ID = 1285;
     private static final int REQUIRED_KIM_BAM_GIAY_QUANTITY = 10; 
-    private static final int SUCCESS_RATE_PERCENT = 10;
+    public static final int SUCCESS_RATE_PERCENT = 10;
 
     public static void showInfoCombine(Player player) {
         if (!hasRequiredItems(player)) {
@@ -72,7 +74,7 @@ public class NangCapSachTuyetKy {
         if (sachTuyetKy == null || kimBamGiay == null) {
             return;
         }
-        if (Util.isTrue(SUCCESS_RATE_PERCENT, 100)) {
+        if (Util.isTrue(CombineRateManager.rate("nang_cap_sach_tuyet_ky", SUCCESS_RATE_PERCENT), 100)) {
             switch (sachTuyetKy.template.id) {
                 case 1044 -> sachTuyetKy.template = ItemService.gI().getTemplate(1278);
                 case 1211 -> sachTuyetKy.template = ItemService.gI().getTemplate(1279);

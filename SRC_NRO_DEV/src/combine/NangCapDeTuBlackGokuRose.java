@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import map.Service.ChangeMapService;
@@ -13,7 +15,7 @@ import utils.Util;
 public class NangCapDeTuBlackGokuRose {
     private static final int GOLD_TAO_DA = 500_000_000;
     private static final int ITEM_ID_DAMAI = 1439;
-    private static final int SUCCESS_RATIO_MIN = 100; 
+    public static final int SUCCESS_RATIO_MIN = 100; 
     private static final int SUCCESS_RATIO_MAX = 100; 
     private static final int PET_TYPE_BLACK_GOKU = 3;
     private static final int FAILURE_PENALTY_GOLD = 500_000_000;
@@ -63,7 +65,7 @@ public class NangCapDeTuBlackGokuRose {
             Item Damai = player.combineNew.itemsCombine.get(0);
             if (Damai.template.id == ITEM_ID_DAMAI && Damai.quantity >= 1) {
                 player.inventory.gold -= gold;
-                if (Util.isTrue(SUCCESS_RATIO_MIN, SUCCESS_RATIO_MAX)) {
+                if (Util.isTrue(CombineRateManager.rate("nang_de_tu_rose", SUCCESS_RATIO_MIN), SUCCESS_RATIO_MAX)) {
                     ChangeMapService.gI().exitMap(player.pet);
                     PetService.gI().createBlackGokuRose(player, player.gender);
                     CombineService.gI().sendEffectSuccessCombine(player);

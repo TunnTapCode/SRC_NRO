@@ -438,8 +438,8 @@
             else if (f === 'rank') openRank();
             else if (f === 'chinhboss') openBossModal();
             else if (f === 'tileexp') openExpModal();
-            else if (f === 'tiledapdo') openRateModal('rateCombine', '💎 Tỉ Lệ Đập Đồ', 'Nhân hệ số thành công khi nâng cấp / đập đồ trang bị', '#a855f7', '#7c3aed');
-            else if (f === 'tileroidO') openRateModal('rateDrop', '🍀 Tỉ Lệ Rơi Đồ', 'Nhân xác suất quái vật rơi vật phẩm khi bị tiêu diệt', '#14b8a6', '#0f766e');
+            else if (f === 'tiledapdo') openCombineRateModal();
+            else if (f === 'tileroidO') openDropRateModal();
             else if (f === 'announce') openAnnounceModal();
             else if (f === 'maintenance') openMaintenanceModal();
             else openDefault(f);
@@ -492,6 +492,618 @@
         </div>
     </div>
 </div>
+
+<!-- DROP RATE MODAL — liệt kê TOÀN BỘ tỉ lệ rơi đồ để chỉnh sửa -->
+<div id="op-drop-modal" class="op-exp-overlay op-hidden">
+    <div class="op-exp-dialog op-drop-dialog">
+        <div class="op-exp-header" style="background:linear-gradient(135deg,#f0fdfa,#ccfbf1);border-color:#99f6e4">
+            <div class="op-exp-title-wrap">
+                <span class="op-exp-icon-big">🍀</span>
+                <div>
+                    <h3 class="op-exp-title" style="color:#0f766e">Tỉ Lệ Rơi Đồ</h3>
+                    <p class="op-exp-sub" style="color:#0d9488">Chỉnh từng tỉ lệ rơi vật phẩm khi tiêu diệt quái</p>
+                </div>
+            </div>
+            <button class="op-exp-close" id="op-drop-close">✕</button>
+        </div>
+
+        <div class="op-exp-body op-drop-body">
+            <div class="op-drop-global">
+                <div>
+                    <div class="op-drop-global-label">Hệ số nhân chung</div>
+                    <div class="op-drop-global-hint">Nhân vào mọi tỉ lệ bên dưới — 100% = giữ nguyên</div>
+                </div>
+                <div class="op-drop-global-input">
+                    <button class="op-exp-stepper" id="op-drop-minus">−</button>
+                    <input class="op-exp-input" type="number" id="op-drop-mult" min="0" max="9999" step="5"
+                        value="100" />
+                    <button class="op-exp-stepper" id="op-drop-plus">+</button>
+                    <span class="op-exp-unit2">%</span>
+                </div>
+            </div>
+            <div class="op-exp-presets op-drop-presets">
+                <button class="op-exp-preset" data-mval="0">0%<br><small>Tắt rơi</small></button>
+                <button class="op-exp-preset" data-mval="50">50%<br><small>Giảm nửa</small></button>
+                <button class="op-exp-preset" data-mval="100">100%<br><small>Bình thường</small></button>
+                <button class="op-exp-preset" data-mval="200">200%<br><small>Gấp đôi</small></button>
+                <button class="op-exp-preset" data-mval="300">300%<br><small>Sự kiện</small></button>
+            </div>
+
+            <div class="op-drop-toolbar">
+                <span class="op-drop-toolbar-label" id="op-drop-count">Đang tải…</span>
+                <input id="op-drop-search" class="op-drop-search" type="text" placeholder="🔍 Tìm tỉ lệ…" />
+            </div>
+
+            <div id="op-drop-list" class="op-drop-list">
+                <div class="op-drop-loading">Đang tải…</div>
+            </div>
+
+            <p class="op-drop-note">
+                Item nhiệm vụ (73, 444) và phần thưởng riêng của Boss không nằm trong danh sách này.
+                Tỉ lệ được lưu vào <b>DropRate.properties</b> nên giữ nguyên sau khi restart server.
+            </p>
+        </div>
+
+        <div class="op-exp-footer">
+            <button class="op-exp-save-btn" id="op-drop-save"
+                style="background:linear-gradient(135deg,#14b8a6,#0f766e)">💾 Lưu tất cả</button>
+            <button class="op-exp-reset-btn" id="op-drop-reset">↺ Mặc định</button>
+            <button class="op-exp-cancel-btn" id="op-drop-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        /* ── Card "Tỉ Lệ Rơi Đồ": danh sách toàn bộ tỉ lệ rơi (GET/PUT /api/drop-rates) ── */
+        const API = '/api/drop-rates';
+        let _rules = [];            // dữ liệu gốc từ server
+        let _percentByKey = {};     // giá trị đang hiển thị trên UI
+        let _multiplier = 100;      // hệ số nhân chung
+
+        const modal = () => document.getElementById('op-drop-modal');
+        const listEl = () => document.getElementById('op-drop-list');
+        const multEl = () => document.getElementById('op-drop-mult');
+        const searchEl = () => document.getElementById('op-drop-search');
+        const countEl = () => document.getElementById('op-drop-count');
+
+        window.openDropRateModal = async function () {
+            modal().classList.remove('op-hidden');
+            document.body.style.overflow = 'hidden';
+            searchEl().value = '';
+            await reload();
+        };
+
+        function closeDropModal() {
+            modal()?.classList.add('op-hidden');
+            document.body.style.overflow = '';
+        }
+
+        function showLoadError(message) {
+            countEl().textContent = '';
+            listEl().innerHTML = `<div class="op-drop-error">⚠️ ${message}</div>`;
+        }
+
+        async function reload() {
+            listEl().innerHTML = '<div class="op-drop-loading">Đang tải…</div>';
+
+            let res;
+            try {
+                res = await fetch(API);
+            } catch (e) {
+                showLoadError('Không kết nối được máy chủ: ' + e.message);
+                return;
+            }
+            if (!res.ok) {
+                showLoadError(`Máy chủ chưa có API /api/drop-rates (HTTP ${res.status}).<br>Hãy build lại rồi restart server.`);
+                return;
+            }
+
+            let data;
+            try {
+                data = await res.json();
+            } catch (e) {
+                showLoadError('Phản hồi không hợp lệ — hãy build lại rồi restart server.');
+                return;
+            }
+
+            _rules = Array.isArray(data && data.rules) ? data.rules : [];
+            _multiplier = Number((data && data.globalMultiplier) ?? 100);
+            if (!_rules.length) {
+                showLoadError('Danh sách tỉ lệ rơi đồ rỗng — hãy build lại rồi restart server.');
+                return;
+            }
+
+            _percentByKey = {};
+            _rules.forEach(r => { _percentByKey[r.key] = Number(r.percent); });
+            multEl().value = _multiplier;
+            highlightMult(_multiplier);
+            renderList();
+        }
+
+        function highlightMult(v) {
+            document.querySelectorAll('#op-drop-modal .op-exp-preset[data-mval]').forEach(b =>
+                b.classList.toggle('active', Number(b.dataset.mval) === Number(v)));
+        }
+
+        function fmtPercent(v) {
+            const n = Number(v);
+            return Number.isFinite(n) ? String(Math.round(n * 10000) / 10000) : '0';
+        }
+
+        function oneIn(percent) {
+            const p = Number(percent);
+            if (!(p > 0)) return '—';
+            if (p >= 100) return '100%';
+            const n = 100 / p;
+            if (n >= 1000) return '1/' + Math.round(n).toLocaleString('vi-VN');
+            return '1/' + (Math.round(n * 100) / 100).toLocaleString('vi-VN');
+        }
+
+        /** Rút gọn danh sách tên: "A, B, C, D, E" → "A, B, C, D +1 món" */
+        function shortenNames(text, max = 4) {
+            const list = String(text || '').split(',').map(s => s.trim()).filter(Boolean);
+            if (!list.length) return '—';
+            if (list.length <= max) return list.join(', ');
+            return `${list.slice(0, max).join(', ')} +${list.length - max} món`;
+        }
+
+        function escapeAttr(text) {
+            return String(text ?? '').replace(/[&<>"']/g, c =>
+                ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function renderList() {
+            const keyword = (searchEl().value || '').trim().toLowerCase();
+            const rows = _rules.filter(r => !keyword ||
+                `${r.itemNames || ''} ${r.label} ${r.target} ${r.key}`.toLowerCase().includes(keyword));
+
+            countEl().textContent = `${rows.length}/${_rules.length} tỉ lệ`;
+            if (!rows.length) {
+                listEl().innerHTML = '<div class="op-drop-loading">Không có tỉ lệ nào khớp từ khoá</div>';
+                return;
+            }
+
+            let html = '';
+            let group = null;
+            rows.forEach(r => {
+                if (r.group !== group) {
+                    group = r.group;
+                    html += `<div class="op-drop-group">${group}</div>`;
+                }
+                const current = _percentByKey[r.key];
+                const changed = Number(r.percent) !== Number(current);
+                const names = r.itemNames || '';
+                const context = [r.label, r.target].filter(Boolean).join(' · ');
+                const tip = `${names}\n${context}\n(Nhóm: ${r.group})`;
+                const icon = Number(r.iconId) > 0
+                    ? `<img class="op-drop-item-icon" src="/data/icon/x4/${Number(r.iconId)}.png"
+                              onerror="this.style.display='none'" alt="" />`
+                    : `<span class="op-drop-item-icon op-drop-item-icon--empty">?</span>`;
+
+                html += `
+                <div class="op-drop-row" title="${escapeAttr(tip)}">
+                    ${icon}
+                    <div class="op-drop-row-main">
+                        <span class="op-drop-row-label">${escapeAttr(shortenNames(names))}</span>
+                        <span class="op-drop-row-target">${escapeAttr(context)}</span>
+                    </div>
+                    <span class="op-drop-row-onein">${oneIn(current)}</span>
+                    <span class="op-drop-row-input">
+                        <input class="op-drop-input${changed ? ' changed' : ''}" type="number"
+                               min="0" max="100" step="0.01"
+                               data-key="${r.key}" value="${fmtPercent(current)}" />
+                        <span class="op-drop-unit">%</span>
+                    </span>
+                </div>`;
+            });
+            listEl().innerHTML = html;
+        }
+
+        /* ── Thu thập thay đổi so với giá trị server đang dùng ── */
+        function collectChanges() {
+            const body = {};
+            _rules.forEach(r => {
+                const v = Math.min(100, Math.max(0, Number(_percentByKey[r.key]) || 0));
+                if (v !== Number(r.percent)) body[r.key] = String(v);
+            });
+            const mult = Math.min(9999, Math.max(0, Math.round(Number(multEl().value) || 0)));
+            if (mult !== Number(_multiplier)) body.globalMultiplier = String(mult);
+            return body;
+        }
+
+        async function putRates(body, okMsg) {
+            let res;
+            try {
+                res = await fetch(API, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+            } catch (e) {
+                toast('Lỗi kết nối: ' + e.message, 'error');
+                return;
+            }
+            if (!res.ok) {
+                toast(`Lỗi ${res.status} — hãy build lại rồi restart server`, 'error');
+                return;
+            }
+
+            let data;
+            try {
+                data = await res.json();
+            } catch (e) {
+                toast('Phản hồi không hợp lệ', 'error');
+                return;
+            }
+            if (!data || !data.success) { toast('Lỗi khi lưu tỉ lệ rơi đồ', 'error'); return; }
+
+            _rules = Array.isArray(data.rules) ? data.rules : _rules;
+            _multiplier = Number(data.globalMultiplier ?? 100);
+            _percentByKey = {};
+            _rules.forEach(r => { _percentByKey[r.key] = Number(r.percent); });
+            multEl().value = _multiplier;
+            highlightMult(_multiplier);
+            renderList();
+            toast(okMsg, 'success');
+        }
+
+        async function saveDropRates() {
+            const body = collectChanges();
+            const count = Object.keys(body).length;
+            if (!count) { toast('Không có thay đổi nào', 'warning'); return; }
+            await putRates(body, `Đã lưu ${count} thay đổi tỉ lệ rơi đồ`);
+        }
+
+        async function resetDropRates() {
+            confirmByToast(
+                document.getElementById('op-drop-reset'),
+                'Bấm lần nữa để khôi phục toàn bộ tỉ lệ rơi đồ về mặc định',
+                () => putRates({ reset: 'true' }, 'Đã khôi phục tỉ lệ rơi đồ mặc định'),
+                '⚠ Bấm lần nữa: Khôi phục'
+            );
+        }
+
+        /* ── Sự kiện ── */
+        document.addEventListener('click', function (e) {
+            if (!document.getElementById('operation')?.classList.contains('active')) return;
+            if (e.target.id === 'op-drop-close' || e.target.id === 'op-drop-cancel'
+                || e.target.id === 'op-drop-modal') { closeDropModal(); return; }
+            if (e.target.id === 'op-drop-save') { saveDropRates(); return; }
+            if (e.target.id === 'op-drop-reset') { resetDropRates(); return; }
+            if (e.target.id === 'op-drop-plus') {
+                const i = multEl(); i.value = Math.min(9999, (Number(i.value) || 0) + 5);
+                highlightMult(i.value); return;
+            }
+            if (e.target.id === 'op-drop-minus') {
+                const i = multEl(); i.value = Math.max(0, (Number(i.value) || 0) - 5);
+                highlightMult(i.value); return;
+            }
+            const preset = e.target.closest('#op-drop-modal .op-exp-preset[data-mval]');
+            if (preset) { multEl().value = preset.dataset.mval; highlightMult(preset.dataset.mval); }
+        });
+
+        document.addEventListener('input', function (e) {
+            if (e.target.id === 'op-drop-mult') { highlightMult(e.target.value); return; }
+            if (e.target.id === 'op-drop-search') { renderList(); listEl().scrollTop = 0; return; }
+            if (!e.target.matches('#op-drop-modal .op-drop-input[data-key]')) return;
+
+            const key = e.target.dataset.key;
+            let v = Number(e.target.value);
+            if (!Number.isFinite(v)) v = 0;
+            v = Math.min(100, Math.max(0, v));
+            _percentByKey[key] = v;
+
+            const server = (_rules.find(r => r.key === key) || {}).percent;
+            e.target.classList.toggle('changed', Number(server) !== v);
+            const badge = e.target.closest('.op-drop-row')?.querySelector('.op-drop-row-onein');
+            if (badge) badge.textContent = oneIn(v);
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeDropModal();
+        });
+    })();
+</script>
+
+<!-- COMBINE RATE MODAL — liệt kê TOÀN BỘ tỉ lệ đập / nâng cấp đồ -->
+<div id="op-cmb-modal" class="op-exp-overlay op-hidden">
+    <div class="op-exp-dialog op-drop-dialog">
+        <div class="op-exp-header" style="background:linear-gradient(135deg,#faf5ff,#f5f3ff);border-color:#ddd6fe">
+            <div class="op-exp-title-wrap">
+                <span class="op-exp-icon-big">💎</span>
+                <div>
+                    <h3 class="op-exp-title" style="color:#7c3aed">Tỉ Lệ Đập Đồ</h3>
+                    <p class="op-exp-sub" style="color:#9333ea">Tỉ lệ thành công của từng loại đập / nâng cấp</p>
+                </div>
+            </div>
+            <button class="op-exp-close" id="op-cmb-close">✕</button>
+        </div>
+
+        <div class="op-exp-body op-drop-body">
+            <div class="op-drop-global">
+                <div>
+                    <div class="op-drop-global-label">Hệ số nhân chung</div>
+                    <div class="op-drop-global-hint">Nhân vào mọi tỉ lệ chưa chỉnh riêng — 100% = giữ nguyên</div>
+                </div>
+                <div class="op-drop-global-input">
+                    <button class="op-exp-stepper" id="op-cmb-minus">−</button>
+                    <input class="op-exp-input" type="number" id="op-cmb-mult" min="0" max="9999" step="5"
+                        value="100" />
+                    <button class="op-exp-stepper" id="op-cmb-plus">+</button>
+                    <span class="op-exp-unit2">%</span>
+                </div>
+            </div>
+            <div class="op-exp-presets op-drop-presets">
+                <button class="op-exp-preset" data-mval="0">0%<br><small>Chặt hết</small></button>
+                <button class="op-exp-preset" data-mval="50">50%<br><small>Giảm nửa</small></button>
+                <button class="op-exp-preset" data-mval="100">100%<br><small>Bình thường</small></button>
+                <button class="op-exp-preset" data-mval="200">200%<br><small>Dễ hơn</small></button>
+                <button class="op-exp-preset" data-mval="500">500%<br><strong>Tri ân</strong></button>
+            </div>
+
+            <div class="op-drop-toolbar">
+                <span class="op-drop-toolbar-label" id="op-cmb-count">Đang tải…</span>
+                <input id="op-cmb-search" class="op-drop-search" type="text" placeholder="🔍 Tìm loại đập…" />
+            </div>
+
+            <div id="op-cmb-list" class="op-drop-list">
+                <div class="op-drop-loading">Đang tải…</div>
+            </div>
+
+            <p class="op-drop-note">
+                Cột <b>gốc</b> là tỉ lệ đang config trong code của bạn. Sửa ô phần trăm là ghi đè riêng cho loại đập đó
+                (áp dụng ngay, lưu vào <b>CombineRate.properties</b>, giữ sau khi restart).
+            </p>
+        </div>
+
+        <div class="op-exp-footer">
+            <button class="op-exp-save-btn" id="op-cmb-save"
+                style="background:linear-gradient(135deg,#a855f7,#7c3aed)">💾 Lưu tất cả</button>
+            <button class="op-exp-reset-btn" id="op-cmb-reset">↺ Về tỉ lệ gốc</button>
+            <button class="op-exp-cancel-btn" id="op-cmb-cancel">Hủy</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        /* ── Card "Tỉ Lệ Đập Đồ": danh sách tỉ lệ đập / nâng cấp (GET/PUT /api/combine-rates) ── */
+        const API = '/api/combine-rates';
+        let _rules = [];
+        let _valueByKey = {};
+        let _multiplier = 100;
+
+        const modal = () => document.getElementById('op-cmb-modal');
+        const listEl = () => document.getElementById('op-cmb-list');
+        const multEl = () => document.getElementById('op-cmb-mult');
+        const searchEl = () => document.getElementById('op-cmb-search');
+        const countEl = () => document.getElementById('op-cmb-count');
+
+        window.openCombineRateModal = async function () {
+            modal().classList.remove('op-hidden');
+            document.body.style.overflow = 'hidden';
+            searchEl().value = '';
+            await reload();
+        };
+
+        function closeCombineModal() {
+            modal()?.classList.add('op-hidden');
+            document.body.style.overflow = '';
+        }
+
+        function showLoadError(message) {
+            countEl().textContent = '';
+            listEl().innerHTML = `<div class="op-drop-error">⚠️ ${message}</div>`;
+        }
+
+        async function reload() {
+            listEl().innerHTML = '<div class="op-drop-loading">Đang tải…</div>';
+
+            let res;
+            try {
+                res = await fetch(API);
+            } catch (e) {
+                showLoadError('Không kết nối được máy chủ: ' + e.message);
+                return;
+            }
+            if (!res.ok) {
+                showLoadError(`Máy chủ chưa có API /api/combine-rates (HTTP ${res.status}).<br>Hãy build lại rồi restart server.`);
+                return;
+            }
+
+            let data;
+            try {
+                data = await res.json();
+            } catch (e) {
+                showLoadError('Phản hồi không hợp lệ — hãy build lại rồi restart server.');
+                return;
+            }
+
+            _rules = Array.isArray(data && data.rules) ? data.rules : [];
+            _multiplier = Number((data && data.globalMultiplier) ?? 100);
+            if (!_rules.length) {
+                showLoadError('Danh sách tỉ lệ đập đồ rỗng — hãy build lại rồi restart server.');
+                return;
+            }
+
+            _valueByKey = {};
+            _rules.forEach(r => { _valueByKey[r.key] = Number(r.value); });
+            multEl().value = _multiplier;
+            highlightMult(_multiplier);
+            renderList();
+        }
+
+        function highlightMult(v) {
+            document.querySelectorAll('#op-cmb-modal .op-exp-preset[data-mval]').forEach(b =>
+                b.classList.toggle('active', Number(b.dataset.mval) === Number(v)));
+        }
+
+        function fmtPercent(v) {
+            const n = Number(v);
+            return Number.isFinite(n) ? String(Math.round(n * 10000) / 10000) : '0';
+        }
+
+        function escapeAttr(text) {
+            return String(text ?? '').replace(/[&<>"']/g, c =>
+                ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function renderList() {
+            const keyword = (searchEl().value || '').trim().toLowerCase();
+            const rows = _rules.filter(r => !keyword ||
+                `${r.name} ${r.group} ${r.key}`.toLowerCase().includes(keyword));
+
+            const changedCount = _rules.filter(r => r.overridden).length;
+            countEl().textContent = `${rows.length}/${_rules.length} loại · ${changedCount} đã chỉnh`;
+
+            if (!rows.length) {
+                listEl().innerHTML = '<div class="op-drop-loading">Không có loại đập nào khớp từ khoá</div>';
+                return;
+            }
+
+            let html = '';
+            let group = null;
+            rows.forEach(r => {
+                if (r.group !== group) {
+                    group = r.group;
+                    html += `<div class="op-drop-group">${group}</div>`;
+                }
+                const current = _valueByKey[r.key];
+                const tip = `${r.name}\nTỉ lệ gốc trong code: ${fmtPercent(r.base)}%\n`
+                    + (r.overridden ? 'Đang dùng giá trị bạn chỉnh trong panel.'
+                        : 'Đang dùng tỉ lệ gốc trong code.');
+                const sub = r.overridden
+                    ? `gốc ${fmtPercent(r.base)}% · <b>đã chỉnh</b>`
+                    : `gốc ${fmtPercent(r.base)}%`;
+
+                html += `
+                <div class="op-drop-row" title="${escapeAttr(tip)}">
+                    <div class="op-drop-row-main">
+                        <span class="op-drop-row-label">${escapeAttr(r.name)}</span>
+                        <span class="op-drop-row-target">${sub}</span>
+                    </div>
+                    <span class="op-drop-row-input">
+                        <input class="op-drop-input${r.overridden ? ' changed' : ''}" type="number"
+                               min="0" max="100" step="0.01" data-key="${r.key}"
+                               value="${fmtPercent(current)}" />
+                        <span class="op-drop-unit">%</span>
+                    </span>
+                </div>`;
+            });
+            listEl().innerHTML = html;
+        }
+
+        /** Gom các ô đã sửa. Nhập lại đúng bằng tỉ lệ gốc → gửi -1 để xoá ghi đè. */
+        function collectChanges() {
+            const body = {};
+            _rules.forEach(r => {
+                const input = listEl().querySelector(`.op-drop-input[data-key="${r.key}"]`);
+                if (!input) return;
+                let v = Number(input.value);
+                if (!Number.isFinite(v)) v = 0;
+                v = Math.min(100, Math.max(0, v));
+                if (!r.overridden && v === Number(r.base)) return;      // không đổi
+                if (r.overridden && v === Number(r.base)) {
+                    body[r.key] = '-1';                                  // xoá ghi đè
+                } else if (v !== Number(r.value) || !r.overridden) {
+                    body[r.key] = String(v);
+                }
+                _valueByKey[r.key] = v;
+            });
+            const mult = Math.min(9999, Math.max(0, Math.round(Number(multEl().value) || 0)));
+            if (mult !== Number(_multiplier)) body.globalMultiplier = String(mult);
+            return body;
+        }
+        async function putRates(body, okMsg) {
+            let res;
+            try {
+                res = await fetch(API, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+            } catch (e) {
+                toast('Lỗi kết nối: ' + e.message, 'error');
+                return;
+            }
+            if (!res.ok) {
+                toast(`Lỗi ${res.status} — hãy build lại rồi restart server`, 'error');
+                return;
+            }
+            let data;
+            try {
+                data = await res.json();
+            } catch (e) {
+                toast('Phản hồi không hợp lệ', 'error');
+                return;
+            }
+            if (!data || !data.success) { toast('Lỗi khi lưu tỉ lệ đập đồ', 'error'); return; }
+
+            _rules = Array.isArray(data.rules) ? data.rules : _rules;
+            _multiplier = Number(data.globalMultiplier ?? 100);
+            _valueByKey = {};
+            _rules.forEach(r => { _valueByKey[r.key] = Number(r.value); });
+            multEl().value = _multiplier;
+            highlightMult(_multiplier);
+            renderList();
+            toast(okMsg, 'success');
+        }
+
+        async function saveCombineRates() {
+            const body = collectChanges();
+            const count = Object.keys(body).length;
+            if (!count) { toast('Không có thay đổi nào', 'warning'); return; }
+            await putRates(body, `Đã lưu ${count} thay đổi tỉ lệ đập đồ`);
+        }
+
+        async function resetCombineRates() {
+            confirmByToast(
+                document.getElementById('op-cmb-reset'),
+                'Bấm lần nữa để xoá toàn bộ chỉnh sửa và trở về tỉ lệ gốc trong code',
+                () => putRates({ reset: 'true' }, 'Đã trở về tỉ lệ đập đồ gốc'),
+                '⚠ Bấm lần nữa: Về gốc'
+            );
+        }
+
+        /* ── Sự kiện ── */
+        document.addEventListener('click', function (e) {
+            if (!document.getElementById('operation')?.classList.contains('active')) return;
+            if (e.target.id === 'op-cmb-close' || e.target.id === 'op-cmb-cancel'
+                || e.target.id === 'op-cmb-modal') { closeCombineModal(); return; }
+            if (e.target.id === 'op-cmb-save') { saveCombineRates(); return; }
+            if (e.target.id === 'op-cmb-reset') { resetCombineRates(); return; }
+            if (e.target.id === 'op-cmb-plus') {
+                const i = multEl(); i.value = Math.min(9999, (Number(i.value) || 0) + 5);
+                highlightMult(i.value); return;
+            }
+            if (e.target.id === 'op-cmb-minus') {
+                const i = multEl(); i.value = Math.max(0, (Number(i.value) || 0) - 5);
+                highlightMult(i.value); return;
+            }
+            const preset = e.target.closest('#op-cmb-modal .op-exp-preset[data-mval]');
+            if (preset) { multEl().value = preset.dataset.mval; highlightMult(preset.dataset.mval); }
+        });
+
+        document.addEventListener('input', function (e) {
+            if (e.target.id === 'op-cmb-mult') { highlightMult(e.target.value); return; }
+            if (e.target.id === 'op-cmb-search') { renderList(); listEl().scrollTop = 0; return; }
+            if (!e.target.matches('#op-cmb-modal .op-drop-input[data-key]')) return;
+
+            const key = e.target.dataset.key;
+            const rule = _rules.find(r => r.key === key);
+            if (!rule) return;
+            let v = Number(e.target.value);
+            if (!Number.isFinite(v)) v = 0;
+            v = Math.min(100, Math.max(0, v));
+            _valueByKey[key] = v;
+            e.target.classList.toggle('changed', v !== Number(rule.base));
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeCombineModal();
+        });
+    })();
+</script>
 
 <!-- ANNOUNCE MODAL -->
 <div id="op-ann-modal" class="op-exp-overlay op-hidden">

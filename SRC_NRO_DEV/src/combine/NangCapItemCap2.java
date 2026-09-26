@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import player.Player;
@@ -13,7 +15,7 @@ public class NangCapItemCap2 {
 
     // Constants
     private static final int GOLD_TAO_DA = 50_000_000;
-    private static final int RATIO_TAO_DA = 80; 
+    public static final int RATIO_TAO_DA = 80; 
     private static final int ITEM_ID_C1_MIN = 381;
     private static final int ITEM_ID_C1_MAX = 385;
     private static final int ITEM_C2_ID_MIN = 1150;
@@ -27,7 +29,7 @@ public class NangCapItemCap2 {
             Item itemc1 = player.combineNew.itemsCombine.get(0);
             if (itemc1.template.id >= ITEM_ID_C1_MIN && itemc1.template.id <= ITEM_ID_C1_MAX && itemc1.quantity >= C2_ITEM_COUNT) {
                 player.combineNew.goldCombine = GOLD_TAO_DA;
-                player.combineNew.ratioCombine = RATIO_TAO_DA;
+                player.combineNew.ratioCombine = (float) CombineRateManager.rate("nang_cap_item_cap_2", RATIO_TAO_DA);
 
                 String npcSay = "|2|Tạo " + ITEM_C2_NAME + " từ " + ITEM_C1_NAME + "\n";
                 npcSay += "|2|Cần 10 " + ITEM_C1_NAME + " để lên " + ITEM_C2_NAME + "\n";

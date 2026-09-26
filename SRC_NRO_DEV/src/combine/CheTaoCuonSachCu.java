@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstFont;
 import consts.ConstNpc;
 import item.Item;
@@ -16,7 +18,7 @@ public class CheTaoCuonSachCu {
     private static final int CUON_SACH_CU_ID = 1283;
     private static final int REQUIRED_TRANG_SACH_CU = 9999;
     private static final int REQUIRED_BIA_SACH = 1;
-    private static final int SUCCESS_RATE_PERCENT = 20;
+    public static final int SUCCESS_RATE_PERCENT = 20;
     private static final int TRANG_SACH_CU_LOSS_ON_FAIL = 99;
 
     public static void showCombine(Player player) {
@@ -52,7 +54,7 @@ public class CheTaoCuonSachCu {
 
         CombineService.gI().sendAddItemCombine(player, ConstNpc.BA_HAT_MIT, trangSachCu, biaSach);
 
-        if (Util.isTrue(SUCCESS_RATE_PERCENT, 100)) {
+        if (Util.isTrue(CombineRateManager.rate("che_tao_cuon_sach_cu", SUCCESS_RATE_PERCENT), 100)) {
             processSuccess(player, trangSachCu, biaSach);
         } else {
             processFailure(player, trangSachCu, biaSach);

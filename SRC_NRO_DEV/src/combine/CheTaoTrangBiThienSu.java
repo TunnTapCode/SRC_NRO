@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import consts.ConstNpc;
 import item.Item;
 import item.Item.ItemOption;
@@ -17,7 +19,7 @@ public class CheTaoTrangBiThienSu {
     private static final int REQUIRED_GOLD_CHE_TAO_TS = 500_000_000;
     private static final int REQUIRED_MANH_TS_QUANTITY = 999;
     private static final int MIN_EMPTY_BAG_SLOTS = 1;
-    private static final int BASE_SUCCESS_RATE = 90;
+    public static final int BASE_SUCCESS_RATE = 90;
     private static final int BASE_LUCKY_RATE = 5;
 
     private static final short[][] ITEM_IDS = {
@@ -74,7 +76,7 @@ public class CheTaoTrangBiThienSu {
 
         player.inventory.gold -= REQUIRED_GOLD_CHE_TAO;
 
-        int tilemacdinh = BASE_SUCCESS_RATE;
+        int tilemacdinh = (int) CombineRateManager.rate("che_tao_thien_su", BASE_SUCCESS_RATE);
         int tileLucky = BASE_LUCKY_RATE;
 
         if (daNC != null) tilemacdinh += (daNC.template.id - 1073);

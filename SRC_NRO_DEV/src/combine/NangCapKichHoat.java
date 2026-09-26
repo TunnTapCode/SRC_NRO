@@ -1,5 +1,7 @@
 package combine;
 
+import managers.CombineRateManager;
+
 import combine.CombineService;
 import consts.ConstNpc;
 import item.Item;
@@ -17,6 +19,10 @@ import utils.Util;
  * @author Admin
  */
 public class NangCapKichHoat {
+
+    /** Tá»‰ lá»‡ rÆ¡i 2 option nháº¹ / vá»«a khi Ä‘áº­p set kÃ­ch hoáº¡t (%) */
+    public static final int RATE_LIGHT = 15;
+    public static final int RATE_MEDIUM = 75;
 
     public static boolean isDoThanLinh(Item item) {
         if (item.template.id >= 555 && item.template.id <= 567) {
@@ -81,11 +87,11 @@ public class NangCapKichHoat {
                 newItem = ItemService.gI().createNewItem(Manager.trangBiKichHoat[gender][trangbiThanLinh.template.type]);
             }
             RewardService.gI().initChiSoItem(newItem);
-            if (Util.isTrue(15, 100)) {
+            if (Util.isTrue(CombineRateManager.rate("dap_set_kich_hoat_nhe", RATE_LIGHT), 100)) {
                 newItem.itemOptions.add(new Item.ItemOption(selectedOptions[0], 0));
                 newItem.itemOptions.add(new Item.ItemOption(selectedOptions[1], 0));
             } else {
-                if (Util.isTrue(75, 100)) {
+                if (Util.isTrue(CombineRateManager.rate("dap_set_kich_hoat_vua", RATE_MEDIUM), 100)) {
                     newItem.itemOptions.add(new Item.ItemOption(selectedOptions[2], 0));
                     newItem.itemOptions.add(new Item.ItemOption(selectedOptions[3], 0));
                 } else {
