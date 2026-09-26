@@ -1,0 +1,38 @@
+# ============================================================
+#  Cấu hình runtime — KHÔNG đẩy lên git
+#  (Config.properties chứa database.pass, server.ip)
+# ============================================================
+Config.properties
+nbproject/private/
+*.pass
+*.log
+data/logs/
+
+# Thư mục build / class / jar sinh ra khi build
+build/
+target/
+out/
+*.class
+*.jar
+!lib/*.jar
+
+# ============================================================
+#  NGOẠI LỆ: 2 file cấu hình tỉ lệ — cố ý để track
+#  (rule này đè được cả rule *.properties đặt trong gitconfig
+#   toàn cục, vì .gitignore của repo có độ ưu tiên cao hơn
+#   core.excludesFile)
+# ============================================================
+!DropRate.properties
+!CombineRate.properties
+
+# ============================================================
+#  Hệ điều hành / IDE
+# ============================================================
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.iml
+nbproject/build/
+dist/
+nbproject/dist/
