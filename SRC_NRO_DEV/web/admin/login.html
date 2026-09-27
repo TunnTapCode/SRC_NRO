@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Đăng nhập quản trị — SRC NRO</title>
+    <link rel="stylesheet" href="/admin/css/login.css" />
+</head>
+<body>
+    <!-- Nền vũ trụ Ki Dragon Boy chuyển động -->
+    <div class="login-bg-scene" aria-hidden="true">
+        <div class="space-layer space-base"></div>
+        <div class="space-layer space-stars space-stars-1"></div>
+        <div class="space-layer space-stars space-stars-2"></div>
+        <div class="space-layer space-grid"></div>
+
+        <div class="ki-orb orb-primary"></div>
+        <div class="ki-orb orb-secondary"></div>
+        <div class="ki-orb orb-tertiary"></div>
+        <div class="ki-orb orb-gold"></div>
+
+        <div class="shooting-star star-1"></div>
+        <div class="shooting-star star-2"></div>
+        <div class="shooting-star star-3"></div>
+    </div>
+
+    <div class="login-shell">
+        <main class="login-card" id="login-card">
+            <div class="card-glow-border" aria-hidden="true"></div>
+
+            <header class="login-brand">
+                <div class="brand-avatar-wrap">
+                    <div class="brand-mark">
+                        <span class="mark-letter">S</span>
+                        <div class="mark-ki-aura" aria-hidden="true"></div>
+                    </div>
+                    <span class="status-indicator" title="Hệ thống trực tuyến"></span>
+                </div>
+                <div class="brand-info">
+                    <div class="brand-title-row">
+                        <h1>Tún Nèe</h1>
+                        <span class="brand-tag">v2.0</span>
+                    </div>
+                    <small>Dragon Boy · Admin Control Panel</small>
+                </div>
+            </header>
+
+            <div class="login-lead">
+                <!-- Chuyển đổi giữa Đăng nhập và Đăng ký trong cùng một thẻ glass -->
+                <div class="auth-tabs" role="tablist" aria-label="Chế độ tài khoản">
+                    <button type="button" class="auth-tab active" id="tab-login"
+                            data-mode="login" role="tab" aria-selected="true">
+                        🔑 Đăng nhập
+                    </button>
+                    <button type="button" class="auth-tab" id="tab-register"
+                            data-mode="register" role="tab" aria-selected="false">
+                        ✨ Đăng ký
+                    </button>
+                </div>
+                <h2 id="auth-title">Đăng nhập quản trị</h2>
+                <p class="login-sub" id="auth-sub">
+                    Hệ thống xác thực bảo mật đa tầng: <strong>HttpOnly Session</strong>,
+                    <strong>Anti-CSRF</strong> &amp; <strong>Brute-Force Guard</strong>.
+                </p>
+            </div>
+
+            <div id="login-alert" class="login-alert" role="alert" hidden>
+                <div class="alert-icon" aria-hidden="true"></div>
+                <div class="alert-content">
+                    <strong class="alert-title">Thông báo</strong>
+                    <span class="alert-message"></span>
+                </div>
+            </div>
+
+            <form id="login-form" autocomplete="on" novalidate>
+                <!-- Nonce dùng một lần do server sinh khi tải trang (chống login CSRF / replay) -->
+                <input type="hidden" id="login-nonce" value="__LOGIN_NONCE__" />
+
+                <div class="form-group" id="group-username">
+                    <label for="username">
+                        <span class="label-text">Tên tài khoản</span>
+                        <span class="label-hint">Tài khoản admin</span>
+                    </label>
+                    <div class="input-wrap">
+                        <span class="input-icon" aria-hidden="true">👤</span>
+                        <input id="username" name="username" type="text" maxlength="64"
+                               autocomplete="username" required autofocus
+                               placeholder="Nhập tên tài khoản admin" />
+                    </div>
+                </div>
+
+                <div class="form-group" id="group-password">
+                    <div class="label-row">
+                        <label for="password"><span class="label-text">Mật khẩu</span></label>
+                        <span class="label-hint">Phân biệt hoa/thường</span>
+                    </div>
+                    <div class="input-wrap password-wrap">
+                        <span class="input-icon" aria-hidden="true">🔒</span>
+                        <input id="password" name="password" type="password" maxlength="200"
+                               autocomplete="current-password" required
+                               placeholder="Nhập mật khẩu quản trị" />
+                        <button type="button" id="toggle-password" class="toggle-password"
+                                aria-label="Hiện mật khẩu" title="Hiện / ẩn mật khẩu">
+                            <span class="eye-icon">👁️</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" id="login-submit" class="login-btn">
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                    <span class="btn-text">Đăng nhập hệ thống</span>
+                    <span class="btn-arrow" aria-hidden="true">➔</span>
+                </button>
+            </form>
+
+            <!-- ═══════ FORM ĐĂNG KÝ TÀI KHOẢN (thay thế trang đăng ký cũ) ═══════ -->
+            <form id="register-form" autocomplete="off" novalidate hidden>
+                <div class="form-group" id="group-reg-username">
+                    <label for="reg-username">
+                        <span class="label-text">Tên tài khoản</span>
+                        <span class="label-hint">4–20 ký tự: a–z, 0–9</span>
+                    </label>
+                    <div class="input-wrap">
+                        <span class="input-icon" aria-hidden="true">👤</span>
+                        <input id="reg-username" name="username" type="text" maxlength="20"
+                               autocomplete="username" required
+                               placeholder="Nhập tên tài khoản mới" />
+                    </div>
+                </div>
+
+                <div class="form-group" id="group-reg-password">
+                    <div class="label-row">
+                        <label for="reg-password"><span class="label-text">Mật khẩu</span></label>
+                        <span class="label-hint">4–100 ký tự</span>
+                    </div>
+                    <div class="input-wrap password-wrap">
+                        <span class="input-icon" aria-hidden="true">🔒</span>
+                        <input id="reg-password" name="password" type="password" maxlength="100"
+                               autocomplete="new-password" required
+                               placeholder="Nhập mật khẩu" />
+                        <button type="button" class="toggle-password" data-toggle="reg-password"
+                                aria-label="Hiện mật khẩu" title="Hiện / ẩn mật khẩu">
+                            <span class="eye-icon">👁️</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group" id="group-reg-confirm">
+                    <div class="label-row">
+                        <label for="reg-password-confirm"><span class="label-text">Nhập lại mật khẩu</span></label>
+                        <span class="label-hint">Bắt buộc</span>
+                    </div>
+                    <div class="input-wrap password-wrap">
+                        <span class="input-icon" aria-hidden="true">🔐</span>
+                        <input id="reg-password-confirm" name="confirm" type="password" maxlength="100"
+                               autocomplete="new-password" required
+                               placeholder="Nhập lại mật khẩu" />
+                        <button type="button" class="toggle-password" data-toggle="reg-password-confirm"
+                                aria-label="Hiện mật khẩu" title="Hiện / ẩn mật khẩu">
+                            <span class="eye-icon">👁️</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group" id="group-reg-email">
+                    <label for="reg-email">
+                        <span class="label-text">Email</span>
+                        <span class="label-hint">Không bắt buộc</span>
+                    </label>
+                    <div class="input-wrap">
+                        <span class="input-icon" aria-hidden="true">📧</span>
+                        <input id="reg-email" name="email" type="email" maxlength="255"
+                               autocomplete="email"
+                               placeholder="vidu@gmail.com" />
+                    </div>
+                </div>
+
+                <button type="submit" id="register-submit" class="login-btn">
+                    <span class="btn-spinner" aria-hidden="true"></span>
+                    <span class="btn-text">Tạo tài khoản</span>
+                    <span class="btn-arrow" aria-hidden="true">➔</span>
+                </button>
+            </form>
+
+            <footer class="login-foot">
+                <div class="security-badges">
+                    <span class="badge-pill">🛡️ HttpOnly</span>
+                    <span class="badge-pill">⚡ Anti-CSRF</span>
+                    <span class="badge-pill">🔒 Rate-Limit</span>
+                </div>
+                <div class="foot-actions">
+                    <button type="button" id="btn-reload" class="link-btn">🔄 Làm mới trang</button>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <script src="/admin/js/login.js" defer></script>
+</body>
+</html>

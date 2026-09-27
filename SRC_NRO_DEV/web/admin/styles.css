@@ -1268,3 +1268,71 @@ input:focus, select:focus {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
 }
+
+/* ══════════════════════════════════════════════════════
+   TOPBAR — phiên đăng nhập admin (user chip + logout)
+   ══════════════════════════════════════════════════════ */
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 13px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-soft);
+    cursor: default;
+    max-width: 200px;
+}
+
+.user-chip-icon {
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.user-chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--primary);
+}
+
+.logout-btn {
+    border-color: rgba(220, 38, 38, 0.22);
+    color: #b91c1c;
+}
+
+.logout-btn:hover {
+    background: var(--danger-bg);
+    border-color: rgba(220, 38, 38, 0.4);
+    color: #991b1b;
+}
+
+@media (max-width: 720px) {
+    .user-chip { display: none; }
+
+    .logout-btn {
+        padding: 9px 12px;
+        font-size: 0.82rem;
+    }
+}
+
+@media (max-width: 520px) {
+    .topbar-actions { gap: 8px; }
+
+    #btn-add,
+    .logout-btn {
+        padding: 9px 11px;
+        font-size: 0.8rem;
+    }
+}
+

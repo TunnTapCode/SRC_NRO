@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Panel - SRC NRO</title>
     <link rel="stylesheet" href="/admin/styles.css" />
-    <!-- Thứ tự load: config → state → api → loader → table → modal → crud → ui → main -->
+    <!-- Thứ tự load: auth → config → state → api → loader → table → modal → crud → ui → main -->
+    <script src="/admin/js/auth.js"   defer></script>
     <script src="/admin/js/config.js" defer></script>
     <script src="/admin/js/state.js"  defer></script>
     <script src="/admin/js/api.js"    defer></script>
@@ -84,7 +85,14 @@
                         <h2 id="page-title">Quản lý tài khoản</h2>
                     </div>
                 </div>
-                <button id="btn-add" class="primary-btn">+ Thêm mới</button>
+                <div class="topbar-actions">
+                    <div class="user-chip" id="admin-user" title="Tài khoản đang đăng nhập">
+                        <span class="user-chip-icon">🛡️</span>
+                        <span class="user-chip-name" id="admin-user-name">admin</span>
+                    </div>
+                    <button id="btn-logout" class="secondary-btn logout-btn" type="button">Đăng xuất</button>
+                    <button id="btn-add" class="primary-btn">+ Thêm mới</button>
+                </div>
             </header>
 
             <!--

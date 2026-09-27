@@ -1,6 +1,16 @@
 // Khởi động ứng dụng sau khi DOM sẵn sàng
 document.addEventListener('DOMContentLoaded', async () => {
 
+    // 0. Chờ lớp xác thực nạp xong phiên + CSRF token trước khi làm bất cứ điều gì khác.
+    //    Nếu phiên hết hạn, auth.js đã chuyển hướng về trang đăng nhập.
+    if (window.__authReady) {
+        try {
+            await window.__authReady;
+        } catch (error) {
+            console.error('Không xác thực được phiên đăng nhập:', error);
+        }
+    }
+
     // 1. Load toàn bộ partial HTML trước khi làm bất cứ điều gì khác
     await loadAllPartials();
 

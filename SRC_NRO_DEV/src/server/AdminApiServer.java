@@ -87,7 +87,11 @@ public final class AdminApiServer {
     }
 
     private static void handleAdmin(HttpExchange exchange) throws IOException {
+        AdminAuth.cleanup();
         String rawPath = exchange.getRequestURI().getPath();
+        if (rawPath == null) {
+            rawPath = "/admin/index.html";
+        }
         if ("/admin".equals(rawPath)) {
             exchange.getResponseHeaders().set("Location", "/admin/");
             exchange.sendResponseHeaders(301, -1);
@@ -96,8 +100,12 @@ public final class AdminApiServer {
         if ("/styles.css".equals(rawPath) || "/app.js".equals(rawPath) || "/favicon.ico".equals(rawPath)) {
             rawPath = "/admin" + rawPath;
         }
-        if (rawPath == null || "/".equals(rawPath) || "/admin/".equals(rawPath)) {
+        if ("/".equals(rawPath) || "/admin/".equals(rawPath)) {
             rawPath = "/admin/index.html";
+        }
+        // Alias gọn cho trang đăng nhập: /admin/login → /admin/login.html
+        if ("/admin/login".equals(rawPath) || "/admin/login/".equals(rawPath)) {
+            rawPath = "/admin/login.html";
         }
 
         String relative = rawPath;
@@ -113,6 +121,20 @@ public final class AdminApiServer {
             return;
         }
 
+        // ── XÁC THỰC: chỉ tài nguyên công khai (trang login, css, js) mới xem được khi chưa đăng nhập ──
+        if (!isPublicAdminAsset(relative) && AdminAuth.isEnabled() && AdminAuth.getSession(exchange) == null) {
+            if ("index.html".equals(relative)) {
+                // Người dùng mở thẳng trang quản trị → đưa về trang đăng nhập
+                exchange.getResponseHeaders().set("Location", "/admin/login");
+                exchange.sendResponseHeaders(302, -1);
+            } else {
+                // Tài nguyên nội bộ (partials, ...) trả 401 để client tự chuyển hướng
+                sendText(exchange, 401, "Unauthorized");
+            }
+            exchange.close();
+            return;
+        }
+
         Path base = Paths.get(System.getProperty("user.dir"), "web", "admin");
         Path file = base.resolve(relative).normalize();
         if (!file.startsWith(base)) {
@@ -125,6 +147,13 @@ public final class AdminApiServer {
         }
 
         byte[] content = Files.readAllBytes(file);
+        // Trang đăng nhập cần nonce dùng một lần để chống login CSRF / replay
+        if ("login.html".equals(relative)) {
+            String html = new String(content, StandardCharsets.UTF_8);
+            content = html.replace("__LOGIN_NONCE__", AdminAuth.createLoginNonce())
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Cache-Control", "no-store");
+        }
         String mime = Files.probeContentType(file);
         if (mime == null) {
             String lower = file.getFileName().toString().toLowerCase();
@@ -146,6 +175,18 @@ public final class AdminApiServer {
         try (OutputStream output = exchange.getResponseBody()) {
             output.write(content);
         }
+    }
+
+    /**
+     * Tài nguyên tĩnh của Admin Panel được phép tải khi CHƯA đăng nhập.
+     * Gồm trang đăng nhập và các file css/js thuần giao diện (không chứa dữ liệu).
+     */
+    private static boolean isPublicAdminAsset(String relative) {
+        String lower = relative.toLowerCase(Locale.ROOT);
+        if ("login.html".equals(lower)) {
+            return true;
+        }
+        return lower.startsWith("css/") || lower.startsWith("js/") || lower.equals("favicon.ico");
     }
 
     private static void handleData(HttpExchange exchange) throws IOException {
@@ -198,7 +239,14 @@ public final class AdminApiServer {
         String path = exchange.getRequestURI().getPath();
         String[] pathParts = path == null ? new String[0] : path.replaceFirst("^/api/?", "").split("/");
         String resource = pathParts.length > 0 ? pathParts[0].toLowerCase(Locale.ROOT) : "";
+        String idParam = pathParts.length > 1 ? pathParts[1] : null;
+        String method = exchange.getRequestMethod();
+        AdminAuth.cleanup();
+
         if (resource.isEmpty()) {
+            if (AdminAuth.isEnabled() && AdminAuth.requireSession(exchange) == null) {
+                return;
+            }
             sendJson(exchange, 200, mapOf("success", true, "message", "Admin API ready", "endpoints", new String[] {
                     "/api/accounts",
                     "/api/players",
@@ -213,9 +261,24 @@ public final class AdminApiServer {
             return;
         }
 
-        String idParam = pathParts.length > 1 ? pathParts[1] : null;
-        String method = exchange.getRequestMethod();
         Map<String, String> payload = readBody(exchange);
+
+        // ── Nhóm /api/auth/* dùng để đăng nhập, đăng xuất, kiểm tra phiên (không cần phiên trước đó) ──
+        if ("auth".equals(resource)) {
+            handleAuth(exchange, idParam, method, payload);
+            return;
+        }
+
+        // ── XÁC THỰC + PHÂN QUYỀN: mọi API còn lại chỉ dành cho admin đã đăng nhập ──
+        if (AdminAuth.isEnabled()) {
+            AdminAuth.Session session = AdminAuth.requireSession(exchange);
+            if (session == null) {
+                return;
+            }
+            if (!AdminAuth.requireCsrf(exchange, session)) {
+                return;
+            }
+        }
 
         switch (resource) {
             case "accounts":
@@ -359,6 +422,115 @@ public final class AdminApiServer {
         }
     }
 
+    /**
+     * Xử lý nhóm endpoint xác thực của Admin Panel:
+     * <pre>
+     *   GET  /api/auth/nonce   → nonce dùng một lần cho form đăng nhập
+     *   POST /api/auth/login   → đăng nhập { username, password, nonce }
+     *   POST /api/auth/register → tạo tài khoản người chơi { username, password, confirm, email, nonce }
+     *   POST /api/auth/logout  → hủy phiên hiện tại
+     *   GET  /api/auth/session → thông tin phiên + CSRF token cho client
+     * </pre>
+     */
+    private static void handleAuth(HttpExchange exchange, String action, String method, Map<String, String> payload)
+            throws IOException {
+        String command = action == null ? "" : action.toLowerCase(Locale.ROOT);
+        switch (command) {
+            case "nonce": {
+                if (!"GET".equalsIgnoreCase(method)) {
+                    methodNotAllowed(exchange, "GET");
+                    return;
+                }
+                if (!AdminAuth.isEnabled()) {
+                    sendJson(exchange, 200, mapOf("success", true, "nonce", ""));
+                    return;
+                }
+                sendJson(exchange, 200, mapOf("success", true, "nonce", AdminAuth.createLoginNonce()));
+                return;
+            }
+            case "session": {
+                AdminAuth.Session session = AdminAuth.getSession(exchange);
+                if (session == null) {
+                    sendJson(exchange, 401, mapOf("success", false, "authenticated", false,
+                            "message", "Chua dang nhap"));
+                    return;
+                }
+                sendJson(exchange, 200, mapOf("success", true, "authenticated", true,
+                        "username", session.username,
+                        "accountId", session.accountId,
+                        "csrfToken", session.csrfToken,
+                        "expiresIn", session.remainingSeconds()));
+                return;
+            }
+            case "login": {
+                if (!"POST".equalsIgnoreCase(method)) {
+                    methodNotAllowed(exchange, "POST");
+                    return;
+                }
+                if (!AdminAuth.isEnabled()) {
+                    sendJson(exchange, 200, mapOf("success", true, "username", "development"));
+                    return;
+                }
+                // Nonce chống login CSRF / replay: phải khớp nonce đã phát khi tải trang login
+                if (!AdminAuth.consumeLoginNonce(payload.get("nonce"))) {
+                    sendJson(exchange, 403, mapOf("success", false,
+                            "message", "Phien dang nhap khong hop le. Vui long tai lai trang."));
+                    return;
+                }
+                String ip = AdminAuth.clientIp(exchange);
+                AdminAuth.AuthResult result = AdminAuth.authenticate(payload.get("username"),
+                        payload.get("password"), ip);
+                if (result.credentials == null) {
+                    sendJson(exchange, 401, mapOf("success", false, "message", result.error));
+                    return;
+                }
+                AdminAuth.Session session = AdminAuth.createSession(exchange, result.credentials.accountId,
+                        result.credentials.username, ip);
+                sendJson(exchange, 200, mapOf("success", true, "username", session.username,
+                        "csrfToken", session.csrfToken, "expiresIn", session.remainingSeconds()));
+                return;
+            }
+            case "register": {
+                if (!"POST".equalsIgnoreCase(method)) {
+                    methodNotAllowed(exchange, "POST");
+                    return;
+                }
+                // Chống CSRF / replay: dùng chung nonce một lần với form đăng nhập
+                if (AdminAuth.isEnabled() && !AdminAuth.consumeLoginNonce(payload.get("nonce"))) {
+                    sendJson(exchange, 403, mapOf("success", false,
+                            "message", "Phien dang ky khong hop le. Vui long tai lai trang."));
+                    return;
+                }
+                AdminAuth.RegisterResult result = AdminAuth.registerAccount(
+                        payload.get("username"), payload.get("password"),
+                        payload.get("confirm"), payload.get("email"), AdminAuth.clientIp(exchange));
+                sendJson(exchange, result.status,
+                        mapOf("success", result.success, "message", result.message));
+                return;
+            }
+            case "logout": {
+                if (!"POST".equalsIgnoreCase(method)) {
+                    methodNotAllowed(exchange, "POST");
+                    return;
+                }
+                AdminAuth.Session session = AdminAuth.getSession(exchange);
+                if (session != null && !AdminAuth.requireCsrf(exchange, session)) {
+                    return;
+                }
+                AdminAuth.destroySession(exchange);
+                sendJson(exchange, 200, mapOf("success", true, "message", "Da dang xuat"));
+                return;
+            }
+            default:
+                sendText(exchange, 404, "Unknown auth action: " + command);
+        }
+    }
+
+    private static void methodNotAllowed(HttpExchange exchange, String allow) throws IOException {
+        exchange.getResponseHeaders().set("Allow", allow);
+        sendText(exchange, 405, "Method Not Allowed");
+    }
+
     private static void handleCrud(HttpExchange exchange, String method, String idParam, Map<String, String> payload,
             String table, String primaryKey, String... fields) throws IOException {
         String sql;
@@ -440,6 +612,9 @@ public final class AdminApiServer {
                         String col = resultSet.getMetaData().getColumnName(i);
                         row.put(col, resultSet.getObject(i));
                     }
+                    if ("account".equals(table)) {
+                        maskAccountSecrets(row);
+                    }
                     rows.add(row);
                 }
             }
@@ -447,6 +622,17 @@ public final class AdminApiServer {
             Logger.logException(AdminApiServer.class, e);
         }
         return rows;
+    }
+
+    /**
+     * Ẩn các cột nhạy cảm của bảng account trước khi trả JSON về trình duyệt.
+     * Mật khẩu không bao giờ được gửi xuống client.
+     */
+    private static void maskAccountSecrets(Map<String, Object> row) {
+        row.remove("password");
+        row.remove("token");
+        row.remove("xsrf_token");
+        row.remove("newpass");
     }
 
     /** Query với WHERE col = value tùy chọn, nếu filterCol null thì lấy tất cả */
@@ -824,6 +1010,7 @@ public final class AdminApiServer {
     private static void sendJson(HttpExchange exchange, int statusCode, Map<String, Object> payload)
             throws IOException {
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+        exchange.getResponseHeaders().set("Cache-Control", "no-store");
         String content = jsonFromObject(payload);
         send(exchange, statusCode, content.getBytes(StandardCharsets.UTF_8));
     }
@@ -831,6 +1018,7 @@ public final class AdminApiServer {
     private static void sendJson(HttpExchange exchange, int statusCode, List<Map<String, Object>> payload)
             throws IOException {
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+        exchange.getResponseHeaders().set("Cache-Control", "no-store");
         String content = jsonFromList(payload);
 
         send(exchange, statusCode, content.getBytes(StandardCharsets.UTF_8));
@@ -842,6 +1030,10 @@ public final class AdminApiServer {
     }
 
     private static void send(HttpExchange exchange, int statusCode, byte[] content) throws IOException {
+        // Header bảo mật cho mọi response của Admin API / Admin Panel
+        exchange.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
+        exchange.getResponseHeaders().set("X-Frame-Options", "DENY");
+        exchange.getResponseHeaders().set("Referrer-Policy", "no-referrer");
         exchange.sendResponseHeaders(statusCode, content.length);
         try (OutputStream output = exchange.getResponseBody()) {
             output.write(content);
