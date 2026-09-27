@@ -259,7 +259,7 @@ async function addOrUpdateData(type, payload) {
         await loadTableData(type);
     } catch (error) {
         console.error('Save failed', error);
-        alert('Lưu dữ liệu thất bại: ' + error.message);
+        toast('Lưu dữ liệu thất bại: ' + error.message, 'error');
     }
 }
 
@@ -271,7 +271,7 @@ async function deleteData(type, id) {
         await loadTableData(type);
     } catch (error) {
         console.error('Delete failed', error);
-        alert('Xóa dữ liệu thất bại: ' + error.message);
+        toast('Xóa dữ liệu thất bại: ' + error.message, 'error');
     }
 }
 
@@ -335,11 +335,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const deleteButton = event.target.closest('.btn-action.delete');
         if (deleteButton) {
-            const type = deleteButton.dataset.type;
-            const id = deleteButton.dataset.id;
-            if (window.confirm('Bạn có chắc chắn muốn xóa dữ liệu này?')) {
-                deleteData(type, id);
-            }
+            showConfirmModal({
+                title: 'Xóa dữ liệu?',
+                message: 'Bạn có chắc chắn muốn xóa dữ liệu này?',
+                confirmText: '🗑️ Xóa',
+            }).then(ok => { if (ok) deleteData(type, id); });
         }
     });
 

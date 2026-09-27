@@ -327,7 +327,14 @@
         if (e.target.id !== 'it-save-btn') return;
         const ids = Object.keys(_dirty);
         if (ids.length === 0) { toast('Không có thay đổi nào để lưu.', 'warning'); return; }
-        if (!confirm(`Lưu ${ids.length} dòng đã thay đổi?`)) return;
+        const okSave = await showConfirmModal({
+            title: 'Lưu thay đổi?',
+            message: 'Lưu ' + ids.length + ' dòng đã thay đổi?',
+            confirmText: 'Lưu',
+            danger: false,
+            icon: '✔️',
+        });
+        if (!okSave) return;
         for (const id of ids) await window.itSaveRow(Number(id));
         toast(`Đã lưu ${ids.length} dòng thành công.`, 'success');
     });
@@ -336,7 +343,12 @@
        DELETE ROW
     ══════════════════════ */
     window.itDeleteRow = async function (id) {
-        if (!confirm(`Xóa item ID ${id}?`)) return;
+        const ok = await showConfirmModal({
+            title: 'Xóa item?',
+            message: 'Xóa item ID ' + id + '?',
+            confirmText: '🗑️ Xóa item',
+        });
+        if (!ok) return;
         try {
             const res  = await fetch(`/api/items/${id}`, { method: 'DELETE' });
             const data = await res.json();

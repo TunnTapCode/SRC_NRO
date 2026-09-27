@@ -20,7 +20,7 @@ async function addOrUpdateData(type, payload) {
         await loadTableData(type);
     } catch (error) {
         console.error('Save failed', error);
-        alert('Lưu dữ liệu thất bại: ' + error.message);
+        toast('Lưu dữ liệu thất bại: ' + error.message, 'error');
     }
 }
 
@@ -33,7 +33,7 @@ async function deleteData(type, id) {
         await loadTableData(type);
     } catch (error) {
         console.error('Delete failed', error);
-        alert('Xóa dữ liệu thất bại: ' + error.message);
+        toast('Xóa dữ liệu thất bại: ' + error.message, 'error');
     }
 }
 

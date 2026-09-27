@@ -1123,3 +1123,148 @@ input:focus, select:focus {
     .mb-avatar { width:60px;height:60px;font-size:1.8rem; }
     .mb-title  { font-size:1.15rem; }
 }
+
+/* ══════════════════════════════════════════════════
+   CONFIRM MODAL — popup xác nhận xóa (thay confirm())
+   z-index 1200: nổi trên Map Drawer (200) + NPC Picker (500)
+   ══════════════════════════════════════════════════ */
+.confirm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.confirm-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(4px);
+    animation: fadeIn var(--dur-normal) ease both;
+}
+
+.confirm-modal-box {
+    position: relative;
+    width: min(400px, 100%);
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 24px 64px rgba(15,23,42,.28);
+    padding: 30px 26px 24px;
+    text-align: center;
+    animation: scaleIn var(--dur-normal) var(--ease-spring) both;
+    overflow: hidden;
+}
+
+.confirm-modal-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.confirm-modal-box.is-danger::before {
+    background: linear-gradient(90deg, #dc2626, #f87171, #dc2626);
+    background-size: 200%;
+    animation: gradientShift 2s ease infinite;
+}
+.confirm-modal-box.is-info::before {
+    background: linear-gradient(90deg, var(--primary), #60a5fa, var(--primary));
+    background-size: 200%;
+    animation: gradientShift 2s ease infinite;
+}
+
+.confirm-modal.closing .confirm-modal-box {
+    animation: none;
+    opacity: 0;
+    transform: scale(.94);
+    transition: opacity 140ms ease, transform 140ms ease;
+}
+.confirm-modal.closing .confirm-modal-backdrop {
+    animation: none;
+    opacity: 0;
+    transition: opacity 140ms ease;
+}
+
+.confirm-modal-icon {
+    font-size: 3rem;
+    line-height: 1;
+    margin-bottom: 12px;
+}
+
+.confirm-modal-title {
+    margin: 0 0 8px;
+    font-size: 1.12rem;
+    font-weight: 800;
+    color: var(--text);
+}
+.confirm-modal-box.is-danger .confirm-modal-title { color: #991b1b; }
+
+.confirm-modal-msg {
+    margin: 0 0 22px;
+    font-size: .87rem;
+    color: var(--muted);
+    line-height: 1.65;
+    word-break: break-word;
+}
+
+.confirm-modal-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.confirm-modal-btn {
+    flex: 1;
+    padding: 11px 12px;
+    border-radius: var(--radius-md);
+    font-size: .92rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+        transform var(--dur-fast) var(--ease-spring),
+        box-shadow var(--dur-fast) ease,
+        background var(--dur-fast) ease,
+        filter var(--dur-fast) ease;
+    border: 1.5px solid transparent;
+}
+
+.confirm-modal-btn:active { transform: scale(.96); }
+
+.confirm-modal-cancel {
+    background: var(--card);
+    color: var(--text-soft);
+    border-color: var(--line);
+}
+.confirm-modal-cancel:hover {
+    background: var(--primary-subtle);
+    border-color: rgba(37,99,235,.25);
+}
+
+.confirm-modal-ok.is-danger {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(220,38,38,.35);
+}
+.confirm-modal-ok.is-danger:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 8px 22px rgba(220,38,38,.45);
+    transform: translateY(-1px);
+}
+
+.confirm-modal-ok.is-info {
+    background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+    color: #fff;
+    box-shadow: 0 4px 14px var(--primary-glow);
+}
+.confirm-modal-ok.is-info:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+}
+
+.confirm-modal-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}

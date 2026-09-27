@@ -189,17 +189,26 @@
         }
     }
 
-    function parseNpcs(raw) {
+    /**
+     * Trả về mảng NPC thô [[id,x,y], ...] — giữ nguyên nguyên các phần tử gốc
+     * trong DB để không làm mất dữ liệu khi ghi lại.
+     */
+    function parseNpcsArr(raw) {
         if (!raw) return [];
         try {
-            const outer = JSON.parse(raw.replace(/\\"/g, '"'));
+            const outer = JSON.parse(String(raw).replace(/\\"/g, '"'));
+            if (!Array.isArray(outer)) return [];
             return outer.map(entry => {
                 try {
                     const inner = typeof entry === 'string' ? JSON.parse(entry) : entry;
-                    return { id: inner[0], x: inner[1], y: inner[2] };
+                    return Array.isArray(inner) ? inner : null;
                 } catch (_) { return null; }
             }).filter(Boolean);
         } catch (_) { return []; }
+    }
+
+    function parseNpcs(raw) {
+        return parseNpcsArr(raw).map(inner => ({ id: inner[0], x: inner[1], y: inner[2] }));
     }
 
     function parseMobs(raw) {
@@ -492,7 +501,7 @@
                 <div class="mp-info-item"><div class="mp-info-label">Mob trên map</div>
                     <div class="mp-info-value">${mobs.length} loại</div></div>
                 <div class="mp-info-item"><div class="mp-info-label">NPC trên map</div>
-                    <div class="mp-info-value">${npcs.length} NPC</div></div>
+                    <div class="mp-info-value" id="mp-info-npc-count">${npcs.length} NPC</div></div>
                 <div class="mp-info-item"><div class="mp-info-label">Cổng dịch chuyển</div>
                     <div class="mp-info-value">${wps.length} cổng</div></div>
             </div>`;
@@ -515,26 +524,8 @@
                }).join('')}</div>`
             : '<div class="mp-empty">Không có mob nào</div>';
 
-        // Pane: NPC
-        document.getElementById('mp-pane-npcs').innerHTML = npcs.length
-            ? `<div class="mp-section-title">🤖 Danh sách NPC (${npcs.length})</div>
-               <div class="mp-npc-list">${npcs.map((n, i) => {
-                   const npcData = _npcCache[String(n.id)] || {};
-                   const name    = npcData.NAME || `NPC #${n.id}`;
-                   const av      = npcData.avatar;
-                   return `
-                   <div class="mp-npc-row" style="animation-delay:${i*40}ms">
-                       <div class="mp-npc-avatar">
-                           ${av ? `<img src="/data/icon/x1/${av}.png" onerror="this.style.display='none'" />` : '🤖'}
-                       </div>
-                       <div class="mp-npc-info">
-                           <div class="mp-npc-name">${name}</div>
-                           <div class="mp-npc-id">ID: ${n.id}</div>
-                       </div>
-                       <span class="mp-npc-coords">📍 ${n.x}, ${n.y}</span>
-                   </div>`;
-               }).join('')}</div>`
-            : '<div class="mp-empty">Không có NPC nào</div>';
+        // Pane: NPC (render động — có nút "＋ Thêm NPC")
+        renderNpcPane(m);
 
         // Pane: Waypoints
         document.getElementById('mp-pane-waypoints').innerHTML = wps.length
@@ -588,6 +579,396 @@
         const tab = e.target.closest('.mp-drawer-tab');
         if (tab && document.getElementById('mp-drawer')?.classList.contains('open')) {
             switchPane(tab.dataset.pane);
+        }
+    });
+
+    /* ═══════════════ Pane: NPC (nút "＋ Thêm NPC") ═══════════════ */
+    let _selectedAddNpcId = null;
+    let _npcPickerTimer = null;
+
+    function setAddNpcSelected(npcId) {
+        _selectedAddNpcId = npcId !== null && npcId !== undefined && npcId !== '' ? Number(npcId) : null;
+        const hiddenInp = document.getElementById('mp-npc-add-id');
+        if (hiddenInp) hiddenInp.value = _selectedAddNpcId !== null ? _selectedAddNpcId : '';
+
+        const prevEl = document.getElementById('mp-npc-pick-preview');
+        if (!prevEl) return;
+
+        if (_selectedAddNpcId === null) {
+            prevEl.innerHTML = `
+                <div class="mp-npc-pick-placeholder">
+                    <span class="mp-npc-pick-icon">🔍</span>
+                    <span>Nhấn để chọn NPC (có avatar)...</span>
+                </div>
+                <span class="mp-npc-pick-arrow">Chọn ▾</span>`;
+            return;
+        }
+
+        const nd = _npcCache[String(_selectedAddNpcId)] || {};
+        const name = nd.NAME || `NPC #${_selectedAddNpcId}`;
+        const av = nd.avatar;
+        const avatarHtml = av
+            ? `<img src="/data/icon/x4/${av}.png" onerror="this.src='/data/icon/x1/${av}.png';this.onerror=()=>{this.style.display='none';this.parentElement.textContent='🤖';}" alt="${name}" />`
+            : '🤖';
+
+        prevEl.innerHTML = `
+            <div class="mp-npc-pick-avatar">${avatarHtml}</div>
+            <div class="mp-npc-pick-info">
+                <div class="mp-npc-pick-name">${name}</div>
+                <div class="mp-npc-pick-id">ID: ${_selectedAddNpcId}${av ? ` · Avatar: ${av}` : ''}</div>
+            </div>
+            <span class="mp-npc-pick-arrow">Đổi ▾</span>`;
+    }
+
+    /** Render lại toàn bộ pane NPC của map đang mở drawer */
+    function renderNpcPane(m) {
+        const pane = document.getElementById('mp-pane-npcs');
+        if (!pane || !m) return;
+        const npcs = parseNpcs(m.npcs);
+        const hasNpcsInSystem = Object.keys(_npcCache).length > 0;
+
+        const listHtml = npcs.length
+            ? `<div class="mp-npc-list">${npcs.map((n, i) => {
+                const npcData = _npcCache[String(n.id)] || {};
+                const name    = npcData.NAME || `NPC #${n.id}`;
+                const av      = npcData.avatar;
+                return `
+                <div class="mp-npc-row" style="animation-delay:${i*40}ms">
+                    <div class="mp-npc-avatar">
+                        ${av ? `<img src="/data/icon/x4/${av}.png" onerror="this.src='/data/icon/x1/${av}.png';this.onerror=()=>{this.style.display='none';this.parentElement.textContent='🤖';}" />` : '🤖'}
+                    </div>
+                    <div class="mp-npc-info">
+                        <div class="mp-npc-name">${name}</div>
+                        <div class="mp-npc-id">ID: ${n.id}</div>
+                    </div>
+                    <span class="mp-npc-coords">📍 ${n.x}, ${n.y}</span>
+                    <button type="button" class="mp-npc-del-btn" data-npcid="${n.id}" data-npcname="${name.replace(/"/g, '&quot;')}" title="Xóa NPC khỏi bản đồ">🗑️</button>
+                </div>`;
+            }).join('')}</div>`
+            : '<div class="mp-empty">Chưa có NPC nào trên bản đồ</div>';
+
+        pane.innerHTML = `
+            <div class="mp-npc-pane-head">
+                <div class="mp-section-title">🤖 Danh sách NPC (${npcs.length})</div>
+                <button type="button" class="mp-npc-add-btn" id="mp-npc-add-btn">＋ Thêm NPC</button>
+            </div>
+            <div class="mp-npc-add-form" id="mp-npc-add-form">
+                <div class="mp-npc-add-title">➕ Thêm NPC vào bản đồ [${m.id}] ${m.NAME || ''}</div>
+                ${hasNpcsInSystem ? `
+                <div class="mp-form-grid">
+                    <div class="mp-form-group full">
+                        <label class="mp-form-label">Chọn NPC</label>
+                        <input type="hidden" id="mp-npc-add-id" value="" />
+                        <button type="button" class="mp-npc-pick-btn" id="mp-npc-pick-trigger">
+                            <div class="mp-npc-pick-preview" id="mp-npc-pick-preview">
+                                <div class="mp-npc-pick-placeholder">
+                                    <span class="mp-npc-pick-icon">🔍</span>
+                                    <span>Nhấn để chọn NPC (có avatar)...</span>
+                                </div>
+                                <span class="mp-npc-pick-arrow">Chọn ▾</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="mp-form-group">
+                        <label class="mp-form-label" for="mp-npc-add-x">Toạ độ X</label>
+                        <input class="mp-form-input" id="mp-npc-add-x" type="number" step="1" placeholder="VD: 400" />
+                    </div>
+                    <div class="mp-form-group">
+                        <label class="mp-form-label" for="mp-npc-add-y">Toạ độ Y</label>
+                        <input class="mp-form-input" id="mp-npc-add-y" type="number" step="1" placeholder="VD: 350" />
+                    </div>
+                </div>
+                <div class="mp-npc-add-actions">
+                    <button type="button" class="mp-save-btn"   id="mp-npc-add-confirm">➕ Thêm vào bản đồ</button>
+                    <button type="button" class="mp-cancel-btn" id="mp-npc-add-cancel">Hủy</button>
+                </div>`
+                : '<div class="mp-empty">Chưa có NPC nào trong hệ thống — hãy tạo NPC ở tab NPC trước.</div>'}
+            </div>
+            ${listHtml}`;
+
+        if (_selectedAddNpcId !== null) {
+            setAddNpcSelected(_selectedAddNpcId);
+        }
+    }
+
+    /** Tải lại danh sách NPC nếu cache đang rỗng */
+    async function ensureNpcCache() {
+        if (Object.keys(_npcCache).length) return;
+        const npcs = await fetch('/api/npcs').then(r => r.json()).catch(() => []);
+        _npcCache = {};
+        (Array.isArray(npcs) ? npcs : []).forEach(n => { _npcCache[String(n.id)] = n; });
+    }
+
+    /** Mở / đóng form thêm NPC (nếu cache NPC rỗng thì tải trước rồi mới mở) */
+    async function toggleNpcAddForm(force) {
+        if (!_current) return;
+        let form = document.getElementById('mp-npc-add-form');
+        if (!form) return;
+        const willOpen = typeof force === 'boolean' ? force : !form.classList.contains('open');
+        if (willOpen && !Object.keys(_npcCache).length) {
+            await ensureNpcCache();
+            renderNpcPane(_current);
+            form = document.getElementById('mp-npc-add-form');
+            if (!form) return;
+            form.classList.add('open');
+            return;
+        }
+        form.classList.toggle('open', willOpen);
+    }
+
+    /* ── Modal Chọn NPC (Picker) với Avatar ── */
+    function openNpcPicker() {
+        let picker = document.getElementById('mp-npc-picker');
+        if (!picker) {
+            picker = document.createElement('div');
+            picker.id = 'mp-npc-picker';
+            picker.className = 'mp-picker-overlay mp-hidden';
+            picker.innerHTML = `
+                <div class="mp-picker-dialog">
+                    <div class="mp-picker-header">
+                        <h3>🤖 Chọn NPC vào bản đồ</h3>
+                        <div class="mp-picker-search-wrap">
+                            <span>🔍</span>
+                            <input id="mp-npc-picker-search" type="text" placeholder="Tìm theo tên NPC hoặc ID..." autocomplete="off" />
+                        </div>
+                        <button id="mp-npc-picker-close" type="button">✕</button>
+                    </div>
+                    <div id="mp-npc-picker-grid" class="mp-picker-grid"></div>
+                </div>`;
+            document.body.appendChild(picker);
+        }
+
+        renderNpcPickerGrid('');
+        picker.classList.remove('mp-hidden');
+        document.body.style.overflow = 'hidden';
+        const searchInput = document.getElementById('mp-npc-picker-search');
+        if (searchInput) {
+            searchInput.value = '';
+            setTimeout(() => searchInput.focus(), 80);
+        }
+    }
+
+    function closeNpcPicker() {
+        const picker = document.getElementById('mp-npc-picker');
+        if (picker) picker.classList.add('mp-hidden');
+        const drawer = document.getElementById('mp-drawer');
+        if (!drawer || !drawer.classList.contains('open')) {
+            document.body.style.overflow = '';
+        }
+    }
+
+    function renderNpcPickerGrid(q) {
+        const grid = document.getElementById('mp-npc-picker-grid');
+        if (!grid) return;
+        const query = (q || '').trim().toLowerCase();
+        let list = Object.values(_npcCache || {}).sort((a, b) => Number(a.id) - Number(b.id));
+
+        if (query) {
+            list = list.filter(n => {
+                const name = (n.NAME || '').toLowerCase();
+                const idStr = String(n.id);
+                return name.includes(query) || idStr.includes(query);
+            });
+        }
+
+        if (!list.length) {
+            grid.innerHTML = '<div class="mp-picker-empty">Không tìm thấy NPC nào phù hợp</div>';
+            return;
+        }
+
+        grid.innerHTML = list.map(n => {
+            const av = n.avatar;
+            const avatarHtml = av
+                ? `<img src="/data/icon/x4/${av}.png" onerror="this.src='/data/icon/x1/${av}.png';this.onerror=()=>{this.style.display='none';this.parentElement.textContent='🤖';}" alt="${n.NAME || ''}" />`
+                : '🤖';
+            return `
+                <div class="mp-picker-item" data-id="${n.id}" title="${n.NAME || 'NPC #' + n.id}">
+                    <div class="mp-picker-avatar">${avatarHtml}</div>
+                    <div class="mp-picker-name">${n.NAME || 'NPC #' + n.id}</div>
+                    <div class="mp-picker-id">#${n.id}</div>
+                </div>`;
+        }).join('');
+
+        grid.querySelectorAll('.mp-picker-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const id = Number(el.dataset.id);
+                setAddNpcSelected(id);
+                closeNpcPicker();
+                document.getElementById('mp-npc-add-x')?.focus();
+            });
+        });
+    }
+
+    /** Gửi yêu cầu thêm NPC vào bản đồ (PUT /api/maps/{id}) */
+    async function confirmAddNpc() {
+        if (!_current || _current.id === null) {
+            toast('Hãy lưu bản đồ trước khi thêm NPC.', 'warning');
+            return;
+        }
+        const hiddenInp = document.getElementById('mp-npc-add-id');
+        const xEl = document.getElementById('mp-npc-add-x');
+        const yEl = document.getElementById('mp-npc-add-y');
+
+        const npcIdVal = hiddenInp?.value || (_selectedAddNpcId !== null ? String(_selectedAddNpcId) : '');
+        if (!npcIdVal) {
+            toast('Hãy nhấn chọn NPC cần thêm.', 'warning');
+            openNpcPicker();
+            return;
+        }
+
+        const npcId = Number(npcIdVal);
+        const x = Number(xEl.value), y = Number(yEl.value);
+        if (xEl.value === '' || yEl.value === '' || !Number.isFinite(x) || !Number.isFinite(y)) {
+            toast('Toạ độ X / Y không hợp lệ.', 'warning');
+            return;
+        }
+
+        const list = parseNpcsArr(_current.npcs);
+        if (list.some(e => Number(e[0]) === npcId)) {
+            toast(`NPC #${npcId} đã có sẵn trên bản đồ này.`, 'warning');
+            return;
+        }
+        list.push([npcId, Math.round(x), Math.round(y)]);
+
+        // Format DB: ["[id,x,y]","[id,x,y]"] — giống nút ⬡ Format / mpSave
+        const npcsDb = JSON.stringify(list.map(e => JSON.stringify(e)));
+
+        // PUT bắt buộc gửi đủ các field (thiếu field sẽ bị ghi NULL)
+        const payload = {
+            NAME:       _current.NAME,
+            zones:      _current.zones,
+            max_player: _current.max_player,
+            type:       _current.type,
+            planet_id:  _current.planet_id,
+            bg_type:    _current.bg_type,
+            tile_id:    _current.tile_id,
+            bg_id:      _current.bg_id,
+            data:       _current.data      || '[]',
+            waypoints:  _current.waypoints || '[]',
+            mobs:       _current.mobs      || '[]',
+            npcs:       npcsDb,
+        };
+
+        try {
+            const res  = await fetch(`/api/maps/${_current.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!data.success) {
+                toast('Thêm NPC thất bại: ' + (data.message || ''), 'error');
+                return;
+            }
+
+            // Cập nhật cache local
+            _current.npcs = npcsDb;
+            const idx = _all.findIndex(mm => Number(mm.id) === Number(_current.id));
+            if (idx >= 0) _all[idx].npcs = npcsDb;
+
+            // Reset selection
+            _selectedAddNpcId = null;
+            renderNpcPane(_current);
+            const count = document.getElementById('mp-info-npc-count');
+            if (count) count.textContent = list.length + ' NPC';
+            renderTable();
+
+            const nd = _npcCache[String(npcId)] || {};
+            toast(`Đã thêm NPC ${nd.NAME || '#' + npcId} vào bản đồ!`, 'success');
+        } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+    }
+
+    /** Xóa NPC khỏi bản đồ hiện tại (xác nhận 2 bước bằng confirmByToast) */
+    async function deleteMapNpc(npcId, npcName) {
+        if (!_current || _current.id === null) return;
+        const name = npcName || ('#' + npcId);
+
+        const list = parseNpcsArr(_current.npcs);
+        const nextList = list.filter(e => Number(e[0]) !== Number(npcId));
+
+        if (list.length === nextList.length) {
+            toast('Không tìm thấy NPC để xóa.', 'warning');
+            return;
+        }
+
+        const npcsDb = JSON.stringify(nextList.map(e => JSON.stringify(e)));
+        const payload = {
+            NAME:       _current.NAME,
+            zones:      _current.zones,
+            max_player: _current.max_player,
+            type:       _current.type,
+            planet_id:  _current.planet_id,
+            bg_type:    _current.bg_type,
+            tile_id:    _current.tile_id,
+            bg_id:      _current.bg_id,
+            data:       _current.data      || '[]',
+            waypoints:  _current.waypoints || '[]',
+            mobs:       _current.mobs      || '[]',
+            npcs:       npcsDb,
+        };
+
+        try {
+            const res = await fetch(`/api/maps/${_current.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (!data.success) {
+                toast('Xóa NPC thất bại: ' + (data.message || ''), 'error');
+                return;
+            }
+
+            _current.npcs = npcsDb;
+            const idx = _all.findIndex(mm => Number(mm.id) === Number(_current.id));
+            if (idx >= 0) _all[idx].npcs = npcsDb;
+
+            renderNpcPane(_current);
+            const count = document.getElementById('mp-info-npc-count');
+            if (count) count.textContent = nextList.length + ' NPC';
+            renderTable();
+
+            toast(`Đã xóa NPC ${name} khỏi bản đồ!`, 'success');
+        } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+    }
+
+    /* ── Events cho form thêm NPC (event delegation) ── */
+    document.addEventListener('click', async e => {
+        const delBtn = e.target.closest('.mp-npc-del-btn');
+        if (delBtn) {
+            const npcId = Number(delBtn.dataset.npcid);
+            const npcName = delBtn.dataset.npcname;
+            const ok = await showConfirmModal({
+                title: 'Xóa NPC khỏi bản đồ?',
+                message: `Xóa NPC ${npcName || '#' + npcId} khỏi bản đồ "${_current?.NAME || ''}"? Hành động này sẽ lưu ngay vào server.`,
+                confirmText: '🗑️ Xóa NPC',
+            });
+            if (ok) deleteMapNpc(npcId, npcName);
+            return;
+        }
+        if (e.target.closest('#mp-npc-add-btn'))      { toggleNpcAddForm();      return; }
+        if (e.target.closest('#mp-npc-add-cancel'))   { toggleNpcAddForm(false); return; }
+        if (e.target.closest('#mp-npc-add-confirm'))  { confirmAddNpc();         return; }
+        if (e.target.closest('#mp-npc-pick-trigger')) { openNpcPicker();         return; }
+        if (e.target.id === 'mp-npc-picker-close' || e.target.id === 'mp-npc-picker') {
+            closeNpcPicker();
+            return;
+        }
+    });
+
+    document.addEventListener('input', e => {
+        if (e.target.id === 'mp-npc-picker-search') {
+            clearTimeout(_npcPickerTimer);
+            _npcPickerTimer = setTimeout(() => renderNpcPickerGrid(e.target.value), 160);
+        }
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            const picker = document.getElementById('mp-npc-picker');
+            if (picker && !picker.classList.contains('mp-hidden')) {
+                closeNpcPicker();
+            }
         }
     });
 
@@ -703,7 +1084,13 @@
     /* ── Delete ── */
     window.mpDelete = async function(id) {
         const m = _all.find(x => Number(x.id) === Number(id));
-        if (!m || !confirm(`Xóa bản đồ "${m.NAME}" (ID: ${id})?`)) return;
+        if (!m) return;
+        const ok = await showConfirmModal({
+            title: 'Xóa bản đồ?',
+            message: `Xóa bản đồ "${m.NAME}" (ID: ${id})? Dữ liệu sẽ bị xóa vĩnh viễn.`,
+            confirmText: '🗑️ Xóa bản đồ',
+        });
+        if (!ok) return;
         try {
             const res  = await fetch(`/api/maps/${id}`, { method: 'DELETE' });
             const data = await res.json();

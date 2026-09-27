@@ -84,8 +84,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const deleteBtn = event.target.closest('.btn-action.delete');
-        if (deleteBtn && window.confirm('Bạn có chắc chắn muốn xóa dữ liệu này?')) {
-            deleteData(deleteBtn.dataset.type, deleteBtn.dataset.id);
+        if (deleteBtn) {
+            showConfirmModal({
+                title: 'Xóa dữ liệu?',
+                message: 'Bạn có chắc chắn muốn xóa dữ liệu này?',
+                confirmText: '🗑️ Xóa',
+            }).then(ok => { if (ok) deleteData(deleteBtn.dataset.type, deleteBtn.dataset.id); });
         }
     });
 

@@ -254,7 +254,12 @@
 
     /* ── Delete ── */
     async function deleteNpc(id) {
-        if (!confirm(`Xóa NPC #${id}?`)) return;
+        const ok = await showConfirmModal({
+            title: 'Xóa NPC?',
+            message: 'Xóa NPC #' + id + '?',
+            confirmText: '🗑️ Xóa NPC',
+        });
+        if (!ok) return;
         try {
             const res  = await fetch(`/api/npcs/${id}`, { method: 'DELETE' });
             const data = await res.json();

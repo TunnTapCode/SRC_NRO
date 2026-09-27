@@ -526,7 +526,12 @@
     }
 
     async function deleteItem(id) {
-        if (!confirm(`Xóa item #${id}?`)) return;
+        const ok = await showConfirmModal({
+            title: 'Xóa item?',
+            message: 'Xóa item #' + id + '?',
+            confirmText: '🗑️ Xóa item',
+        });
+        if (!ok) return;
         try {
             await fetch(`/api/item-shops/${id}`, { method:'DELETE' });
             toast('Đã xóa.', 'success'); await loadTab(_activeTabId);
