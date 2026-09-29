@@ -17,6 +17,26 @@ public class Santa extends Npc {
         super(mapId, status, cx, cy, tempId, avartar);
     }
 
+    /**
+     * Map duoc phep mo "Shop Vip" (tag SHOP_VIP trong bang shop, shop id 31).
+     * De trong {}  = moi map co NPC Santa deu mo duoc Shop Vip.
+     * Muon gioi han: dien mapId vao day, vi du { 5, 20, 156 }.
+     */
+    private static final int[] MAP_SHOP_VIP = {5, 20, 156 };
+
+    /** NPC Santa o map hien tai co duoc hien/cho mo Shop Vip khong */
+    private boolean canOpenShopVip() {
+        if (MAP_SHOP_VIP.length == 0) {
+            return true;
+        }
+        for (int mapIdShopVip : MAP_SHOP_VIP) {
+            if (mapIdShopVip == this.mapId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public void openBaseMenu(Player player) {
         if (canOpenNpc(player)) {
@@ -34,11 +54,15 @@ public class Santa extends Npc {
                     "Tiệm\nHớt tóc"
                     // ,
                     // "Danh\nhiệu",
-                    // "Shop Vip"
             ));
 
             if (soLuong >= 1) {
                 menu.add(1, "Giảm giá\n80%");
+            }
+
+            // Shop Vip luon nam cuoi menu (khong co phieu giam gia: chi so 4, co phieu: chi so 5)
+            if (canOpenShopVip()) {
+                menu.add("Shop Vip");
             }
 
             String[] menus = menu.toArray(new String[0]);
@@ -74,6 +98,11 @@ public void confirmMenu(Player player, int select) {
             case 4:
                 ShopService.gI().opendShop(player, "SANTA_HEAD", false);
                 break;
+            case 5:
+                if (canOpenShopVip()) {
+                    ShopService.gI().opendShop(player, "SHOP_VIP", false);
+                }
+                break;
         }
     } else {
         switch (select) {
@@ -88,6 +117,11 @@ public void confirmMenu(Player player, int select) {
                 break;
             case 3:
                 ShopService.gI().opendShop(player, "SANTA_HEAD", false);
+                break;
+            case 4:
+                if (canOpenShopVip()) {
+                    ShopService.gI().opendShop(player, "SHOP_VIP", false);
+                }
                 break;
         
     

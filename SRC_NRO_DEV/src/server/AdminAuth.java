@@ -678,21 +678,43 @@ public final class AdminAuth {
         return properties;
     }
 
-    private static boolean readBoolean(Properties properties, String key, boolean fallback) {
+    /**
+     * Đọc giá trị thô của một key và bỏ chú thích ghi cùng dòng.
+     *
+     * <p>{@link Properties#load} chỉ coi {@code #} là chú thích khi nó đứng đầu dòng,
+     * nên dòng kiểu {@code admin.auth.enabled=true   # bat xac thuc} sẽ được đọc thành
+     * cả chuỗi {@code "true   # bat xac thuc"} và làm giá trị boolean/số bị sai.</p>
+     *
+     * @return giá trị đã trim, hoặc null nếu key không tồn tại
+     */
+    private static String readRawValue(Properties properties, String key) {
         Object value = properties.get(key);
         if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        int commentIndex = text.indexOf('#');
+        if (commentIndex >= 0) {
+            text = text.substring(0, commentIndex).trim();
+        }
+        return text;
+    }
+
+    private static boolean readBoolean(Properties properties, String key, boolean fallback) {
+        String value = readRawValue(properties, key);
+        if (value == null || value.isEmpty()) {
             return fallback;
         }
-        return "true".equalsIgnoreCase(String.valueOf(value).trim());
+        return "true".equalsIgnoreCase(value);
     }
 
     private static int readInt(Properties properties, String key, int fallback) {
-        Object value = properties.get(key);
-        if (value == null) {
+        String value = readRawValue(properties, key);
+        if (value == null || value.isEmpty()) {
             return fallback;
         }
         try {
-            return Integer.parseInt(String.valueOf(value).trim());
+            return Integer.parseInt(value);
         } catch (NumberFormatException e) {
             return fallback;
         }
