@@ -173,6 +173,8 @@ public class ItemService {
                     return 30;
                 case 1716:
                     return 40;
+                case 1776:
+                    return  50;
                 default:
                     return 0;
             }
