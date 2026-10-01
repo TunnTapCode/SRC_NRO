@@ -282,6 +282,14 @@ public class UseItem {
                     case 25: {
                         InventoryService.gI().itemBagToBody(pl, indexBag);
                     }
+                    case 27: // item pet có model trong template (Pet Thỏ ốm, Pet Bí Ma Vương...) → trang bị slot 9
+                        if (item.template.head != -1 || item.template.body != -1 || item.template.leg != -1) {
+                            InventoryService.gI().itemBagToBody(pl, indexBag);
+                            Service.gI().point(pl);
+                            break;
+                        }
+                        // không có model → rơi xuống default xử lý theo id
+                        // (Đùi gà nướng, pet hardcode như Thỏ xám id 892...)
                     default:
                         switch (item.template.id) {
                             case 992: // Nhan thoi khong

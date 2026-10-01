@@ -8,6 +8,7 @@ import player.Pet;
 import player.Player;
 import network.Message;
 import services.ItemService;
+import services.PetService;
 import services.Service;
 import Deputyhead.Service.NgocRongNamecService;
 import map.Service.ChangeMapService;
@@ -119,6 +120,7 @@ public class InventoryService {
             removeItemBody(player, index);
             sendItemBody(player);
             Service.gI().Send_Caitrang(player);
+            syncPetFromBody(player);
         } else if (where == 1) {
             itemThrow = player.inventory.itemsBag.get(index);
             if (itemThrow.template != null && itemThrow.template.id == 570) {
@@ -296,7 +298,7 @@ public class InventoryService {
             case 23:
             case 24:
             case 11:
-            // case 27:
+            case 27: // item pet (Pet Thỏ ốm, Pet Bí Ma Vương...) — trang bị vào slot 9
             // case 25:
                 break;
             default:
@@ -347,12 +349,12 @@ public class InventoryService {
             case 24:
                 index = 7;
                 break;
-            // case 11:
-            //     index = 8;
-            //     break;
-            // case 27:
-            //     index = 7;
-            //     break;
+            case 11: // item đeo lưng (type 11) → slot 8, đọc bởi Player.getFlagBag()
+                index = 8;
+                break;
+            case 27: // item pet (type 27) → slot 9
+                index = 9;
+                break;
             // case 25:
             //     index = 10;
             //     break;
@@ -385,6 +387,47 @@ public class InventoryService {
             sendItemBody(player);
             Service.gI().point(player);
             Service.gI().Send_Caitrang(player);
+            syncPetFromBody(player);
+        }
+    }
+
+    /**
+     * Đồng bộ pet (NewPet) với item pet đang trang bị ở slot 9 của tab body.
+     *
+     * - Slot 9 có item type 27 có model (head/body/leg khác -1, vd: Pet Thỏ ốm
+     * id 1039): tạo mới pet nếu thiếu hoặc model khác. - Slot 9 có item type 27
+     * không có model (pet hardcode trong UseItem, vd: Thỏ xám id 892): giữ
+     * nguyên pet đang có (model do UseItem hardcode, không khôi phục được sau
+     * login). - Slot 9 trống hoặc không phải item pet: hủy pet đang theo người.
+     */
+    public void syncPetFromBody(Player player) {
+        if (player == null || player.isPet || player.isNewPet || player.inventory == null) {
+            return;
+        }
+        if (player.inventory.itemsBody.size() <= 9) {
+            return;
+        }
+        Item item = player.inventory.itemsBody.get(9);
+        boolean isPetItem = item.isNotNullItem() && item.template.type == 27;
+        boolean hasModel = isPetItem
+                && (item.template.head != -1 || item.template.body != -1 || item.template.leg != -1);
+        if (hasModel) {
+            boolean sameModel = player.newPet != null
+                    && player.newPet.head == (short) item.template.head
+                    && player.newPet.body == (short) item.template.body
+                    && player.newPet.leg == (short) item.template.leg;
+            if (!sameModel) {
+                if (player.newPet != null) {
+                    ChangeMapService.gI().exitMap(player.newPet);
+                    player.newPet.dispose();
+                    player.newPet = null;
+                }
+                PetService.Pet2(player, item.template.head, item.template.body, item.template.leg);
+            }
+        } else if (!isPetItem && player.newPet != null) {
+            ChangeMapService.gI().exitMap(player.newPet);
+            player.newPet.dispose();
+            player.newPet = null;
         }
     }
 
@@ -393,13 +436,6 @@ public class InventoryService {
         if (item.isNotNullItem()) {
             if (index == 12) {
                 Service.gI().sendPetFollow(player, (short) 0);
-            }
-            if (index == 7 && !player.isPet) {
-                if (player.newPet != null) {
-                    ChangeMapService.gI().exitMap(player.newPet);
-                    player.newPet.dispose();
-                    player.newPet = null;
-                }
             }
             player.inventory.itemsBody.set(index, putItemBag(player, item));
             sendItemBags(player);
@@ -410,6 +446,7 @@ public class InventoryService {
             Service.gI().Send_Caitrang(player);
             Service.gI().sendFlagBag(player);
             Service.gI().point(player);
+            syncPetFromBody(player);
         }
     }
 
@@ -519,7 +556,7 @@ public class InventoryService {
     }
 
     public void itemBodyToBox(Player player, int index) {
-        if (index < 0 || index >= player.inventory.itemsBody.size()) {
+        if (index >= 0 && index < player.inventory.itemsBody.size()) {
             Item item = player.inventory.itemsBody.get(index);
             if (item.isNotNullItem()) {
                 player.inventory.itemsBody.set(index, putItemBox(player, item));
@@ -528,6 +565,7 @@ public class InventoryService {
                 sendItemBox(player);
                 Service.gI().point(player);
                 Service.gI().Send_Caitrang(player);
+                syncPetFromBody(player);
             }
         }
     }

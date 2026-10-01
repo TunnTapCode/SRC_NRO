@@ -4,6 +4,7 @@ import boss.Boss;
 import boss.BossManager.BossManager;
 import consts.ConstAchievement;
 import player.Service.ClanService;
+import player.Service.InventoryService;
 import services.ChatGlobalService;
 import services.SubMenuService;
 import services.Service;
@@ -808,6 +809,9 @@ public class Controller implements IMessageHandler {
         && player.inventory.itemsBody.get(10).isNotNullItem()) {
     Service.gI().sendChibi(player);
 }
+
+                            // Khôi phục pet từ item pet đang trang bị ở slot 9 tab body
+                            InventoryService.gI().syncPetFromBody(player);
 
                             player.zone.mapInfo(player);
                             if (player.getSession().version >= 231) {
