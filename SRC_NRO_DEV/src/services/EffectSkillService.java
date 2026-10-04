@@ -597,7 +597,7 @@ public class EffectSkillService {
     }
 
     public void removeBodyChangeTechnique(Player player) {
-        PlayerService.gI().changeAndSendTypePK(player, 0);
-        player.effectSkill.isTanHinh = false;
+        player.effectSkill.isBodyChangeTechnique = false;
+        PlayerService.gI().changeAndSendTypePK(player, ConstPlayer.NON_PK);
     }
 }

@@ -56,6 +56,9 @@ public class Mob {
     public int status = 5;
     public int type = 1;
 
+    /** Map Cold: đồ thần linh rơi kèm random từ 1-6 sao pha lê */
+    private static final int STAR_MAX_MAP_COLD = 4;
+
     private long lastTimeAttackPlayer;
     private long timeAttack = 2000;
     public long lastTimePhucHoi = System.currentTimeMillis();
@@ -883,15 +886,20 @@ public class Mob {
                 it.options.add(new Item.ItemOption(opId, Util.nextInt(1, 5)));
 
                 // RANDOM SAO
-                int randAddOption = Util.nextInt(100);
+                // Map Cold: random 1-6 sao pha lê · Map Tương lai: giữ nguyên tỉ lệ cũ 1-3 sao
                 int star;
 
-                if (randAddOption < 50) {
-                    star = 1;
-                } else if (randAddOption < 99) {
-                    star = 2;
+                if (MapService.gI().isMapCold(mapid)) {
+                    star = Util.nextInt(1, STAR_MAX_MAP_COLD);
                 } else {
-                    star = 3;
+                    int randAddOption = Util.nextInt(100);
+                    if (randAddOption < 50) {
+                        star = 1;
+                    } else if (randAddOption < 99) {
+                        star = 2;
+                    } else {
+                        star = 3;
+                    }
                 }
 
                 // GẮN SAO (OPTION 107)

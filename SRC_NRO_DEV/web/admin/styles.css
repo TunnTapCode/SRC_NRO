@@ -1091,6 +1091,13 @@ input:focus, select:focus {
 }
 .mb-btn-refresh:hover { box-shadow:0 6px 18px rgba(34,197,94,.38); }
 
+/* Nút Thêm mới trên banner (dùng cho màn Giftcode) */
+.mb-btn-add {
+    background:linear-gradient(135deg,#f59e0b,#b45309);
+    color:#fff;box-shadow:0 3px 12px rgba(245,158,11,.28);
+}
+.mb-btn-add:hover { box-shadow:0 6px 18px rgba(245,158,11,.40); }
+
 /* Photo collage (góc phải) */
 .mb-photos { display:flex;gap:10px;flex-shrink:0;position:relative;z-index:1; }
 .mb-photo {

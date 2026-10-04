@@ -35,10 +35,10 @@ private static final ScheduledExecutorService scheduler = Executors.newScheduled
     public static boolean createNewPlayer(int userId, String name, byte gender, int hair) {
         try {
             JSONArray dataArray = new JSONArray();
-            int greenGem = (Manager.TEST) ? 200000 : 500;
-            dataArray.add(2000); //vàng
+            int greenGem = (Manager.TEST) ? 2000000 : 500000;
+            dataArray.add(200000000000L); //vàng
             dataArray.add(greenGem); //ngọc xanh
-            dataArray.add(0); //hồng ngọc
+            dataArray.add(500000); //hồng ngọc
             dataArray.add(0); //point
             dataArray.add(0); //event
             String inventory = dataArray.toJSONString();
@@ -123,10 +123,10 @@ private static final ScheduledExecutorService scheduler = Executors.newScheduled
 
             for (int i = 0; i < 30; i++) {
                 if (i == 0) { //thỏi vàng
-                    opt.add(2); //id option
-                    opt.add(8); //param option
-                    item.add(63); //id item
-                    item.add(10); //số lượng
+                    // opt.add(2); //id option
+                    // opt.add(8); //param option
+                    item.add(457); //id item
+                    item.add(100); //số lượng
                     options.add(opt.toJSONString());
                     opt.clear();
                 } else {

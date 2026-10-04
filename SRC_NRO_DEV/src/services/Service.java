@@ -455,6 +455,64 @@ public class Service {
             } catch (Exception e) {
                 Logger.logException(Service.class, e);
             }
+            // Giá tiềm năng nâng chỉ số gốc — gửi kèm để panel của client hiển thị đúng
+            sendPointUpgradeCost(player);
+        }
+    }
+
+    /** Số nấc client gửi lên Command 16 cho các nút nâng nhanh: 1 = +20, 10 = +200, 100 = +2000 (HP/KI). */
+    private static final byte[] QUICK_UP_POINTS = {1, 10, 100};
+
+    /** Các loại chỉ số gốc có thể nâng bằng tiềm năng. */
+    private static final byte[] UP_POINT_TYPES = {0, 1, 2, 3, 4};
+
+    /**
+     * Gửi BẢNG GIÁ tiềm năng nâng chỉ số gốc xuống client (dùng chung kênh
+     * {@code Message 112} với thông tin nội tại, chỉ khác {@code type}) để panel
+     * "+20HP / +200HP / +2000HP / Giáp gốc / Chí mạng gốc" hiển thị đúng số tiềm năng
+     * thay vì client tự tính.
+     *
+     * <pre>
+     * Message(112)
+     *   byte  type = 2            // 2 = bảng giá nâng chỉ số gốc
+     *   byte  soLoaiChiSo         // số loại chỉ số gửi kèm
+     *   lặp soLoaiChiSo lần:
+     *     byte  statType          // 0 = HP gốc, 1 = KI gốc, 2 = Sức đánh gốc,
+     *                             // 3 = Giáp gốc, 4 = Chí mạng gốc
+     *     byte  soMuc             // số mức (nấc) của loại chỉ số này
+     *     lặp soMuc lần:
+     *       byte     point        // số nấc gửi lên Command 16 (1 nấc HP/KI = 20)
+     *       long     tiemNang     // tiềm năng cần dùng
+     *       boolean  coTheNang    // false = đã chạm trần giới hạn sức mạnh
+     * </pre>
+     *
+     * @param player nhân vật nhận bảng giá
+     */
+    public void sendPointUpgradeCost(Player player) {
+        if (player == null || player.nPoint == null || !player.isPl()) {
+            return;
+        }
+        Message msg = null;
+        try {
+            msg = new Message(112);
+            msg.writer().writeByte(2);                        // type = bảng giá nâng chỉ số gốc
+            msg.writer().writeByte(UP_POINT_TYPES.length);    // số loại chỉ số
+            for (byte type : UP_POINT_TYPES) {
+                msg.writer().writeByte(type);
+                msg.writer().writeByte(QUICK_UP_POINTS.length);
+                for (byte point : QUICK_UP_POINTS) {
+                    msg.writer().writeByte(point);
+                    msg.writer().writeLong(player.nPoint.calcTiemNangUse(type, point));
+                    msg.writer().writeBoolean(player.nPoint.canIncreasePoint(type, point));
+                }
+            }
+            player.sendMessage(msg);
+        } catch (Exception e) {
+            Logger.logException(Service.class, e);
+        } finally {
+            if (msg != null) {
+                msg.cleanup();
+            }
         }
     }
 

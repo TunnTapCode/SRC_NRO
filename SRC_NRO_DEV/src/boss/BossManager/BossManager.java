@@ -444,10 +444,20 @@ public class BossManager implements Runnable {
         while (ServerManager.isRunning) {
             try {
                 long st = System.currentTimeMillis();
-                for (Boss boss : this.bosses) {
-                    boss.update();
+                // Duyệt trên bản sao + try/catch riêng cho từng boss: nếu 1 boss lỗi
+                // thì các boss còn lại vẫn được update (trước đây 1 boss lỗi làm cả vòng
+                // update bị bỏ, các boss đứng sau nó bị "đóng băng").
+                for (Boss boss : new ArrayList<>(this.bosses)) {
+                    try {
+                        boss.update();
+                    } catch (Exception e) {
+                        Logger.logException(BossManager.class, e, "Lỗi update boss " + boss.id);
+                    }
                 }
-                Thread.sleep(150 - (System.currentTimeMillis() - st));
+                long elapsed = System.currentTimeMillis() - st;
+                if (elapsed < 150) {
+                    Thread.sleep(150 - elapsed);
+                }
             } catch (Exception ignored) {
             }
         }

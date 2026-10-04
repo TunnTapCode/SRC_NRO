@@ -9,6 +9,7 @@ import player.Player;
 import services.EffectSkillService;
 import services.Service;
 import services.TaskService;
+import utils.Logger;
 import utils.Util;
 
 public class TDT extends Boss {
@@ -76,7 +77,19 @@ public synchronized int injured(Player plAtt, long damage, boolean piercing, boo
 
 
     @Override
-public void reward(Player plKill) {
+    public void reward(Player plKill) {
+        if (this.zone == null || this.zone.map == null) {
+            return;
+        }
+        try {
+            rewardItem(plKill);
+        } catch (Exception e) {
+            Logger.logException(TDT.class, e, "Lỗi rơi đồ khi hạ boss " + this.name);
+        }
+    }
+
+    /** Rơi đồ + cộng nhiệm vụ. Tách riêng để lỗi 1 phần không làm hỏng phần còn lại. */
+    private void rewardItem(Player plKill) {
     TaskService.gI().checkDoneTaskKillBoss(plKill, this);
 
     // Thả vàng mặc định

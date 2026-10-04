@@ -332,9 +332,9 @@ public class BaHatMit extends Npc {
                             //     break;
                             case 0:
                                 createOtherMenu(player, ConstNpc.MENU_OPTION_SHOP_BUA, "Bùa của ta rất lợi hại, nhìn ngươi yếu đuối thế này, chắc muốn mua bùa để " + "mạnh mẽ à, mua không ta bán cho, xài rồi lại thích cho mà xem.",
-                                        // "Bùa\n1 giờ",
-                                        // "Bùa\n8 giờ"
-                                        // ,
+                                        "Bùa\n1 giờ",
+                                        "Bùa\n8 giờ"
+                                        ,
                                         "Bùa\n1 tháng"
                                         , "Đóng");
                                 break;
@@ -385,11 +385,11 @@ public class BaHatMit extends Npc {
                         DoiSachTuyetKy.doiSachTuyetKy(player);
                     } else if (player.idMark.getIndexMenu() == ConstNpc.MENU_OPTION_SHOP_BUA) {
                         switch (select) {
-                            // case 0 ->
-                            //     ShopService.gI().opendShop(player, "BUA_1H", true);
-                            // case 1 ->
-                            //     ShopService.gI().opendShop(player, "BUA_8H", true);
+                            case 0 ->
+                                ShopService.gI().opendShop(player, "BUA_1H", true);
                             case 1 ->
+                                ShopService.gI().opendShop(player, "BUA_8H", true);
+                            case 2 ->
                                 ShopService.gI().opendShop(player, "BUA_1M", true);
                         }
                     } else if (player.idMark.getIndexMenu() == ConstNpc.MENU_START_COMBINE) {

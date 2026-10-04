@@ -14,6 +14,7 @@ import services.func.Input;
 import map.Service.ChangeMapService;
 import map.Service.NpcService;
 import player.Service.InventoryService;
+import utils.Logger;
 import utils.SystemMetrics;
 
 import java.util.HashMap;
@@ -56,25 +57,44 @@ public class Command {
                 "Ngọc rồng", "Đệ tử", "Bảo trì", "Tìm kiếm\nngười chơi", "Boss", "Đóng"));
     }
 
+    /** Lấy số trong phần tham số của lệnh, ví dụ "n 20" -> 20. Trả null nếu sai cú pháp. */
+    private static Integer parseIntArg(Player player, String command, String text) {
+        try {
+            return Integer.valueOf(text.substring(command.length()).trim());
+        } catch (Exception e) {
+            Service.gI().sendThongBao(player, "Sai cú pháp: " + command + " <só>");
+            return null;
+        }
+    }
+
     private void initParameterizedCommands() {
     parameterizedCommands.put("m", (player, text) -> {
-            int mapId = Integer.parseInt(text.replace("m", "").trim());
-            ChangeMapService.gI().changeMapInYard(player, mapId, -1, -1);
+            Integer mapId = parseIntArg(player, "m", text);
+            if (mapId != null) {
+                ChangeMapService.gI().changeMapInYard(player, mapId, -1, -1);
+            }
         });
 
     parameterizedCommands.put("toado", (player, text) -> {
             Service.gI().sendThongBaoOK(player, "x: " + player.location.x + " - y: " + player.location.y);
         });
     parameterizedCommands.put("n", (player, text) -> {
-                    int idTask = Integer.parseInt(text.replaceAll("n", "").trim());
+                    Integer idTask = parseIntArg(player, "n", text);
+                    if (idTask == null || player.playerTask == null || player.playerTask.taskMain == null) {
+                        return;
+                    }
                     player.playerTask.taskMain.id = idTask - 1;
                     player.playerTask.taskMain.index = 0;
                     TaskService.gI().sendNextTaskMain(player);
             });
         parameterizedCommands.put("i", (player, text) -> {
-            int itemId = Integer.parseInt(text.replace("i", "").trim());
-            Item item = ItemService.gI().createNewItem(((short) itemId));
-            List<Item.ItemOption> ops = ItemService.gI().getListOptionItemShop((short) itemId);
+            Integer itemId = parseIntArg(player, "i", text);
+            if (itemId == null) {
+                return;
+            }
+            short id = itemId.shortValue();
+            Item item = ItemService.gI().createNewItem(id);
+            List<Item.ItemOption> ops = ItemService.gI().getListOptionItemShop(id);
             if (!ops.isEmpty()) {
                 item.itemOptions = ops;
             }
@@ -158,13 +178,26 @@ parameterizedCommands.put("up", (player, text) -> {
     public boolean check(Player player, String text) {
         if (player.isAdmin()) {
             if (adminCommands.containsKey(text)) {
-                adminCommands.get(text).accept(player);
+                try {
+                    adminCommands.get(text).accept(player);
+                } catch (Exception e) {
+                    Logger.logException(Command.class, e, "Lỗi lệnh '" + text + "' của " + player.name);
+                }
                 return true;
             }
 
             for (Map.Entry<String, BiConsumer<Player, String>> entry : parameterizedCommands.entrySet()) {
-                if (text.startsWith(entry.getKey())) {
-                    entry.getValue().accept(player, text);
+                String key = entry.getKey();
+                // Chỉ khớp khi gõ ĐÚNG lệnh hoặc lệnh + khoảng trắng.
+                // Nếu chỉ dùng startsWith() thì gõ "n" sẽ ăn vào lệnh "n",
+                // gõ "no"/"nguoi" cũng khớp -> Integer.parseInt("") -> NumberFormatException
+                // làm cả gói chat (message 44) bị hủy trong Controller.onMessage.
+                if (text.equals(key) || text.startsWith(key + " ")) {
+                    try {
+                        entry.getValue().accept(player, text);
+                    } catch (Exception e) {
+                        Logger.logException(Command.class, e, "Lỗi lệnh '" + key + "' của " + player.name);
+                    }
                     return true;
                 }
             }

@@ -44,6 +44,7 @@ import static consts.BossType.TRUNGTHU_EVENT;
 import static consts.BossType.YARDART;
 import network.Message;
 import java.util.List;
+import map.ItemMap;
 import map.Zone;
 import mob.Mob;
 import player.Pet;
@@ -75,6 +76,16 @@ public class Boss extends Player implements IBoss {
 
     protected long lastTimeRest;
     protected int secondsRest;
+
+    /** Thời điểm boss chết (đặt trong {@link #die(Player)}). */
+    protected long lastTimeDie;
+
+    /**
+     * Boss đã chết tối đa bao lâu thì bắt buộc phải rời map.
+     * Chốt chặn cuối cùng: nếu {@code chatE()/doneChatE()} hoặc {@code leaveMap()} bị lỗi,
+     * boss sẽ không bị kẹt ở DIE/CHAT_E và đứng chết trong map vĩnh viễn.
+     */
+    protected static final long TIME_DIE_TO_LEAVE_MAP = 10000;
 
     protected long lastTimeChatS;
     protected int timeChatS;
@@ -297,6 +308,18 @@ public class Boss extends Player implements IBoss {
 
     @Override
     public void changeStatus(BossStatus status) {
+        // Boss đã chết và đang trong luồng rời map (DIE/CHAT_E/LEAVE_MAP) thì KHÔNG được
+        // quay lại ACTIVE/AFK/CHAT_S.
+        // Nếu không, ví dụ SO_1 và SO_2 (Tiểu đội sát thủ) gọi
+        // parentBoss.changeStatus(ACTIVE) trong doneChatE() — 2 boss này chatE() xong
+        // lệch nhau vài giây nên nếu TDT bị hạ giữa chừng, SO còn lại sẽ "hồi sinh" TDT
+        // về ACTIVE: boss đã chết lại đứng trong map và đánh tiếp, không bao giờ bay đi.
+        if (this.isDie()
+                && (this.bossStatus == BossStatus.DIE || this.bossStatus == BossStatus.CHAT_E
+                        || this.bossStatus == BossStatus.LEAVE_MAP || this.bossStatus == BossStatus.REST)
+                && (status == BossStatus.ACTIVE || status == BossStatus.AFK || status == BossStatus.CHAT_S)) {
+            return;
+        }
         this.bossStatus = status;
     }
 
@@ -343,6 +366,15 @@ public class Boss extends Player implements IBoss {
         if (prepareBom) {
             return;
         }
+        // Tự chữa lành: HP đã = 0 nhưng bossStatus chưa về DIE.
+        // Xảy ra khi boss bị setDie() gọi trực tiếp mà không đi qua die() — ví dụ
+        // NPoint.setHP(hp <= 0) → Player.setDie(). Lúc đó boss đã chết (client nhận
+        // packet -8, HP = 0) nhưng vẫn ở ACTIVE nên tiếp tục đánh và đứng trong map.
+        // Ép trạng thái để luồng DIE -> CHAT_E -> LEAVE_MAP chạy tiếp.
+        if (this.isDie() && (this.bossStatus == BossStatus.ACTIVE || this.bossStatus == BossStatus.CHAT_S)) {
+            this.lastTimeDie = System.currentTimeMillis();
+            this.changeStatus(BossStatus.DIE);
+        }
         super.update();
         this.nPoint.mp = this.nPoint.mpg;
         if (this.effectSkill == null || this.effectSkill.isHaveEffectSkill() || (this.newSkill != null && this.newSkill.isStartSkillSpecial)) {
@@ -380,11 +412,16 @@ public class Boss extends Player implements IBoss {
                 }
                 this.active();
             }
-            case DIE ->
+            case DIE -> {
+                this.lastTimeDie = System.currentTimeMillis();
                 this.changeStatus(BossStatus.CHAT_E);
+            }
             case CHAT_E -> {
                 if (chatE()) {
                     this.doneChatE();
+                    this.changeStatus(BossStatus.LEAVE_MAP);
+                } else if (Util.canDoWithTime(lastTimeDie, TIME_DIE_TO_LEAVE_MAP)) {
+                    // Boss đã chết quá 10s mà vẫn chưa sang LEAVE_MAP -> ép rời map
                     this.changeStatus(BossStatus.LEAVE_MAP);
                 }
             }
@@ -632,15 +669,120 @@ public class Boss extends Player implements IBoss {
     @Override
     public void die(Player plKill) {
         if (plKill != null) {
-            reward(plKill);
-            ServerNotify.gI().notify(plKill.name + ": Đã tiêu diệt được " + this.name + " mọi người đều ngưỡng mộ.");
+            // reward() bị override ở 15+ lớp boss và có thể văng exception
+            // (item template thiếu, taskMain null, plKill thiếu field...).
+            // Nếu không chặn lỗi thì changeStatus(DIE) không bao giờ chạy →
+            // boss đã chết (HP = 0) nhưng kẹt vĩnh viễn ở AFK/ACTIVE và không bay khỏi map.
+            try {
+                reward(plKill);
+            } catch (Exception e) {
+                Logger.logException(Boss.class, e, "Lỗi trao thưởng cho boss " + this.name);
+            }
+            try {
+                ServerNotify.gI().notify(plKill.name + ": Đã tiêu diệt được " + this.name + " mọi người đều ngưỡng mộ.");
+            } catch (Exception e) {
+                Logger.logException(Boss.class, e);
+            }
         }
+        this.lastTimeDie = System.currentTimeMillis();
         this.changeStatus(BossStatus.DIE);
     }
 
     @Override
     public void reward(Player plKill) {
         TaskService.gI().checkDoneTaskKillBoss(plKill, this);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  RƠI THỎI VÀNG KHI HẠ BOSS (từ Tiểu đội sát thủ trở đi)
+    // ══════════════════════════════════════════════════════════
+
+    /** Item "Thỏi vàng" — đổi 500.000.000 vàng/thỏi (xem services/func/Input.java) */
+    public static final short ITEM_THOI_VANG = 457;
+
+    /** Số lượng thỏi vàng nhỏ nhất / lớn nhất rơi ra (tỉ lệ rơi 100%) */
+    public static final int THOI_VANG_MIN = 1;
+    public static final int THOI_VANG_MAX = 10;
+
+    /**
+     * Danh sách boss ĐƯỢC rơi thỏi vàng: từ Tiểu đội sát thủ trở đi.
+     * Muốn thêm/bớt boss chỉ cần sửa mảng này — boss sự kiện, phó bản, boss tập luyện,
+     * đấu trường cố tình KHÔNG có trong danh sách.
+     */
+    private static final int[] BOSS_DROP_THOI_VANG_ID = {
+        // Tiểu đội sát thủ + Tiểu đội trưởng (bản Xayda và bản Namek)
+        BossID.SO_4, BossID.SO_3, BossID.SO_2, BossID.SO_1, BossID.TIEU_DOI_TRUONG,
+        BossID.SO_4_NM, BossID.SO_3_NM, BossID.SO_2_NM, BossID.SO_1_NM, BossID.TIEU_DOI_TRUONG_NM,
+        // Fide đại ca, Cooler, Android 19 / Dr.Kôrê / 15 / 14 / 13, Poc / Pic / King Kong
+        BossID.FIDE, BossID.COOLER,
+        BossID.ANDROID_19, BossID.DR_KORE, BossID.ANDROID_15, BossID.ANDROID_14, BossID.ANDROID_13,
+        BossID.POC, BossID.PIC, BossID.KING_KONG,
+        // Siêu Frieza + đội Xên (Xen bọ hùng, Siêu bọ hùng, 7 Xên con)
+        BossID.GOLDEN_FRIEZA,
+        BossID.XEN_BO_HUNG, BossID.SIEU_BO_HUNG,
+        BossID.XEN_CON_1, BossID.XEN_CON_2, BossID.XEN_CON_3, BossID.XEN_CON_4,
+        BossID.XEN_CON_5, BossID.XEN_CON_6, BossID.XEN_CON_7,
+        // Majin Buu 12H: Drabura, Bui Bui, Yacon, Mabu
+        BossID.DRABURA, BossID.DRABURA_2, BossID.BUI_BUI, BossID.BUI_BUI_2, BossID.YA_CON, BossID.MABU,
+    };
+
+    // TODO: bổ sung 5% rơi đồ VIP (số lượng 1-3) — chờ chốt item id
+    // public static final short ITEM_VIP = ...;
+    // public static final int TI_LE_ITEM_VIP = 5;  // 5%
+
+    /** Boss này có rơi thỏi vàng không? (từ Tiểu đội sát thủ trở đi) */
+    private boolean isBossDropGoldBar() {
+        for (int bossId : BOSS_DROP_THOI_VANG_ID) {
+            if (this.id == bossId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Móc duy nhất cho MỌI boss: mọi lớp boss đều gọi {@code this.setDie(plAtt)} ngay
+     * trước {@code die(plAtt)} (die()/reward() bị override ở 15+ lớp nên không dùng được).
+     */
+    @Override
+    protected void setDie(Player plAtt) {
+        super.setDie(plAtt);
+        dropGoldBar(plAtt);
+    }
+
+    /**
+     * Rơi 1-10 thỏi vàng (tỉ lệ 100%) cho người hạ boss khi hạ boss từ Tiểu đội sát thủ trở đi.
+     * Đệ tử hạ boss thì phần thưởng quy cho sư phụ.
+     */
+    private void dropGoldBar(Player plKill) {
+        try {
+            if (plKill == null || plKill == this || this.zone == null || this.zone.map == null) {
+                return;
+            }
+            // Chỉ boss từ Tiểu đội sát thủ trở đi mới rơi thỏi vàng
+            if (!isBossDropGoldBar()) {
+                return;
+            }
+            if (plKill.isPet) {
+                Pet pet = (Pet) plKill;
+                if (pet.master == null || pet.master == this) {
+                    return;
+                }
+                plKill = pet.master;
+            }
+            if (!plKill.isPl()) {
+                return;
+            }
+
+            int quantity = Util.nextInt(THOI_VANG_MIN, THOI_VANG_MAX); // 1-10 thỏi vàng, tỉ lệ 100%
+            int x = this.location.x + Util.nextInt(-10, 10);
+            int y = this.zone.map.yPhysicInTop(this.location.x, this.location.y - 24);
+            ItemMap thoiVang = new ItemMap(this.zone, ITEM_THOI_VANG, quantity, x, y, plKill.id);
+            Service.gI().dropItemMap(this.zone, thoiVang);
+            Service.gI().sendThongBao(plKill, "Bạn nhận được " + quantity + " thỏi vàng từ " + this.name);
+        } catch (Exception e) {
+            Logger.logException(Boss.class, e);
+        }
     }
 
     @Override

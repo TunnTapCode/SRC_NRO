@@ -18,6 +18,8 @@
                     <div class="mb-actions">
                         <button class="mb-btn mb-btn-primary" onclick="showTab('dashboard')">🏠 Go Panel</button>
                         <button class="mb-btn mb-btn-refresh" onclick="loadTableData('giftcodes')">🔄 Làm Mới</button>
+                        <!-- Nút Thêm mới được chuyển từ topbar xuống banner của màn Giftcode -->
+                        <button class="mb-btn mb-btn-add" id="gc-banner-add-btn" type="button">＋ Thêm mới</button>
                     </div>
                 </div>
             </div>
@@ -99,6 +101,51 @@
             <button class="gc-picker-close" id="gc-picker-close">✕</button>
         </div>
         <div id="gc-picker-grid" class="gc-picker-grid"></div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     POPUP XUẤT GIFTCODE (thay cho prompt/alert)
+════════════════════════════════════════ -->
+<div id="gc-export-popup" class="gc-picker-overlay gc-hidden" aria-modal="true" role="dialog" aria-labelledby="gc-export-title">
+    <div class="gc-export-dialog">
+        <div class="gc-export-head">
+            <span class="gc-export-icon">🎁</span>
+            <h3 class="gc-export-title" id="gc-export-title">XUẤT GIFTCODE</h3>
+            <button type="button" class="gc-picker-close" id="gc-export-close" aria-label="Đóng">✕</button>
+        </div>
+
+        <form id="gc-export-form" class="gc-export-form" novalidate>
+            <!-- Tóm tắt vật phẩm sẽ có trong code -->
+            <div class="gc-export-summary" id="gc-export-summary"></div>
+
+            <label class="gc-export-field">
+                <span class="gc-export-label">Mã Gift Code <b>*</b></span>
+                <input type="text" id="gc-export-code" class="gc-export-input"
+                       placeholder="VD: TAN2026VIP" autocomplete="off" maxlength="50" />
+            </label>
+
+            <label class="gc-export-field">
+                <span class="gc-export-label">Số lượng code (số người được dùng) <b>*</b></span>
+                <input type="number" id="gc-export-count" class="gc-export-input"
+                       min="1" step="1" value="1" />
+            </label>
+
+            <label class="gc-export-field">
+                <span class="gc-export-label">Ngày hết hạn</span>
+                <input type="text" id="gc-export-expired" class="gc-export-input"
+                       placeholder="yyyy-MM-dd HH:mm:ss" autocomplete="off" />
+                <span class="gc-export-hint">
+                    Để trống — hệ thống tự lấy ngày <b>01/01 của năm sau</b>
+                    (<span id="gc-export-expired-default"></span>).
+                </span>
+            </label>
+
+            <div class="gc-export-actions">
+                <button type="button" class="gc-btn gc-btn-back" id="gc-export-cancel">Hủy</button>
+                <button type="submit" class="gc-btn gc-btn-export" id="gc-export-submit">XUẤT GIFTCODE</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -420,25 +467,112 @@
     }
 
     /* ══════════════════════
-       EXPORT / SAVE
+       EXPORT / SAVE — nhập thông tin qua POPUP
     ══════════════════════ */
-    async function exportGiftcode() {
-        const valid = _items.filter(i => i.itemId && i.quantity > 0);
+    /* ── Các hàm hỗ trợ xuất giftcode ── */
+
+    /* Ngày hết hạn mặc định: 01/01 của năm sau → yyyy-01-01 00:00:00 */
+    function defaultExpired() {
+        return (new Date().getFullYear() + 1) + '-01-01 00:00:00';
+    }
+
+    /* Chuẩn hoá ngày hết hạn:
+       - để trống      → defaultExpired() (đầu năm sau)
+       - chỉ có ngày   → bù thêm 00:00:00
+       - sai định dạng → null */
+    function normalizeExpired(raw) {
+        const value = (raw || '').trim();
+        if (!value) return defaultExpired();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value + ' 00:00:00';
+        if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)) return null;
+        return value;
+    }
+
+    function getValidItems() {
+        return _items.filter(i => i.itemId && i.quantity > 0);
+    }
+
+    /* ── Mở popup nhập thông tin giftcode (thay cho prompt/alert) ── */
+    function openExportPopup() {
+        const valid = getValidItems();
         if (valid.length === 0) {
             toast('Vui lòng thêm ít nhất 1 vật phẩm hợp lệ.', 'warning');
             return;
         }
+
+        const overlay = document.getElementById('gc-export-popup');
+        if (!overlay) return;
 
         // Nếu đang sửa, lấy row cũ để điền default
         const existingRow = _editId
             ? (state.data['giftcodes'] || []).find(r => Number(r.id) === _editId)
             : null;
 
-        const code = prompt('Mã Gift Code:', existingRow ? existingRow.code : '');
-        if (!code || !code.trim()) return;
-        const countLeft = Number(prompt('Số lượng code (số người được dùng):', existingRow ? existingRow.count_left : '1') || '0');
-        if (!countLeft || countLeft < 1) { toast('Số lượng không hợp lệ.', 'warning'); return; }
-        const expired = prompt('Ngày hết hạn (yyyy-MM-dd HH:mm:ss)\nĐể trống = không giới hạn:', existingRow ? (existingRow.expired || '') : '') || '';
+        // Tóm tắt vật phẩm có trong code
+        const totalQty = valid.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
+        const summary  = document.getElementById('gc-export-summary');
+        if (summary) {
+            summary.innerHTML = '📦 <b>' + valid.length + '</b> vật phẩm · Tổng <b>' + totalQty + '</b> phần thưởng';
+        }
+
+        const title = document.getElementById('gc-export-title');
+        if (title) title.textContent = _editId ? 'CẬP NHẬT GIFTCODE' : 'XUẤT GIFTCODE';
+
+        const codeInput    = document.getElementById('gc-export-code');
+        const countInput   = document.getElementById('gc-export-count');
+        const expiredInput = document.getElementById('gc-export-expired');
+        if (codeInput)    codeInput.value    = existingRow ? (existingRow.code || '') : '';
+        if (countInput)   countInput.value   = existingRow ? (existingRow.count_left ?? 1) : 1;
+        if (expiredInput) expiredInput.value = existingRow ? (existingRow.expired || '') : '';
+
+        const defaultHint = document.getElementById('gc-export-expired-default');
+        if (defaultHint) defaultHint.textContent = defaultExpired();
+
+        overlay.classList.remove('gc-hidden');
+        document.body.style.overflow = 'hidden';
+        if (codeInput) setTimeout(() => codeInput.focus(), 80);
+    }
+
+    /* ── Đóng popup xuất giftcode ── */
+    function closeExportPopup() {
+        const overlay = document.getElementById('gc-export-popup');
+        if (!overlay || overlay.classList.contains('gc-hidden')) return;
+        overlay.classList.add('gc-hidden');
+        document.body.style.overflow = '';
+    }
+
+    /* ── Submit popup → gọi API tạo / cập nhật giftcode ── */
+    async function submitExportPopup(event) {
+        if (event) event.preventDefault();
+
+        const valid = getValidItems();
+        if (valid.length === 0) {
+            toast('Vui lòng thêm ít nhất 1 vật phẩm hợp lệ.', 'warning');
+            closeExportPopup();
+            return;
+        }
+
+        const codeInput = document.getElementById('gc-export-code');
+        const code = ((codeInput && codeInput.value) || '').trim();
+        if (!code) {
+            toast('Vui lòng nhập mã Gift Code.', 'warning');
+            if (codeInput) codeInput.focus();
+            return;
+        }
+
+        const countLeft = Number((document.getElementById('gc-export-count') || {}).value);
+        if (!Number.isInteger(countLeft) || countLeft < 1) {
+            toast('Số lượng code không hợp lệ.', 'warning');
+            return;
+        }
+
+        const expiredInput = document.getElementById('gc-export-expired');
+        const expired = normalizeExpired(expiredInput ? expiredInput.value : '');
+        if (expired === null) {
+            toast('Ngày hết hạn không hợp lệ. Dùng định dạng yyyy-MM-dd HH:mm:ss.', 'warning');
+            if (expiredInput) expiredInput.focus();
+            return;
+        }
 
         const detail = valid.map(it => ({
             id:       it.itemId,
@@ -447,11 +581,14 @@
         }));
 
         const payload = {
-            code:       code.trim(),
+            code:       code,
             count_left: countLeft,
             detail:     JSON.stringify(detail),
-            expired:    expired || null,
+            expired:    expired,
         };
+
+        const submitBtn = document.getElementById('gc-export-submit');
+        if (submitBtn) submitBtn.disabled = true;
 
         try {
             const url    = _editId ? `/api/giftcodes/${_editId}` : '/api/giftcodes';
@@ -464,12 +601,13 @@
             const data = await res.json();
             if (data.success) {
                 toast(_editId
-                    ? `Cập nhật gift code "${code.trim()}" thành công!`
-                    : `Tạo gift code "${code.trim()}" thành công!`,
+                    ? `Cập nhật gift code "${code}" thành công! Hết hạn: ${expired}`
+                    : `Tạo gift code "${code}" thành công! Hết hạn: ${expired}`,
                     'success'
                 );
                 _items  = [];
                 _editId = null;
+                closeExportPopup();
                 showListView();
                 if (typeof loadTableData === 'function') loadTableData('giftcodes');
             } else {
@@ -477,6 +615,8 @@
             }
         } catch (e) {
             toast('Lỗi kết nối: ' + e.message, 'error');
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
         }
     }
 
@@ -532,6 +672,26 @@
         }
         if (typeof _origOpenAddForm === 'function') _origOpenAddForm(type);
     };
+
+    /* ══════════════════════════════
+       ẨN nút "+ Thêm mới" ở TOPBAR khi đang ở màn Giftcode
+       (nút Thêm mới đã được chuyển xuống banner của màn này)
+    ══════════════════════════════ */
+    function syncTopAddButton(tab) {
+        const topAdd = document.getElementById('btn-add');
+        if (!topAdd) return;
+        topAdd.style.display = (tab === 'giftcodes') ? 'none' : '';
+    }
+
+    const _origShowTab = window.showTab;
+    if (typeof _origShowTab === 'function') {
+        window.showTab = function (tab) {
+            const result = _origShowTab(tab);
+            syncTopAddButton(tab);
+            return result;
+        };
+    }
+    syncTopAddButton(state.currentTab);
 
     /* ══════════════════════
        INTERCEPT "Sửa"
@@ -600,7 +760,30 @@
             renderAll();
         });
 
-        exportBtn.addEventListener('click', exportGiftcode);
+        exportBtn.addEventListener('click', openExportPopup);
+
+        /* ── Popup xuất giftcode: đóng / hủy / submit / ESC / click nền ── */
+        const exportOverlay = document.getElementById('gc-export-popup');
+        const exportClose   = document.getElementById('gc-export-close');
+        const exportCancel  = document.getElementById('gc-export-cancel');
+        const exportForm    = document.getElementById('gc-export-form');
+        if (exportClose)  exportClose.addEventListener('click', closeExportPopup);
+        if (exportCancel) exportCancel.addEventListener('click', closeExportPopup);
+        if (exportForm)   exportForm.addEventListener('submit', submitExportPopup);
+        if (exportOverlay) {
+            exportOverlay.addEventListener('click', (e) => {
+                if (e.target === exportOverlay) closeExportPopup();
+            });
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeExportPopup();
+        });
+
+        /* ── Nút "Thêm mới" trên BANNER (nút ở topbar đã bị ẩn) ── */
+        const bannerAddBtn = document.getElementById('gc-banner-add-btn');
+        if (bannerAddBtn) {
+            bannerAddBtn.addEventListener('click', () => window.openAddForm('giftcodes'));
+        }
     }
 
     if (document.readyState !== 'loading') init();

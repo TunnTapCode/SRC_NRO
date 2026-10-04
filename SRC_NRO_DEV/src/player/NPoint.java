@@ -1808,6 +1808,72 @@ public class NPoint {
         Service.gI().point(player);
     }
 
+    /**
+     * Tính số tiềm năng cần để cộng chỉ số gốc — KHÔNG trừ tiềm năng.
+     * Dùng để gửi giá xuống client cho panel nâng chỉ số gốc (xem
+     * {@code services.Service#sendPointUpgradeCost(Player)}).
+     *
+     * @param type  0 = HP gốc, 1 = KI gốc, 2 = Sức đánh gốc, 3 = Giáp gốc, 4 = Chí mạng gốc
+     * @param point số nấc muốn cộng (1 nấc HP/KI = 20)
+     * @return tiềm năng cần dùng; trả về 0 nếu type/point không hợp lệ
+     */
+    public long calcTiemNangUse(byte type, short point) {
+        if (point <= 0) {
+            return 0;
+        }
+        switch (type) {
+            case 0: {
+                int pointHp = point * 20;
+                return (long) point * (2L * (this.hpg + 1000) + pointHp - 20) / 2L;
+            }
+            case 1: {
+                int pointMp = point * 20;
+                return (long) point * (2L * (this.mpg + 1000) + pointMp - 20) / 2L;
+            }
+            case 2:
+                return (long) point * (2L * this.dameg + point - 1) / 2L * 100L;
+            case 3:
+                return 2L * (this.defg + 5) / 2L * 100000L;
+            case 4: {
+                long cost = 50000000L;
+                for (int i = 0; i < this.critg; i++) {
+                    cost *= 5L;
+                }
+                return cost;
+            }
+            default:
+                return 0;
+        }
+    }
+
+    /**
+     * Kiểm tra còn nằm trong giới hạn (mở giới hạn sức mạnh) để cộng chỉ số gốc hay không.
+     * Điều kiện giống hệt điều kiện trong {@link #increasePoint(byte, short)}.
+     *
+     * @param type  0 = HP gốc, 1 = KI gốc, 2 = Sức đánh gốc, 3 = Giáp gốc, 4 = Chí mạng gốc
+     * @param point số nấc muốn cộng
+     * @return true nếu có thể cộng, false nếu đã chạm trần
+     */
+    public boolean canIncreasePoint(byte type, short point) {
+        if (point <= 0 || point > 1000) {
+            return false;
+        }
+        switch (type) {
+            case 0:
+                return (this.hpg + point * 20) <= getHpMpLimit();
+            case 1:
+                return (this.mpg + point * 20) <= getHpMpLimit();
+            case 2:
+                return (this.dameg + point) <= getDameLimit();
+            case 3:
+                return (this.defg + point) <= getDefLimit();
+            case 4:
+                return (this.critg + point) <= getCritLimit();
+            default:
+                return false;
+        }
+    }
+
     private boolean doUseTiemNang(long tiemNang) {
         if (this.tiemNang < tiemNang) {
             Service.gI().sendThongBaoOK(player, "Bạn không đủ tiềm năng");
