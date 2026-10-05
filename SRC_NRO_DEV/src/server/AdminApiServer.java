@@ -2,7 +2,10 @@ package server;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import combine.CombineSystem;
 import database.DatabaseManager;
+import item.Item;
+import item.Template;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -372,6 +375,52 @@ public final class AdminApiServer {
                 // GET /api/item-options → toàn bộ { id, NAME } từ bảng item_option_template
                 handleCrud(exchange, method, idParam, payload, "item_option_template", "id", "NAME");
                 return;
+            case "item-options-of":
+                // GET /api/item-options-of?temp_id=1 → toàn bộ option của item_template đó.
+                // Option của vật phẩm nằm ở item_shop_option (gắn qua item_shop.temp_id),
+                // đây cũng là nguồn game server đọc khi bán hàng (ShopDAO.loadItemShopOption).
+                if ("GET".equalsIgnoreCase(method)) {
+                    String itemQuery = exchange.getRequestURI().getQuery();
+                    String tempId = null;
+                    if (itemQuery != null) {
+                        for (String part : itemQuery.split("&")) {
+                            if (part.startsWith("temp_id="))
+                                tempId = part.substring(8);
+                        }
+                    }
+                    if (tempId == null || tempId.isEmpty()) {
+                        sendJson(exchange, 400, mapOf("success", false, "message", "Missing temp_id"));
+                        return;
+                    }
+                    sendJson(exchange, 200, queryItemOptionsOfTemp(tempId));
+                } else {
+                    exchange.getResponseHeaders().set("Allow", "GET");
+                    sendText(exchange, 405, "Method Not Allowed");
+                }
+                return;
+            case "item-default-options":
+                // GET /api/item-default-options?temp_id=1 → option mặc định của item do
+                // game code định nghĩa (Item.getOptionDaPhaLe / CombineSystem), dùng cho
+                // sao pha lê, ngọc rồng... vốn không có option trong DB. Chỉ đọc.
+                if ("GET".equalsIgnoreCase(method)) {
+                    String itemQuery = exchange.getRequestURI().getQuery();
+                    String tempId = null;
+                    if (itemQuery != null) {
+                        for (String part : itemQuery.split("&")) {
+                            if (part.startsWith("temp_id="))
+                                tempId = part.substring(8);
+                        }
+                    }
+                    if (tempId == null || tempId.isEmpty()) {
+                        sendJson(exchange, 400, mapOf("success", false, "message", "Missing temp_id"));
+                        return;
+                    }
+                    sendJson(exchange, 200, queryItemDefaultOptions(tempId));
+                } else {
+                    exchange.getResponseHeaders().set("Allow", "GET");
+                    sendText(exchange, 405, "Method Not Allowed");
+                }
+                return;
             case "napthe":
                 handleCrud(exchange, method, idParam, payload, "napthe", "id", "user_nap", "telco", "serial", "code",
                         "amount", "status", "request_id");
@@ -633,6 +682,127 @@ public final class AdminApiServer {
         row.remove("token");
         row.remove("xsrf_token");
         row.remove("newpass");
+    }
+
+    /**
+ * Lấy option mặc định do game code định nghĩa cho item (sao pha lê, ngọc rồng...).
+ *
+ * <p>Những item này không có option trong DB; option được gắn khi tạo item hoặc khi ép,
+ * theo bảng ánh xạ hardcode trong {@link combine.CombineSystem} và
+ * {@link item.Item#getOptionDaPhaLe()}. Hàm này gọi lại chính code đó nên web hiển thị
+ * đúng với game — không nhân bản bảng ánh xạ.
+ *
+ * <p>Kết quả chỉ để xem, game không đọc giá trị từ DB cho nhóm option này.
+ *
+ * @return mỗi dòng = { option_id, param, name, text }; rỗng nếu item không có option mặc định
+     */
+    private static List<Map<String, Object>> queryItemDefaultOptions(String tempId) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        int id;
+        try {
+            id = Integer.parseInt(tempId);
+        } catch (NumberFormatException e) {
+            return rows;
+        }
+
+        Template.ItemTemplate template = Manager.ITEM_TEMPLATES.get(id);
+        if (template == null) {
+            return rows;
+        }
+
+        // Item mẫu chỉ để hỏi code game về option mặc định, không đưa vào túi người chơi
+        Item probe = new Item((short) id);
+        probe.template = template;
+
+        int optionId = -1;
+        int param = -1;
+
+        // Nguồn chính: bảng ánh xạ theo template id trong Item.getOptionDaPhaLe()
+        // (phủ sao pha lê 441-447, 1416-1422, 1426-1434 và ngọc rồng 14-20).
+        try {
+            Item.ItemOption defaultOption = probe.getOptionDaPhaLe();
+            if (defaultOption != null && defaultOption.optionTemplate != null) {
+                optionId = defaultOption.optionTemplate.id;
+                param = defaultOption.param;
+            }
+        } catch (Exception e) {
+            // default của switch là itemOptions.get(0) nên item rỗng sẽ lỗi — coi như không có
+            optionId = -1;
+            param = -1;
+        }
+
+        // Dự phòng: item type 30 không nằm trong bảng id thì hỏi CombineSystem
+        if (optionId < 0 || param < 0) {
+            try {
+                if (CombineSystem.isDaPhaLe(probe)) {
+                    optionId = CombineSystem.getOptionDaPhaLe(probe);
+                    param = CombineSystem.getParamDaPhaLe(probe);
+                }
+            } catch (Exception e) {
+                // type 30 đọc option của chính item đó nên không suy ra được từ template
+                optionId = -1;
+                param = -1;
+            }
+        }
+
+        // Item không thuộc nhóm sao pha lê / option ngẫu nhiên → không có option mặc định
+        if (optionId < 0 || param < 0) {
+            return rows;
+        }
+        Template.ItemOptionTemplate optionTemplate = Manager.ITEM_OPTION_TEMPLATES.get(optionId);
+        if (optionTemplate == null) {
+            return rows;
+        }
+
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("option_id", optionId);
+        row.put("param", param);
+        row.put("name", optionTemplate.name);
+        row.put("text", optionTemplate.name.replace("#", String.valueOf(param)));
+        rows.add(row);
+        return rows;
+    }
+
+    /**
+     * Lấy toàn bộ option của một item_template, gồm option gắn trên từng bản ghi shop.
+     *
+     * <p>item_template không lưu option trực tiếp; option nằm ở {@code item_shop_option}
+     * và được gắn với {@code item_shop.temp_id}. Một item có thể xuất hiện ở nhiều shop
+     * (nhiều tab), nên mỗi dòng trả về gắn kèm {@code item_shop_id} + tên tab để
+     * trình duyệt biết đang sửa option của bản ghi shop nào.
+     *
+     * @return mỗi dòng = { id, option_id, param, item_shop_id, tab_id, tab_name, shop_tag }
+     */
+    private static List<Map<String, Object>> queryItemOptionsOfTemp(String tempId) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        String sql = "SELECT o.id, o.option_id, o.param, s.id AS item_shop_id, s.tab_id, "
+                + "t.name AS tab_name, sh.tag_name AS shop_tag "
+                + "FROM item_shop s "
+                + "LEFT JOIN item_shop_option o ON o.item_shop_id = s.id "
+                + "LEFT JOIN tab_shop t ON t.id = s.tab_id "
+                + "LEFT JOIN shop sh ON sh.id = t.shop_id "
+                + "WHERE s.temp_id = ? "
+                + "ORDER BY s.id ASC, o.id ASC";
+        try (Connection connection = DatabaseManager.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, Integer.parseInt(tempId));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", resultSet.getObject("id"));
+                    row.put("option_id", resultSet.getObject("option_id"));
+                    row.put("param", resultSet.getObject("param"));
+                    row.put("item_shop_id", resultSet.getObject("item_shop_id"));
+                    row.put("tab_id", resultSet.getObject("tab_id"));
+                    row.put("tab_name", resultSet.getObject("tab_name"));
+                    row.put("shop_tag", resultSet.getObject("shop_tag"));
+                    rows.add(row);
+                }
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+        return rows;
     }
 
     /** Query với WHERE col = value tùy chọn, nếu filterCol null thì lấy tất cả */

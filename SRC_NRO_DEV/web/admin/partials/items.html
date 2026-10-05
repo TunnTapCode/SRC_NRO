@@ -101,6 +101,19 @@
         </div>
     </div>
 
+    <!-- ══════════════════════════════════════
+         DETAIL MODAL (Chi tiết + Option của item)
+    ══════════════════════════════════════ -->
+    <div id="it-detail-modal" class="it-modal-overlay it-hidden">
+        <div class="it-modal-dialog it-detail-dialog">
+            <div class="it-modal-header">
+                <h3>📋 Chi Tiết Vật Phẩm</h3>
+                <button class="it-modal-close" id="it-detail-close">✕</button>
+            </div>
+            <div id="it-detail-body" class="it-detail-body"></div>
+        </div>
+    </div>
+
 </section>
 
 <!-- ══════════════════════════════════════
@@ -404,7 +417,7 @@
         }
 
         grid.innerHTML = list.map(r => `
-            <div class="it-modal-item" title="${r.NAME} (ID: ${r.id})">
+            <div class="it-modal-item" data-id="${r.id}" title="${r.NAME} (ID: ${r.id}) — bấm để xem chi tiết">
                 <div class="it-modal-icon">
                     <img src="/data/icon/x4/${r.icon_id ?? r.id}.png"
                          onerror="this.style.display='none'" alt="${r.NAME}" />
@@ -427,7 +440,296 @@
     });
 
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') closePreviewModal();
+        if (e.key !== 'Escape') return;
+        // Popup chi tiết nằm trên popup Xem Nhanh → đóng theo thứ tự từ trên xuống
+        const detail = document.getElementById('it-detail-modal');
+        if (detail && !detail.classList.contains('it-hidden')) {
+            closeDetailModal();
+            return;
+        }
+        closePreviewModal();
+    });
+
+    /* ══════════════════════
+       DETAIL MODAL — chi tiết item + quản lý option
+    ══════════════════════ */
+
+    let _optNames   = {};   // { option_id: NAME } từ item_option_template
+    let _detailItem = null; // item_template đang xem
+    let _detailRows = [];   // option của item đó (gồm cả shop chưa gắn option)
+    let _defaultRow = null; // option mặc định do game code định nghĩa (chỉ đọc)
+
+    /** Nạp sẵn danh mục option để đổi option_id thành tên khi hiển thị */
+    async function loadOptionNames() {
+        if (Object.keys(_optNames).length) return;
+        try {
+            const rows = await fetch('/api/item-options').then(r => r.json());
+            (Array.isArray(rows) ? rows : []).forEach(o => { _optNames[String(o.id)] = o.NAME; });
+        } catch (_) { _optNames = {}; }
+    }
+
+    function closeDetailModal() {
+        const modal = document.getElementById('it-detail-modal');
+        if (!modal) return;
+        modal.classList.add('it-hidden');
+        _detailItem = null;
+        _detailRows = [];
+        _defaultRow = null;
+        document.body.style.overflow = '';
+    }
+
+    /** Mở popup chi tiết cho item đang chọn */
+    async function openDetailModal(id) {
+        const item = _allRows.find(r => Number(r.id) === Number(id));
+        if (!item) return;
+
+        _detailItem = item;
+        const modal = document.getElementById('it-detail-modal');
+        const body  = document.getElementById('it-detail-body');
+        if (!modal || !body) return;
+
+        body.innerHTML = `<div class="it-detail-loading">⏳ Đang tải option...</div>`;
+        modal.classList.remove('it-hidden');
+        document.body.style.overflow = 'hidden';
+
+        await loadOptionNames();
+        await reloadDetailOptions();
+    }
+
+    /** Thay ký hiệu # trong tên option bằng giá trị param */
+    function formatOptionName(optionId, param) {
+        const raw = _optNames[String(optionId)] || `option ${optionId}`;
+        const val = Number(param) || 0;
+        return raw.includes('#') ? raw.replace('#', val) : `${raw}: ${val}`;
+    }
+
+    /** Nạp lại option của item hiện tại (giữ nguyên popup đang mở) */
+    async function reloadDetailOptions() {
+        if (!_detailItem) return;
+        const tempId = encodeURIComponent(_detailItem.id);
+        try {
+            const [shopRows, defaultRows] = await Promise.all([
+                fetch(`/api/item-options-of?temp_id=${tempId}`).then(r => r.json()),
+                fetch(`/api/item-default-options?temp_id=${tempId}`).then(r => r.json()),
+            ]);
+            _detailRows = Array.isArray(shopRows) ? shopRows : [];
+            _defaultRow = Array.isArray(defaultRows) && defaultRows.length ? defaultRows[0] : null;
+        } catch (_) {
+            _detailRows = [];
+            _defaultRow = null;
+        }
+        renderDetail();
+    }
+
+/** Danh sách <option> của select, chọn sẵn option hiện tại */
+    function optionNameOptions(selectedId) {
+        const sel = String(selectedId ?? '');
+        const opts = Object.keys(_optNames)
+            .map(k => ({ id: k, name: _optNames[k] }))
+            .sort((a, b) => a.id - b.id);
+        return opts.map(o =>
+            `<option value="${o.id}" ${String(o.id) === sel ? 'selected' : ''}>#${o.id} — ${o.name}</option>`
+        ).join('');
+    }
+
+    function renderDetail() {
+        const body = document.getElementById('it-detail-body');
+        if (!body || !_detailItem) return;
+        const it = _detailItem;
+
+        // Gom option theo từng bản ghi shop (item_shop)
+        const groups = [];
+        const byShop = new Map();
+        _detailRows.forEach(r => {
+            const key = String(r.item_shop_id);
+            if (!byShop.has(key)) {
+                const g = {
+                    itemShopId: r.item_shop_id,
+                    tabId: r.tab_id,
+                    tabName: r.tab_name,
+                    shopTag: r.shop_tag,
+                    options: [],
+                };
+                byShop.set(key, g);
+                groups.push(g);
+            }
+            // LEFT JOIN sinh dòng null khi shop chưa gắn option nào
+            if (r.id !== null && r.id !== undefined) {
+                byShop.get(key).options.push(r);
+            }
+        });
+
+        const totalOpts = groups.reduce((sum, g) => sum + g.options.length, 0);
+
+        // Cột trái: vật phẩm mục tiêu
+        const leftHtml = `
+            <div class="it-detail-left">
+                <div class="it-field-lbl">Vật phẩm mục tiêu</div>
+                <div class="it-item-preview">
+                    <div class="it-item-icon">
+                        <img src="/data/icon/x4/${it.icon_id ?? it.id}.png"
+                             onerror="this.style.display='none'" alt="${it.NAME}" />
+                    </div>
+                    <div class="it-item-meta">
+                        <div class="it-item-name">${it.NAME}</div>
+                        <div class="it-item-id">ID: ${it.id}</div>
+                    </div>
+                </div>
+                <div class="it-field-lbl">Tổng option</div>
+                <div class="it-total-box">${totalOpts + (_defaultRow ? 1 : 0)}</div>
+            </div>`;
+
+        // Option mặc định do game code định nghĩa (sao pha lê, ngọc rồng...) — chỉ đọc
+        const defaultHtml = _defaultRow ? `
+            <div class="it-opt-group it-opt-group-default">
+                <div class="it-opt-group-head">
+                    <span class="it-opt-group-title">⚙️ Option mặc định của game</span>
+                    <span class="it-opt-group-meta">Định nghĩa trong code server — không sửa từ web</span>
+                </div>
+                <div class="it-opt-row it-opt-row-readonly">
+                    <span class="it-opt-badge">#${_defaultRow.option_id}</span>
+                    <span class="it-opt-text">${_defaultRow.text || _defaultRow.name}</span>
+                </div>
+            </div>` : '';
+
+        const groupsHtml = groups.length === 0
+            ? (_defaultRow
+                ? ''
+                : `<div class="it-opt-none">Vật phẩm này không nằm trong shop nào và không có option mặc định.</div>`)
+            : groups.map(g => `
+                <div class="it-opt-group">
+                    <div class="it-opt-group-head">
+                        <span class="it-opt-group-title">🏪 ${g.tabName || 'Tab #' + g.tabId}</span>
+                        <span class="it-opt-group-meta">item_shop #${g.itemShopId}${g.shopTag ? ' · ' + g.shopTag : ''}</span>
+                    </div>
+                    ${g.options.length === 0
+                        ? `<div class="it-opt-none">Chưa có option nào</div>`
+                        : `<div class="it-opt-rows">${g.options.map(o => `
+                            <div class="it-opt-row" data-row="${o.id}">
+                                <select class="it-opt-sel" data-row="${o.id}">
+                                    ${optionNameOptions(o.option_id)}
+                                </select>
+                                <input class="it-opt-val" type="number" value="${o.param ?? 0}"
+                                       data-row="${o.id}" placeholder="Giá trị" />
+                                <button class="it-opt-del" data-row="${o.id}" title="Xóa chỉ số">✕</button>
+                            </div>`).join('')}</div>
+                           <button class="it-add-opt-btn" data-shop="${g.itemShopId}">+ Thêm chỉ số</button>`}
+                </div>`).join('');
+
+        body.innerHTML = `
+            <div class="it-detail-card">
+                ${leftHtml}
+                <div class="it-detail-right">
+                    <div class="it-field-lbl">Chỉ số</div>
+                    ${defaultHtml}
+                    ${groupsHtml}
+                </div>
+            </div>`;
+
+        bindDetailEvents();
+    }
+
+/** Gắn sự kiện cho nút thêm / xóa, select option và ô param */
+    function bindDetailEvents() {
+        const body = document.getElementById('it-detail-body');
+        if (!body) return;
+
+        body.querySelectorAll('.it-add-opt-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const itemShopId = btn.dataset.shop;
+                const ok = await showConfirmModal({
+                    title: 'Thêm chỉ số?',
+                    message: 'Thêm chỉ số mới cho shop #' + itemShopId + ' với giá trị 0?',
+                    confirmText: '➕ Thêm',
+                    danger: false,
+                    icon: '➕',
+                });
+                if (!ok) return;
+                try {
+                    const res = await fetch('/api/item-shop-options', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify({ item_shop_id: Number(itemShopId), option_id: 0, param: 0 }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        toast('Đã thêm option.', 'success');
+                        await reloadDetailOptions();
+                    } else {
+                        toast('Thêm thất bại: ' + (data.message || ''), 'error');
+                    }
+                } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+            });
+        });
+
+        body.querySelectorAll('.it-opt-del').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const rowId = btn.dataset.row;
+                const ok = await showConfirmModal({
+                    title: 'Xóa option?',
+                    message: 'Xóa option #' + rowId + ' khỏi vật phẩm này?',
+                    confirmText: '🗑️ Xóa',
+                    danger: true,
+                    icon: '🗑️',
+                });
+                if (!ok) return;
+                try {
+                    const res  = await fetch(`/api/item-shop-options/${rowId}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (data.success) {
+                        toast('Đã xóa option.', 'success');
+                        await reloadDetailOptions();
+                    } else {
+                        toast('Xóa thất bại: ' + (data.message || ''), 'error');
+                    }
+                } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+            });
+        });
+
+        body.querySelectorAll('.it-opt-sel').forEach(sel => {
+            sel.addEventListener('change', async () => {
+                const rowId = sel.dataset.row;
+                const param = Number(body.querySelector(`.it-opt-val[data-row="${rowId}"]`)?.value) || 0;
+                await updateOption(rowId, Number(sel.value), param);
+            });
+        });
+
+        body.querySelectorAll('.it-opt-val').forEach(inp => {
+            inp.addEventListener('change', async () => {
+                const rowId = inp.dataset.row;
+                const optId = Number(body.querySelector(`.it-opt-sel[data-row="${rowId}"]`)?.value) || 0;
+                await updateOption(rowId, optId, Number(inp.value) || 0);
+            });
+        });
+    }
+
+    /** PUT một option trong item_shop_option */
+    async function updateOption(rowId, optionId, param) {
+        try {
+            const res  = await fetch(`/api/item-shop-options/${rowId}`, {
+                method:  'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ option_id: optionId, param }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast('Đã cập nhật option.', 'success');
+                await reloadDetailOptions();
+            } else {
+                toast('Cập nhật thất bại: ' + (data.message || ''), 'error');
+            }
+        } catch (e) { toast('Lỗi kết nối: ' + e.message, 'error'); }
+    }
+
+    document.addEventListener('click', function (e) {
+        if (e.target.id === 'it-detail-close')  { closeDetailModal(); return; }
+        if (e.target.id === 'it-detail-modal') { closeDetailModal(); return; }
+
+        // Click vào 1 item trong lưới Xem Nhanh → mở popup chi tiết
+        const card = e.target.closest('.it-modal-item');
+        if (card && card.dataset.id) {
+            openDetailModal(card.dataset.id);
+        }
     });
 
 })();

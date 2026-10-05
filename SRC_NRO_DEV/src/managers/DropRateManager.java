@@ -84,7 +84,7 @@ public final class DropRateManager {
         int[] GOLD_MID = { 188, 189, 190 };
         int[] GOLD_COLD = { 189, 190 };
         int[] STONES = { 220, 221, 222, 223, 224 };
-        int[] STARS = { 441, 442, 443 };
+        int[] STARS = { 441, 442, 443 ,447 };
         int[] SET_ITEMS = { 233, 241, 237, 245, 253, 249, 265, 261, 257, 277, 273, 269, 281 };
 
         // ── Vàng theo bản đồ ──

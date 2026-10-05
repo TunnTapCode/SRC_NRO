@@ -834,7 +834,7 @@ public class Mob {
         if (mapItemKey != null && DropRateManager.roll(mapItemKey)) {
             list.add(new ItemMap(
                     Util.spl(zone,
-                            Util.nextInt(441, 443), // id vật phẩm
+                            Util.nextInt(441, 447), // id vật phẩm
                             1,
                             x,
                             this.location.y,

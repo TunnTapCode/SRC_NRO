@@ -78,6 +78,8 @@ public class Input {
             for (int i = 0; i < text.length; i++) {
                 text[i] = msg.reader().readUTF();
             }
+            // Dùng chung cho GIVE_IT / GET_IT, các ô có thể để trống
+            int id, op, pr, q;
             switch (player.idMark.getTypeInput()) {
                 case TRADE_GOLD:
                     int cuantity1 = Integer.valueOf(text[0]);
@@ -103,49 +105,32 @@ public class Input {
                     }
                     break;
                 case GIVE_IT:
-                    String name = text[0];
-                    int id = Integer.parseInt(text[1]);
-                    int op = Integer.parseInt(text[2]);
-                    int pr = Integer.parseInt(text[3]);
-                    int q = Integer.parseInt(text[4]);
-
-                    if (Client.gI().getPlayer(name) != null) {
-                        Item item = ItemService.gI().createNewItem(((short) id));
-                        List<Item.ItemOption> ops = ItemService.gI().getListOptionItemShop((short) id);
-                        if (!ops.isEmpty()) {
-                            item.itemOptions = ops;
-                        }
-                        item.quantity = q;
-                        item.itemOptions.add(new Item.ItemOption(op, pr));
-                        InventoryService.gI().addItemBag(Client.gI().getPlayer(name), item);
-                        InventoryService.gI().sendItemBags(Client.gI().getPlayer(name));
-                        Service.gI().sendThongBao(Client.gI().getPlayer(name), "Nhận " + item.template.name + " từ " + player.name);
-
-                    } else {
+                    String giveName = text[0] == null ? "" : text[0].trim();
+                    Player plGive = giveName.isEmpty() ? null : Client.gI().getPlayer(giveName);
+                    if (plGive == null) {
                         Service.gI().sendThongBao(player, "Không online");
+                        break;
                     }
+                    id = parseIntOrDefault(text[1], -1);
+                    op = parseIntOrDefault(text[2], 0);
+                    pr = parseIntOrDefault(text[3], 0);
+                    q = parseIntOrDefault(text[4], -1);
+                    if (!player.isAdmin()) {
+                        Service.gI().sendThongBao(player, "Không đủ quyền hạn!");
+                        break;
+                    }
+                    giveItem(player, plGive, id, op, pr, q);
                     break;
                 case GET_IT:
-                    id = Integer.parseInt(text[0]);
-                    op = Integer.parseInt(text[1]);
-                    pr = Integer.parseInt(text[2]);
-                    q = Integer.parseInt(text[3]);
-
-                    if (player.isAdmin()) {
-                        Item item = ItemService.gI().createNewItem(((short) id));
-                        List<Item.ItemOption> ops = ItemService.gI().getListOptionItemShop((short) id);
-                        if (!ops.isEmpty()) {
-                            item.itemOptions = ops;
-                        }
-                        item.quantity = q;
-                        item.itemOptions.add(new Item.ItemOption(op, pr));
-                        InventoryService.gI().addItemBag(player, item);
-                        InventoryService.gI().sendItemBags(player);
-                        Service.gI().sendThongBao(player, "Nhận " + item.template.name + " !");
-
-                    } else {
+                    id = parseIntOrDefault(text[0], -1);
+                    op = parseIntOrDefault(text[1], 0);
+                    pr = parseIntOrDefault(text[2], 0);
+                    q = parseIntOrDefault(text[3], -1);
+                    if (!player.isAdmin()) {
                         Service.gI().sendThongBao(player, "Không đủ quyền hạn!");
+                        break;
                     }
+                    giveItem(player, player, id, op, pr, q);
                     break;
                 case CHANGE_PASSWORD:
                     Service.gI().changePassword(player, text[0], text[1], text[2]);
@@ -420,17 +405,87 @@ public class Input {
         }
     }
 
+    /**
+     * Parse số từ ô input của form, ô có thể để trống.
+     *
+     * @param raw         chuỗi người dùng nhập (có thể null / rỗng)
+     * @param defaultValue giá trị trả về khi raw rỗng hoặc không phải số
+     */
+    private static int parseIntOrDefault(String raw, int defaultValue) {
+        if (raw == null) {
+            return defaultValue;
+        }
+        String value = raw.trim();
+        if (value.isEmpty() || value.equals("-") || value.equalsIgnoreCase("null")) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * Tạo vật phẩm và cấp cho người nhận.
+     *
+     * ô ID OPTION / PARAM có thể để trống: khi idOption <= 0 thì vật phẩm được
+     * cấp không kèm option nào. Sai định dạng sẽ báo lỗi thay vì im lặng.
+     *
+     * @param sender   người admin thực hiện (để báo lỗi)
+     * @param receiver người nhận vật phẩm
+     */
+    private void giveItem(Player sender, Player receiver, int itemId, int optionId, int optionParam, int quantity) {
+        if (itemId <= 0) {
+            Service.gI().sendThongBao(sender, "Id vật phẩm không hợp lệ!");
+            return;
+        }
+        if (ItemService.gI().getTemplate(itemId) == null) {
+            Service.gI().sendThongBao(sender, "Không tồn tại vật phẩm id " + itemId);
+            return;
+        }
+        if (quantity <= 0) {
+            Service.gI().sendThongBao(sender, "Số lượng không hợp lệ!");
+            return;
+        }
+        // Ô option để trống → không thêm option, vẫn cấp vật phẩm bình thường
+        if (optionId > 0 && ItemService.gI().getItemOptionTemplate(optionId) == null) {
+            Service.gI().sendThongBao(sender, "Không tồn tại option id " + optionId);
+            return;
+        }
+
+        Item item = ItemService.gI().createNewItem((short) itemId);
+        if (item == null) {
+            Service.gI().sendThongBao(sender, "Không tạo được vật phẩm id " + itemId);
+            return;
+        }
+        List<Item.ItemOption> ops = ItemService.gI().getListOptionItemShop((short) itemId);
+        if (!ops.isEmpty()) {
+            item.itemOptions = ops;
+        }
+        item.quantity = quantity;
+        if (optionId > 0) {
+            item.itemOptions.add(new Item.ItemOption(optionId, optionParam));
+        }
+        InventoryService.gI().addItemBag(receiver, item);
+        InventoryService.gI().sendItemBags(receiver);
+        Service.gI().sendThongBao(receiver, "Nhận " + item.template.name + " từ " + sender.name);
+        Service.gI().sendThongBao(sender, "Đã tặng " + item.template.name + " cho " + receiver.name);
+    }
+
     public void createFormChangePassword(Player pl) {
         createForm(pl, CHANGE_PASSWORD, "Đổi mật khẩu", new SubInput("Mật khẩu cũ", PASSWORD),
                 new SubInput("Mật khẩu mới", PASSWORD),
                 new SubInput("Nhập lại mật khẩu mới", PASSWORD));
     }
     public void createFormGiveItem(Player pl) {
-        createForm(pl, GIVE_IT, "Tặng vật phẩm", new SubInput("Tên", ANY), new SubInput("Id Item", ANY), new SubInput("ID OPTION", ANY), new SubInput("PARAM", ANY), new SubInput("Số lượng", ANY));
+        createForm(pl, GIVE_IT, "Tặng vật phẩm", new SubInput("Tên", ANY), new SubInput("Id Item", ANY),
+                new SubInput("ID OPTION", ANY), new SubInput("PARAM", ANY), new SubInput("Số lượng", ANY));
     }
 
     public void createFormGetItem(Player pl) {
-        createForm(pl, GET_IT, "Get vật phẩm", new SubInput("Id Item", ANY), new SubInput("ID OPTION", ANY), new SubInput("PARAM", ANY), new SubInput("Số lượng", ANY));
+        createForm(pl, GET_IT, "Get vật phẩm", new SubInput("Id Item", ANY), new SubInput("ID OPTION", ANY),
+                new SubInput("PARAM", ANY), new SubInput("Số lượng", ANY));
     }
 
     public void createFormGiftCode(Player pl) {

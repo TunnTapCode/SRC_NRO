@@ -347,9 +347,15 @@ public class EffectSkin {
 
 
     private void updateTrainArmor() {
+        // Đồng bộ cờ đang mặc giáp với trạng thái thực tế ở ô body slot 6.
+        // Nếu không sync, lúc vừa tháo giáp ra khỏi body thì cờ vẫn còn "đang mặc"
+        // khiến giáp bị cộng phút ở nhánh dưới thay vì phải trừ phút.
+        syncWearingTrainArmor();
+
         if (Util.canDoWithTime(lastTimeAddTimeTrainArmor, 60000) && !Util.canDoWithTime(lastTimeAttack, 30000)) {
-            if (this.player.nPoint.wearingTrainArmor) {
-                for (Item.ItemOption io : this.player.inventory.trainArmor.itemOptions) {
+            Item trainArmor = this.player.inventory.trainArmor;
+            if (this.player.nPoint.wearingTrainArmor && trainArmor != null) {
+                for (Item.ItemOption io : trainArmor.itemOptions) {
                     if (io.optionTemplate.id == 9) {
                         if (io.param < 1000) {
                             io.param++;
@@ -362,40 +368,70 @@ public class EffectSkin {
             this.lastTimeAddTimeTrainArmor = System.currentTimeMillis();
         }
         if (Util.canDoWithTime(lastTimeSubTimeTrainArmor, 60000)) {
-            for (Item item : this.player.inventory.itemsBag) {
-                if (item.isNotNullItem()) {
-                    if (ItemService.gI().isTrainArmor(item)) {
-                        for (Item.ItemOption io : item.itemOptions) {
-                            if (io.optionTemplate.id == 9) {
-                                if (io.param > 0) {
-                                    io.param--;
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    break;
-                }
-            }
-            for (Item item : this.player.inventory.itemsBox) {
-                if (item.isNotNullItem()) {
-                    if (ItemService.gI().isTrainArmor(item)) {
-                        for (Item.ItemOption io : item.itemOptions) {
-                            if (io.optionTemplate.id == 9) {
-                                if (io.param > 0) {
-                                    io.param--;
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    break;
-                }
-            }
+            // Giáp luyện tập nằm trong hành trang hoặc rương đồ sẽ bị trừ phút mỗi phút.
+            // Lưu ý: hành trang/rương có ô trống xen kẽ nên phải duyệt hết danh sách,
+            // không được break sớm khi gặp ô trống, nếu không giáp sẽ không bao giờ bị trừ.
+            boolean subTime = subTimeTrainArmor(this.player.inventory.itemsBag)
+                    | subTimeTrainArmor(this.player.inventory.itemsBox);
             this.lastTimeSubTimeTrainArmor = System.currentTimeMillis();
-            InventoryService.gI().sendItemBags(player);
-            Service.gI().point(this.player);
+            if (subTime) {
+                InventoryService.gI().sendItemBags(player);
+                Service.gI().point(this.player);
+            }
         }
+    }
+
+/**
+     * Đồng bộ lại trạng thái "đang mặc giáp luyện tập" dựa trên dữ liệu thật ở body slot 6.
+     *
+     * {@link player.NPoint#setDameTrainArmor()} chỉ chạy khi tính lại chỉ số, nên nếu người chơi
+     * vừa tháo/mặc giáp thì cờ {@code wearingTrainArmor} và {@code inventory.trainArmor} có thể
+     * đã cũ. Kiểm tra lại theo body để nhánh cộng/trừ phút luôn đúng với thực tế.
+     */
+    private void syncWearingTrainArmor() {
+        if (this.player.nPoint == null) {
+            return;
+        }
+        List<Item> itemsBody = this.player.inventory.itemsBody;
+        if (itemsBody == null || itemsBody.size() < 7) {
+            return;
+        }
+        Item gtl = itemsBody.get(6);
+        boolean wearing = gtl != null && gtl.isNotNullItem() && ItemService.gI().isTrainArmor(gtl);
+        this.player.nPoint.wearingTrainArmor = wearing;
+        if (wearing) {
+            this.player.inventory.trainArmor = gtl;
+        }
+    }
+
+    /**
+     * Trừ 1 phút luyện tập cho mọi giáp luyện tập nằm trong danh sách.
+     *
+     * @return true nếu có ít nhất một giáp bị trừ phút (để mới cần đồng bộ lại client)
+     */
+    private boolean subTimeTrainArmor(List<Item> items) {
+        boolean changed = false;
+        if (items == null) {
+            return false;
+        }
+        for (Item item : items) {
+            if (!item.isNotNullItem()) {
+                continue; // ô trống: bỏ qua ô này, tiếp tục duyệt các ô phía sau
+            }
+            if (!ItemService.gI().isTrainArmor(item)) {
+                continue;
+            }
+            for (Item.ItemOption io : item.itemOptions) {
+                if (io.optionTemplate.id == 9) {
+                    if (io.param > 0) {
+                        io.param--;
+                        changed = true;
+                    }
+                    break;
+                }
+            }
+        }
+        return changed;
     }
 
     private void updateVoHinh() {
