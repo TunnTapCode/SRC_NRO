@@ -123,11 +123,13 @@ private static final ScheduledExecutorService scheduler = Executors.newScheduled
 
             for (int i = 0; i < 30; i++) {
                 if (i == 0) { //thỏi vàng
-                    // opt.add(2); //id option
-                    // opt.add(8); //param option
+                    opt.add(73); //id option
+                    opt.add(0); //param option
                     item.add(457); //id item
                     item.add(100); //số lượng
-                    options.add(opt.toJSONString());
+                    if (!opt.isEmpty()) {
+                        options.add(opt.toJSONString());
+                    }
                     opt.clear();
                 } else {
                     item.add(-1); //id item

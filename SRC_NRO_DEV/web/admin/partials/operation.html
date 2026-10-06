@@ -83,6 +83,13 @@
             <div class="op-card-arrow">→</div>
         </div>
 
+        <div class="op-card op-card-gift" data-feature="giveitem">
+            <div class="op-card-icon">🎁</div>
+            <div class="op-card-title">Tặng Vật Phẩm</div>
+            <div class="op-card-desc">Gửi vật phẩm vào hành trang người chơi (online hoặc offline)</div>
+            <div class="op-card-arrow">→</div>
+        </div>
+
         <!-- Backup DB 
         <div class="op-card op-card-teal" data-feature="backup">
             <div class="op-card-icon">💾</div>
@@ -97,6 +104,62 @@
     <div id="op-feature-area" class="op-hidden"></div>
 
 </section>
+
+<div id="op-gift-modal" class="op-gift-overlay op-hidden" role="dialog" aria-modal="true"
+    aria-labelledby="op-gift-title">
+    <form id="op-gift-form" class="op-gift-dialog">
+        <header class="op-gift-header">
+            <div>
+                <h3 id="op-gift-title">🎁 Tặng vật phẩm</h3>
+                <p>Vật phẩm sẽ được thêm vào hành trang và lưu ngay.</p>
+            </div>
+            <button type="button" id="op-gift-close" class="op-gift-close" aria-label="Đóng">✕</button>
+        </header>
+        <div class="op-gift-body">
+            <label for="op-gift-player">Người chơi (online hoặc offline)</label>
+            <div class="op-gift-player-row">
+                <select id="op-gift-player" required>
+                    <option value="">Đang tải danh sách...</option>
+                </select>
+                <button type="button" id="op-gift-refresh" class="op-gift-refresh">Làm mới</button>
+            </div>
+
+            <label for="op-gift-item">Vật phẩm (bấm để chọn)</label>
+            <div class="op-gift-item-row">
+                <span class="op-gift-item-icon" id="op-gift-item-icon" aria-hidden="true">?</span>
+                <input id="op-gift-item" type="text" placeholder="Chọn vật phẩm..." readonly required />
+                <button type="button" id="op-gift-item-pick" class="op-gift-pick">Chọn</button>
+            </div>
+
+            <label for="op-gift-quantity">Số lượng</label>
+            <input id="op-gift-quantity" type="number" min="1" max="99999" value="1" required />
+            <div id="op-gift-status" class="op-gift-status" role="status" aria-live="polite"></div>
+        </div>
+        <footer class="op-gift-footer">
+            <button type="button" id="op-gift-cancel" class="op-gift-cancel">Hủy</button>
+            <button type="submit" id="op-gift-submit" class="op-gift-submit">Tặng vật phẩm</button>
+        </footer>
+    </form>
+</div>
+
+<!-- ── Popup chọn vật phẩm (hiện icon) ── -->
+<div id="op-gift-picker" class="op-gift-picker op-hidden" role="dialog" aria-modal="true"
+    aria-labelledby="op-gift-picker-title">
+    <div class="op-gift-picker-dialog">
+        <div class="op-gift-picker-header">
+            <h3 class="op-gift-picker-title" id="op-gift-picker-title">🎒 Chọn vật phẩm</h3>
+            <div class="op-gift-picker-search-wrap">
+                <span class="op-gift-picker-search-icon">🔍</span>
+                <input id="op-gift-picker-search" class="op-gift-picker-search" type="text"
+                    placeholder="Tìm theo tên hoặc ID..." autocomplete="off" />
+            </div>
+            <span id="op-gift-picker-count" class="op-gift-picker-count"></span>
+            <button type="button" id="op-gift-picker-close" class="op-gift-picker-close"
+                aria-label="Đóng">✕</button>
+        </div>
+        <div id="op-gift-picker-grid" class="op-gift-picker-grid"></div>
+    </div>
+</div>
 
 <!-- ── Feature views ── -->
 
@@ -442,10 +505,263 @@
             else if (f === 'tileroidO') openDropRateModal();
             else if (f === 'announce') openAnnounceModal();
             else if (f === 'maintenance') openMaintenanceModal();
+            else if (f === 'giveitem') window.openGiveItemModal?.();
             else openDefault(f);
         });
 
     })();
+</script>
+
+<script>
+(function () {
+    const modal = document.getElementById('op-gift-modal');
+    const form = document.getElementById('op-gift-form');
+    const playerSelect = document.getElementById('op-gift-player');
+    const itemInput = document.getElementById('op-gift-item');
+    const itemIcon = document.getElementById('op-gift-item-icon');
+    const quantityInput = document.getElementById('op-gift-quantity');
+    const status = document.getElementById('op-gift-status');
+    const submitButton = document.getElementById('op-gift-submit');
+    const picker = document.getElementById('op-gift-picker');
+    const pickerGrid = document.getElementById('op-gift-picker-grid');
+    const pickerSearch = document.getElementById('op-gift-picker-search');
+    const pickerCount = document.getElementById('op-gift-picker-count');
+
+    let itemRows = [];
+    let onlineIds = new Set();
+    let selectedItemId = null;
+    let pickerTimer = null;
+    let isSubmitting = false;
+
+    function setStatus(message, isError) {
+        status.textContent = message;
+        status.classList.toggle('is-error', Boolean(isError));
+    }
+
+    function closeModal() {
+        closePicker();
+        modal.classList.add('op-hidden');
+        document.body.style.overflow = '';
+    }
+
+    /** Tải TẤT CẢ người chơi trong DB (không chỉ người đang online) */
+    async function loadPlayers() {
+        playerSelect.innerHTML = '<option value="">Đang tải danh sách...</option>';
+        playerSelect.disabled = true;
+        const players = await window.apiRequest('players', { method: 'GET' });
+        const rows = Array.isArray(players) ? players : [];
+
+        // Đánh dấu người đang online — best effort, endpoint lỗi thì bỏ qua
+        onlineIds = new Set();
+        try {
+            const online = await window.apiRequest('online-players', { method: 'GET' });
+            (Array.isArray(online) ? online : []).forEach(p => onlineIds.add(Number(p.id)));
+        } catch (_) { /* server chưa có endpoint này cũng không sao */ }
+
+        playerSelect.replaceChildren(new Option('Chọn người chơi...', ''));
+        rows.forEach(player => {
+            const id = Number(player.id);
+            const label = onlineIds.has(id)
+                ? `🟢 ${player.name} (#${id}) — đang online`
+                : `${player.name} (#${id})`;
+            playerSelect.add(new Option(label, id));
+        });
+        playerSelect.disabled = rows.length === 0;
+        return rows.length;
+    }
+
+    async function loadItems() {
+        const rows = await window.apiRequest('items', { method: 'GET' });
+        itemRows = Array.isArray(rows) ? rows : [];
+        itemRows.sort((a, b) => Number(a.id) - Number(b.id));
+    }
+
+    function itemIconUrl(item) {
+        const iconId = Number(item.icon_id ?? item.id);
+        return `/data/icon/x4/${iconId}.png`;
+    }
+
+    /* ── Popup chọn vật phẩm ── */
+    function openPicker() {
+        pickerSearch.value = '';
+        renderPicker('');
+        picker.classList.remove('op-hidden');
+        setTimeout(() => pickerSearch.focus(), 80);
+    }
+
+    function closePicker() {
+        picker.classList.add('op-hidden');
+    }
+
+    function renderPicker(query) {
+        const q = (query || '').trim().toLowerCase();
+        const list = q
+            ? itemRows.filter(item => {
+                const name = (item.NAME || item.name || '').toLowerCase();
+                return name.includes(q) || String(item.id).includes(q);
+            })
+            : itemRows;
+
+        // Giới hạn số ô render để không load hàng nghìn icon cùng lúc
+        const maxRender = 400;
+        const shown = list.slice(0, maxRender);
+        pickerCount.textContent = list.length > shown.length
+            ? `${list.length} vật phẩm — hiển thị ${shown.length} đầu, hãy tìm kiếm`
+            : `${list.length} vật phẩm`;
+
+        if (shown.length === 0) {
+            pickerGrid.innerHTML = '<div class="op-gift-picker-empty">Không tìm thấy vật phẩm nào</div>';
+            return;
+        }
+
+        pickerGrid.innerHTML = shown.map(item => {
+            const id = Number(item.id);
+            const name = item.NAME || item.name || `Vật phẩm ${id}`;
+            return `
+            <div class="op-gift-picker-item${id === selectedItemId ? ' is-selected' : ''}"
+                 data-id="${id}" title="${name} (ID: ${id})">
+                <div class="op-gift-picker-icon">
+                    <img src="${itemIconUrl(item)}" onerror="this.style.display='none'" alt="${name}" />
+                </div>
+                <div class="op-gift-picker-name">${name}</div>
+                <div class="op-gift-picker-id">ID:${id}</div>
+            </div>`;
+        }).join('');
+
+        pickerGrid.querySelectorAll('.op-gift-picker-item').forEach(el => {
+            el.addEventListener('click', () => selectItem(Number(el.dataset.id)));
+        });
+    }
+
+    function selectItem(id) {
+        const item = itemRows.find(row => Number(row.id) === id);
+        if (!item) return;
+        selectedItemId = id;
+        const name = item.NAME || item.name || `Vật phẩm ${id}`;
+        itemInput.value = `${name} (#${id})`;
+
+        // Hiện icon vật phẩm bên trong ô chọn
+        itemIcon.textContent = '';
+        const img = document.createElement('img');
+        img.src = itemIconUrl(item);
+        img.alt = name;
+        img.onerror = () => { itemIcon.textContent = `#${id}`; };
+        itemIcon.appendChild(img);
+
+        setStatus(`Đã chọn ${name} (#${id}).`);
+        closePicker();
+    }
+
+    window.openGiveItemModal = async function () {
+        modal.classList.remove('op-hidden');
+        document.body.style.overflow = 'hidden';
+        setStatus('Đang tải danh sách người chơi và vật phẩm...');
+        submitButton.disabled = true;
+        try {
+            const results = await Promise.all([loadPlayers(), loadItems()]);
+            const playerCount = results[0];
+            if (playerCount === 0) {
+                setStatus('Không tìm thấy người chơi nào trong dữ liệu.', true);
+            } else {
+                setStatus(`Đã tải ${playerCount} người chơi và ${itemRows.length} vật phẩm. Bấm "Chọn" để tìm vật phẩm.`);
+            }
+        } catch (error) {
+            setStatus(`Không tải được dữ liệu: ${error.message}`, true);
+        } finally {
+            submitButton.disabled = false;
+        }
+    };
+
+    document.getElementById('op-gift-close').addEventListener('click', closeModal);
+    document.getElementById('op-gift-cancel').addEventListener('click', closeModal);
+    modal.addEventListener('click', event => {
+        if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        if (!picker.classList.contains('op-hidden')) { closePicker(); return; }
+        if (!modal.classList.contains('op-hidden')) closeModal();
+    });
+    document.getElementById('op-gift-refresh').addEventListener('click', async () => {
+        try {
+            const count = await loadPlayers();
+            if (count > 0) {
+                setStatus(`Đã tải ${count} người chơi.`);
+            } else {
+                setStatus('Không tìm thấy người chơi nào trong dữ liệu.', true);
+            }
+        } catch (error) {
+            setStatus(`Không tải được người chơi: ${error.message}`, true);
+        }
+    });
+
+    /* ── Mở picker: bấm nút "Chọn" hoặc bấm thẳng ô vật phẩm ── */
+    document.getElementById('op-gift-item-pick').addEventListener('click', openPicker);
+    itemInput.addEventListener('click', openPicker);
+    document.getElementById('op-gift-picker-close').addEventListener('click', closePicker);
+    picker.addEventListener('click', event => {
+        if (event.target === picker) closePicker();
+    });
+    pickerSearch.addEventListener('input', () => {
+        clearTimeout(pickerTimer);
+        pickerTimer = setTimeout(() => renderPicker(pickerSearch.value), 180);
+    });
+
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (isSubmitting) return; // Chặn Enter/submit lần 2 khi popup xác nhận đang mở
+        const playerId = Number(playerSelect.value);
+        const quantity = Number(quantityInput.value);
+        const selectedItem = itemRows.find(item => Number(item.id) === selectedItemId);
+        const selectedPlayer = playerSelect.options[playerSelect.selectedIndex];
+        if (!playerId || !selectedItem || !Number.isInteger(quantity) || quantity < 1 || quantity > 99999) {
+            setStatus('Vui lòng chọn người chơi, vật phẩm hợp lệ và số lượng từ 1 đến 99.999.', true);
+            return;
+        }
+        const itemName = selectedItem.NAME || selectedItem.name || `#${selectedItem.id}`;
+        const confirmMessage = onlineIds.has(playerId)
+            ? `Tặng ${quantity} × ${itemName} cho ${selectedPlayer.textContent} (đang online).`
+            : `Tặng ${quantity} × ${itemName} cho ${selectedPlayer.textContent} (offline — vật phẩm sẽ được lưu vào hành trang).`;
+
+        // Popup xác nhận của admin (thay cho confirm() của trình duyệt)
+        isSubmitting = true;
+        submitButton.disabled = true;
+        let confirmed;
+        try {
+            confirmed = typeof window.showConfirmModal === 'function'
+                ? await window.showConfirmModal({
+                    title: 'Xác nhận tặng vật phẩm?',
+                    message: confirmMessage,
+                    confirmText: 'Tặng vật phẩm',
+                    cancelText: 'Hủy',
+                    danger: false,
+                    icon: '🎁'
+                })
+                : window.confirm(confirmMessage);
+        } finally {
+            isSubmitting = false;
+        }
+        if (!confirmed) {
+            submitButton.disabled = false;
+            return;
+        }
+
+        submitButton.disabled = true;
+        setStatus('Đang gửi vật phẩm...');
+        try {
+            const result = await window.apiRequest('give-item', {
+                method: 'POST',
+                body: JSON.stringify({ playerId, itemId: Number(selectedItem.id), quantity })
+            });
+            setStatus(result.message || 'Đã tặng vật phẩm.');
+            if (typeof window.toast === 'function') window.toast(result.message || 'Đã tặng vật phẩm.', 'success');
+        } catch (error) {
+            setStatus(`Tặng vật phẩm thất bại: ${error.message}`, true);
+        } finally {
+            submitButton.disabled = false;
+        }
+    });
+})();
 </script>
 
 <!-- RATE MODAL CHUNG (Đập Đồ / Rơi Đồ) -->

@@ -4,8 +4,14 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import combine.CombineSystem;
 import database.DatabaseManager;
+import database.NTTSqlFetcher;
+import database.PlayerDAO;
 import item.Item;
 import item.Template;
+import player.Player;
+import player.Service.InventoryService;
+import services.ItemService;
+import services.Service;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -253,6 +259,8 @@ public final class AdminApiServer {
             sendJson(exchange, 200, mapOf("success", true, "message", "Admin API ready", "endpoints", new String[] {
                     "/api/accounts",
                     "/api/players",
+                    "/api/online-players",
+                    "/api/give-item",
                     "/api/giftcodes",
                     "/api/items",
                     "/api/shops",
@@ -295,6 +303,12 @@ public final class AdminApiServer {
                     handleCrud(exchange, method, idParam, payload, "player", "id", "account_id", "name", "head",
                             "gender", "clan_id", "rank", "power");
                 }
+                return;
+            case "online-players":
+                handleOnlinePlayers(exchange, method);
+                return;
+            case "give-item":
+                handleGiveItem(exchange, method, payload);
                 return;
             case "giftcodes":
                 handleCrud(exchange, method, idParam, payload, "giftcode", "id", "code", "count_left", "detail",
@@ -831,6 +845,80 @@ public final class AdminApiServer {
             Logger.logException(AdminApiServer.class, e);
         }
         return rows;
+    }
+
+    private static void handleOnlinePlayers(HttpExchange exchange, String method) throws IOException {
+        if (!"GET".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().set("Allow", "GET");
+            sendJson(exchange, 405, mapOf("success", false, "message", "Method Not Allowed"));
+            return;
+        }
+        List<Map<String, Object>> players = new ArrayList<>();
+        for (Player player : Client.gI().getPlayers()) {
+            if (player != null && player.name != null) {
+                players.add(mapOf("id", player.id, "name", player.name));
+            }
+        }
+        sendJson(exchange, 200, players);
+    }
+
+    private static void handleGiveItem(HttpExchange exchange, String method, Map<String, String> payload)
+            throws IOException {
+        if (!"POST".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().set("Allow", "POST");
+            sendJson(exchange, 405, mapOf("success", false, "message", "Method Not Allowed"));
+            return;
+        }
+
+        final long playerId;
+        final int itemId;
+        final int quantity;
+        try {
+            playerId = Long.parseLong(payload.getOrDefault("playerId", ""));
+            itemId = Integer.parseInt(payload.getOrDefault("itemId", ""));
+            quantity = Integer.parseInt(payload.getOrDefault("quantity", ""));
+        } catch (NumberFormatException e) {
+            sendJson(exchange, 400, mapOf("success", false, "message", "Thông tin người chơi hoặc vật phẩm không hợp lệ."));
+            return;
+        }
+        if (playerId <= 0 || itemId < 0 || itemId > Short.MAX_VALUE || quantity < 1 || quantity > 99_999) {
+            sendJson(exchange, 400, mapOf("success", false, "message", "Số lượng phải từ 1 đến 99.999."));
+            return;
+        }
+
+        // Không yêu cầu người chơi phải online — nếu offline thì tải dữ liệu từ DB
+        Player onlinePlayer = Client.gI().getPlayer(playerId);
+        final boolean isOnline = onlinePlayer != null;
+        Player player = isOnline ? onlinePlayer : NTTSqlFetcher.loadById(playerId);
+        if (player == null) {
+            sendJson(exchange, 404, mapOf("success", false, "message", "Không tìm thấy người chơi."));
+            return;
+        }
+        if (itemId >= Manager.ITEM_TEMPLATES.size()
+                || ItemService.gI().getTemplate(itemId) == null) {
+            sendJson(exchange, 404, mapOf("success", false, "message", "Không tìm thấy vật phẩm."));
+            return;
+        }
+
+        Item item = ItemService.gI().createNewItem((short) itemId, quantity);
+        if (item == null || item.template == null) {
+            sendJson(exchange, 404, mapOf("success", false, "message", "Không thể tạo vật phẩm."));
+            return;
+        }
+        if (!InventoryService.gI().addItemBag(player, item)) {
+            sendJson(exchange, 409, mapOf("success", false, "message", "Hành trang người chơi không đủ chỗ."));
+            return;
+        }
+
+        if (isOnline) {
+            InventoryService.gI().sendItemBags(player);
+            Service.gI().sendThongBao(player, "Admin đã tặng bạn " + quantity + " " + item.template.name + ".");
+        }
+        // Lưu ngay vào DB (với người chơi offline đây là bước bắt buộc)
+        PlayerDAO.updatePlayer(player);
+        sendJson(exchange, 200, mapOf("success", true, "message",
+                "Đã tặng " + quantity + " " + item.template.name + " cho " + player.name
+                        + (isOnline ? "." : " (offline, vật phẩm đã lưu vào hành trang).")));
     }
 
     /**

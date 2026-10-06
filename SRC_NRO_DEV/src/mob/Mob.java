@@ -958,11 +958,27 @@ public class Mob {
                 }
                 break;
             case ConstMob.THAN_LAN_ME:
-            case ConstMob.QUY_BAY_ME:
-            case ConstMob.PHI_LONG_ME:
-                if (TaskService.gI().getIdTask(player) == ConstTask.TASK_8_1) {
+                if (TaskService.gI().getIdTask(player) == ConstTask.TASK_8_1 && player.gender == 2) {
                     if (Util.isTrue(1, 10)) {
-                        itemMap = new ItemMap(zone, 444, 1, location.x, location.y, player.id);
+                        itemMap = new ItemMap(zone, 20, 1, location.x, location.y, player.id);
+                    } else {
+                        Service.gI().sendThongBao(player,
+                                "Con thằn lằn mẹ này không giữ ngọc, hãy tìm con thằn lằn mẹ khác");
+                    }
+                }
+            case ConstMob.QUY_BAY_ME:
+                if (TaskService.gI().getIdTask(player) == ConstTask.TASK_8_1 && player.gender == 1) {
+                    if (Util.isTrue(1, 10)) {
+                        itemMap = new ItemMap(zone, 20, 1, location.x, location.y, player.id);
+                    } else {
+                        Service.gI().sendThongBao(player,
+                                "Con thằn lằn mẹ này không giữ ngọc, hãy tìm con thằn lằn mẹ khác");
+                    }
+                }
+            case ConstMob.PHI_LONG_ME:
+                if (TaskService.gI().getIdTask(player) == ConstTask.TASK_8_1 && player.gender == 0) {
+                    if (Util.isTrue(1, 10)) {
+                        itemMap = new ItemMap(zone, 20, 1, location.x, location.y, player.id);
                     } else {
                         Service.gI().sendThongBao(player,
                                 "Con thằn lằn mẹ này không giữ ngọc, hãy tìm con thằn lằn mẹ khác");
