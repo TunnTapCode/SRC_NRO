@@ -76,7 +76,7 @@
             <div class="op-card-desc">Điều chỉnh xác suất quái vật rơi vật phẩm khi bị tiêu diệt</div>
             <div class="op-card-arrow">→</div>
         </div>
-        <div class="op-card op-card-cyan" data-feature="napthe">
+        <div class="op-card op-card-cyan" data-feature="history-transaction">
             <div class="op-card-icon">💰</div>
             <div class="op-card-title">Lịch Sử Giao Dịch</div>
             <div class="op-card-desc">Xem lại các giao dịch của nhân vật</div>
@@ -204,6 +204,51 @@
         </div>
     </div>
 </div>
+<template id="op-tpl-history-transaction">
+    <div class="op-feature">
+        <div class="op-feature-header">
+            <button class="op-back-btn" id="op-back-btn">← Trở về</button>
+            <h3 class="op-feature-title">💰 Lịch Sử Giao Dịch</h3>
+            <div class="op-feature-actions">
+                <button class="op-tool-btn op-btn-primary" id="op-tran-refresh">🔄 Tải lại</button>
+            </div>
+        </div>
+        <div class="op-tran-stats">
+            <div class="op-stat-chip op-stat-total">
+                <span class="op-stat-icon">🧾</span>
+                <div>
+                    <div class="op-stat-label">Tổng giao dịch</div>
+                    <div class="op-stat-val" id="op-tran-count">—</div>
+                </div>
+            </div>
+            <div class="op-stat-chip op-stat-revenue">
+                <span class="op-stat-icon">💰</span>
+                <div>
+                    <div class="op-stat-label">Vàng luân chuyển</div>
+                    <div class="op-stat-val" id="op-tran-gold">—</div>
+                </div>
+            </div>
+            <div class="op-stat-chip op-stat-success">
+                <span class="op-stat-icon">🎒</span>
+                <div>
+                    <div class="op-stat-label">Vật phẩm trao đổi</div>
+                    <div class="op-stat-val" id="op-tran-items">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="op-filter-row">
+            <input class="op-filter-input" type="text" id="op-tran-search" placeholder="🔍 Tìm tên nhân vật / vật phẩm..." />
+            <select class="op-filter-select" id="op-tran-limit">
+                <option value="100">100 mới nhất</option>
+                <option value="200" selected>200 mới nhất</option>
+                <option value="500">500 mới nhất</option>
+                <option value="1000">1000 mới nhất</option>
+            </select>
+        </div>
+        <div id="op-tran-list" class="op-tran-list"></div>
+    </div>
+</template>
+
 <template id="op-tpl-napthe">
     <div class="op-feature">
         <div class="op-feature-header">
@@ -417,6 +462,107 @@
         }
 
         /* ════════════════════════════
+           FEATURE: LICH SU GIAO DICH (history_transaction)
+        ════════════════════════════ */
+        let _tranAll = [];
+
+        async function openHistoryTransaction() {
+            showFeature(tplHTML('op-tpl-history-transaction'));
+            document.getElementById('op-tran-refresh')?.addEventListener('click', loadTran);
+            document.getElementById('op-tran-search')?.addEventListener('input', filterTran);
+            document.getElementById('op-tran-limit')?.addEventListener('change', loadTran);
+            await loadTran();
+        }
+
+        async function loadTran() {
+            const list = document.getElementById('op-tran-list');
+            if (list) list.innerHTML = '<div class="op-loading">⏳ Đang tải lịch sử giao dịch...</div>';
+            const limit = document.getElementById('op-tran-limit')?.value || '200';
+            _tranAll = await api('history-transactions?limit=' + encodeURIComponent(limit));
+            if (!Array.isArray(_tranAll)) _tranAll = [];
+            filterTran();
+        }
+
+        function filterTran() {
+            const q = (document.getElementById('op-tran-search')?.value || '').toLowerCase().trim();
+            if (!q) { renderTran(_tranAll); return; }
+            const filtered = _tranAll.filter(r => {
+                const hay = [r.player_1, r.player_2, r.item_player_1, r.item_player_2]
+                    .map(v => String(v || '').toLowerCase()).join(' | ');
+                return hay.includes(q);
+            });
+            renderTran(filtered);
+        }
+
+        function tranAvatar(p) {
+            if (!p) return '<div class="op-tran-avatar op-tran-no-avatar">?</div>';
+            const avatarId = p.avatar_id ?? p.avatarId;
+            if (avatarId !== null && avatarId !== undefined && String(avatarId) !== '') {
+                const url = '/data/icon/x4/' + avatarId + '.png';
+                const nm = (p.name || '?').replace(/"/g, '');
+                return '<img class="op-tran-avatar" src="' + url + '" alt="' + nm
+                    + '" onerror="this.outerHTML=\'<div class=&quot;op-tran-avatar op-tran-no-avatar&quot;>?</div>\'" />';
+            }
+            return '<div class="op-tran-avatar op-tran-no-avatar">?</div>';
+        }
+
+        function tranItems(items) {
+            const list = Array.isArray(items) ? items : [];
+            if (!list.length) return '<span class="op-tran-no-item">Không có vật phẩm</span>';
+            return list.map(it => {
+                const name = it.name || ('Vật phẩm ' + (it.template_id ?? '?'));
+                const qty = it.quantity ?? it.count ?? 1;
+                const icon = it.icon_id ?? it.iconId ?? it.template_id;
+                const img = (icon !== null && icon !== undefined && String(icon) !== '')
+                    ? '<img src="/data/icon/x4/' + icon + '.png" alt="" onerror="this.style.display=\'none\'" />'
+                    : '<span class="op-tran-item-fallback">🎒</span>';
+                return '<span class="op-tran-item" title="' + String(name).replace(/"/g, '') + ' x' + qty + '">'
+                    + img + '<span class="op-tran-item-qty">x' + qty + '</span>'
+                    + '<span class="op-tran-item-name">' + String(name) + '</span></span>';
+            }).join('');
+        }
+
+        function renderTran(rows) {
+            setText('op-tran-count', rows.length);
+            let gold = 0; let itemCount = 0;
+            rows.forEach(r => {
+                (r.items1 || []).concat(r.items2 || []).forEach(it => {
+                    if (it.is_gold || it.isGold) gold += Number(it.quantity || 0);
+                    else itemCount += Number(it.quantity || 0);
+                });
+            });
+            setText('op-tran-gold', fmtNum(gold) + ' vàng');
+            setText('op-tran-items', fmtNum(itemCount));
+            const list = document.getElementById('op-tran-list');
+            if (!list) return;
+            if (!rows.length) {
+                list.innerHTML = '<div class="op-empty">Không có dữ liệu giao dịch</div>';
+                return;
+            }
+            list.innerHTML = rows.map(r => {
+                const p1 = r.player1 || {}; const p2 = r.player2 || {};
+                return '<div class="op-tran-card">'
+                    + '<div class="op-tran-head"><span class="op-tran-id">#' + r.id + '</span>'
+                    + '<span class="op-tran-time">🕒 ' + fmtDate(r.time_tran) + '</span></div>'
+                    + '<div class="op-tran-sides">'
+                    + '<div class="op-tran-side"><div class="op-tran-player">'
+                    + tranAvatar(p1)
+                    + '<div><div class="op-tran-name">' + (p1.name || r.player_1 || '?') + '</div>'
+                    + '<div class="op-tran-sub">ID: ' + (p1.id ?? '—') + '</div></div></div>'
+                    + '<div class="op-tran-give"><div class="op-tran-give-label">Đưa ra</div>'
+                    + tranItems(r.items1) + '</div></div>'
+                    + '<div class="op-tran-swap">⇄</div>'
+                    + '<div class="op-tran-side"><div class="op-tran-player">'
+                    + tranAvatar(p2)
+                    + '<div><div class="op-tran-name">' + (p2.name || r.player_2 || '?') + '</div>'
+                    + '<div class="op-tran-sub">ID: ' + (p2.id ?? '—') + '</div></div></div>'
+                    + '<div class="op-tran-give"><div class="op-tran-give-label">Đưa ra</div>'
+                    + tranItems(r.items2) + '</div></div>'
+                    + '</div></div>';
+            }).join('');
+        }
+
+        /* ════════════════════════════
            FEATURE: RANK
         ════════════════════════════ */
         async function openRank() {
@@ -509,6 +655,7 @@
 
             const f = card.dataset.feature;
             if (f === 'napthe') openNapthe();
+            else if (f === 'history-transaction') openHistoryTransaction();
             else if (f === 'rank') openRank();
             else if (f === 'chinhboss') openBossModal();
             else if (f === 'tileexp') openExpModal();

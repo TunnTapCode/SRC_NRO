@@ -423,7 +423,8 @@ public final class Manager {
             ps = ConnectionDatabase.prepareStatement("SELECT id, task_main_template.name, detail, "
                     + "task_sub_template.name AS 'sub_name', max_count, notify, npc_id, map "
                     + "FROM task_main_template JOIN task_sub_template ON task_main_template.id = "
-                    + "task_sub_template.task_main_id");
+                    + "task_sub_template.task_main_id "
+                    + "ORDER BY task_main_template.id ASC, task_sub_template.NguyenTanTaiPro ASC");
             rs = ps.executeQuery();
             int taskId = -1;
             TaskMain task = null;

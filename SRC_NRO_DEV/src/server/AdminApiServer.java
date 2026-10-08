@@ -459,6 +459,9 @@ public final class AdminApiServer {
                 handleCrud(exchange, method, idParam, payload, "napthe", "id", "user_nap", "telco", "serial", "code",
                         "amount", "status", "request_id");
                 return;
+            case "history-transactions":
+                handleHistoryTransactions(exchange, method);
+                return;
             case "settings":
                 handleSettings(exchange, method, payload);
                 return;
@@ -880,6 +883,197 @@ public final class AdminApiServer {
             }
         }
         sendJson(exchange, 200, players);
+    }
+
+    /**
+     * GET /api/history-transactions?q=...&limit=200
+     * Tra ve lich su giao dich player-player (bang history_transaction),
+     * enrich san avatar nhan vat + icon vat pham de frontend hien thi ngay.
+     */
+    private static void handleHistoryTransactions(HttpExchange exchange, String method) throws IOException {
+        if (!"GET".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().set("Allow", "GET");
+            sendJson(exchange, 405, mapOf("success", false, "message", "Method Not Allowed"));
+            return;
+        }
+        String query = exchange.getRequestURI().getQuery();
+        String keyword = queryParam(query, "q");
+        int limit = 200;
+        try {
+            String rawLimit = queryParam(query, "limit");
+            if (rawLimit != null && !rawLimit.isEmpty()) {
+                limit = Math.max(1, Math.min(1000, Integer.parseInt(rawLimit.trim())));
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        sendJson(exchange, 200, queryHistoryTransactions(keyword, limit));
+    }
+
+    private static List<Map<String, Object>> queryHistoryTransactions(String keyword, int limit) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        String sql = "SELECT id, player_1, player_2, item_player_1, item_player_2,"
+                + " bag_1_before_tran, bag_2_before_tran, bag_1_after_tran, bag_2_after_tran, time_tran"
+                + " FROM history_transaction ORDER BY time_tran DESC, id DESC LIMIT ?";
+        try (Connection connection = DatabaseManager.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, limit);
+            try (ResultSet rs = statement.executeQuery()) {
+                Map<String, Map<String, Object>> playerCache = new HashMap<>();
+                Map<String, Map<String, Object>> itemCache = new HashMap<>();
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    String p1 = rs.getString("player_1");
+                    String p2 = rs.getString("player_2");
+                    row.put("id", rs.getObject("id"));
+                    row.put("player_1", p1);
+                    row.put("player_2", p2);
+                    row.put("item_player_1", rs.getString("item_player_1"));
+                    row.put("item_player_2", rs.getString("item_player_2"));
+                    row.put("time_tran", String.valueOf(rs.getObject("time_tran")));
+                    row.put("player1", enrichHistoryPlayer(p1, playerCache));
+                    row.put("player2", enrichHistoryPlayer(p2, playerCache));
+                    row.put("items1", enrichHistoryItems(rs.getString("item_player_1"), itemCache));
+                    row.put("items2", enrichHistoryItems(rs.getString("item_player_2"), itemCache));
+                    rows.add(row);
+                }
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            String q = keyword.trim().toLowerCase(Locale.ROOT);
+            rows.removeIf(row -> !historyRowMatches(row, q));
+        }
+        return rows;
+    }
+
+    private static boolean historyRowMatches(Map<String, Object> row, String q) {
+        for (String key : new String[] { "player_1", "player_2", "item_player_1", "item_player_2" }) {
+            Object v = row.get(key);
+            if (v != null && String.valueOf(v).toLowerCase(Locale.ROOT).contains(q)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Map<String, Object> enrichHistoryPlayer(String raw,
+            Map<String, Map<String, Object>> cache) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        String name = raw == null ? "" : raw.trim();
+        long playerId = -1;
+        if (raw != null) {
+            Matcher m = Pattern.compile("\\((\\d+)\\)\\s*$").matcher(raw);
+            if (m.find()) {
+                try {
+                    playerId = Long.parseLong(m.group(1));
+                    name = raw.substring(0, m.start()).trim();
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        info.put("name", name);
+        info.put("id", playerId >= 0 ? playerId : null);
+        info.put("head", null);
+        info.put("avatar_id", null);
+        String cacheKey = playerId >= 0 ? "id:" + playerId : "name:" + name.toLowerCase(Locale.ROOT);
+        if (cache.containsKey(cacheKey)) {
+            return cache.get(cacheKey);
+        }
+        String sql = playerId >= 0
+                ? "SELECT p.id, p.name, p.head, ha.avatar_id FROM player p"
+                        + " LEFT JOIN head_avatar ha ON p.head = ha.head_id WHERE p.id = ? LIMIT 1"
+                : "SELECT p.id, p.name, p.head, ha.avatar_id FROM player p"
+                        + " LEFT JOIN head_avatar ha ON p.head = ha.head_id WHERE p.name = ? LIMIT 1";
+        try (Connection connection = DatabaseManager.getConnection();
+                PreparedStatement ps = connection.prepareStatement(sql)) {
+            if (playerId >= 0) {
+                ps.setLong(1, playerId);
+            } else {
+                ps.setString(1, name);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    info.put("id", rs.getObject("id"));
+                    info.put("name", rs.getString("name"));
+                    info.put("head", rs.getObject("head"));
+                    info.put("avatar_id", rs.getObject("avatar_id"));
+                }
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+        cache.put(cacheKey, info);
+        return info;
+    }
+
+    private static List<Map<String, Object>> enrichHistoryItems(String raw,
+            Map<String, Map<String, Object>> cache) {
+        List<Map<String, Object>> items = new ArrayList<>();
+        if (raw == null || raw.trim().isEmpty()) {
+            return items;
+        }
+        Matcher gold = Pattern.compile("Gold\\s*:\\s*(\\d+)").matcher(raw);
+        if (gold.find()) {
+            try {
+                Map<String, Object> goldRow = new LinkedHashMap<>();
+                goldRow.put("name", "Vang");
+                goldRow.put("quantity", Long.parseLong(gold.group(1)));
+                goldRow.put("template_id", null);
+                goldRow.put("icon_id", 457);
+                goldRow.put("is_gold", true);
+                items.add(goldRow);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        Matcher m = Pattern.compile("(.+?)\\(x\\s*(\\d+)\\s*\\)").matcher(raw);
+        while (m.find()) {
+            String itemName = m.group(1).trim().replaceAll("^[,;]+", "").trim();
+            itemName = itemName.replaceFirst("(?i)^Gold\\s*:\\s*\\d+\\s*,?\\s*", "").trim();
+            if (itemName.isEmpty() || itemName.equalsIgnoreCase("Gold")) {
+                continue;
+            }
+            long qty = 1;
+            try {
+                qty = Long.parseLong(m.group(2));
+            } catch (NumberFormatException ignored) {
+            }
+            Map<String, Object> tpl = lookupHistoryItemTemplate(itemName, cache);
+            Map<String, Object> one = new LinkedHashMap<>();
+            one.put("name", itemName);
+            one.put("quantity", qty);
+            one.put("template_id", tpl.get("template_id"));
+            one.put("icon_id", tpl.get("icon_id"));
+            one.put("is_gold", false);
+            items.add(one);
+        }
+        return items;
+    }
+
+    private static Map<String, Object> lookupHistoryItemTemplate(String itemName,
+            Map<String, Map<String, Object>> cache) {
+        String key = itemName.toLowerCase(Locale.ROOT);
+        if (cache.containsKey(key)) {
+            return cache.get(key);
+        }
+        Map<String, Object> found = new LinkedHashMap<>();
+        found.put("template_id", null);
+        found.put("icon_id", null);
+        try (Connection connection = DatabaseManager.getConnection();
+                PreparedStatement ps = connection.prepareStatement(
+                        "SELECT id, icon_id FROM item_template WHERE NAME = ? LIMIT 1")) {
+            ps.setString(1, itemName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    found.put("template_id", rs.getObject("id"));
+                    found.put("icon_id", rs.getObject("icon_id"));
+                }
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+        }
+        cache.put(key, found);
+        return found;
     }
 
     private static void handleGiveItem(HttpExchange exchange, String method, Map<String, String> payload)
