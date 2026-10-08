@@ -8,7 +8,7 @@
             <h2 class="db-greeting-title">Xin chào, Admin 👋</h2>
             <p class="db-greeting-sub">Tổng quan hệ thống SRC NRO — cập nhật theo thời gian thực</p>
         </div>
-        <button class="db-refresh-btn" onclick="dashboardLoad()">🔄 Làm mới</button>
+        <button class="db-refresh-btn" onclick="dashboardRefresh()">🔄 Làm mới</button>
     </div>
 
     <!-- Stat Cards -->
@@ -63,23 +63,63 @@
         </div>
     </div>
 
-    <!-- Hàng 1: Top sức mạnh + Top nạp -->
-    <div class="db-row2">
+    <div class="db-panel db-runtime-panel">
+        <div class="db-panel-head">
+            <span class="db-panel-icon">🖥️</span>
+            <h3>Thông tin máy chủ</h3>
+            <span class="db-runtime-updated" id="db-runtime-updated">Đang tải...</span>
+        </div>
+        <div class="db-runtime-grid">
+            <div class="db-runtime-item db-runtime-start">
+                <span>Khởi động lúc</span>
+                <b id="db-runtime-start">—</b>
+            </div>
+            <div class="db-runtime-item">
+                <span>Clients</span>
+                <b id="db-runtime-clients">—</b>
+            </div>
+            <div class="db-runtime-item">
+                <span>Sessions</span>
+                <b id="db-runtime-sessions">—</b>
+            </div>
+            <div class="db-runtime-item">
+                <span>Threads</span>
+                <b id="db-runtime-threads">—</b>
+            </div>
+            <div class="db-runtime-item">
+                <span>CPU Usage</span>
+                <b id="db-runtime-cpu">—</b>
+            </div>
+            <div class="db-runtime-item">
+                <span>Used Memory</span>
+                <b id="db-runtime-memory">—</b>
+            </div>
+            <div class="db-runtime-item">
+                <span>Heap Used Memory</span>
+                <b id="db-runtime-heap">—</b>
+            </div>
+        </div>
+        <div class="db-runtime-chart">
+            <div class="db-runtime-chart-title">Lịch sử bộ nhớ — thang đo tự thu phóng riêng cho từng đường, cập nhật mỗi 10 giây</div>
+            <div class="db-runtime-chart-wrap">
+                <canvas id="db-chart-memory" height="220" role="img"
+                    aria-label="Biểu đồ Used Memory và Heap Used Memory"></canvas>
+            </div>
+            <div class="db-memory-legend">
+                <span><i class="db-memory-legend-system"></i>Used Memory (trục trái, MB)</span>
+                <span><i class="db-memory-legend-heap"></i>Heap Used Memory (trục phải, MB)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hàng 1: Top sức mạnh + Top nhiệm vụ -->
+    <div class="db-row2 db-top-pair">
         <div class="db-panel">
             <div class="db-panel-head">
                 <span class="db-panel-icon">🏆</span>
                 <h3>Top sức mạnh</h3>
             </div>
             <div id="db-top-power" class="db-top-list">
-                <div class="db-loading">Đang tải...</div>
-            </div>
-        </div>
-        <div class="db-panel">
-            <div class="db-panel-head">
-                <span class="db-panel-icon">💎</span>
-                <h3>Top nạp</h3>
-            </div>
-            <div id="db-top-nap" class="db-top-list">
                 <div class="db-loading">Đang tải...</div>
             </div>
         </div>
@@ -94,8 +134,8 @@
         </div>
     </div>
 
-    <!-- Hàng 2: Biểu đồ doanh thu + Quick links -->
-    <div class="db-row2" style="grid-template-columns:2fr 1fr">
+    <!-- Hàng 2: Biểu đồ doanh thu + Top nạp -->
+    <div class="db-row2 db-revenue-row">
         <div class="db-panel">
             <div class="db-panel-head">
                 <span class="db-panel-icon">📊</span>
@@ -107,17 +147,11 @@
         </div>
         <div class="db-panel">
             <div class="db-panel-head">
-                <span class="db-panel-icon">⚡</span>
-                <h3>Truy cập nhanh</h3>
+                <span class="db-panel-icon">💎</span>
+                <h3>Top nạp</h3>
             </div>
-            <div class="db-quick-links">
-                <button class="db-quick-btn" onclick="showTab('accounts')"><span>👤</span> Tài khoản</button>
-                <button class="db-quick-btn" onclick="showTab('players')"><span>⚔️</span> Nhân vật</button>
-                <button class="db-quick-btn" onclick="showTab('giftcodes')"><span>🎁</span> Gift Code</button>
-                <button class="db-quick-btn" onclick="showTab('items')"><span>🎒</span> Vật phẩm</button>
-                <button class="db-quick-btn" onclick="showTab('shops')"><span>🏪</span> Shop</button>
-                <button class="db-quick-btn" onclick="showTab('npcs')"><span>🤖</span> NPC</button>
-                <button class="db-quick-btn" onclick="showTab('maps')"><span>🗺️</span> Bản đồ</button>
+            <div id="db-top-nap" class="db-top-list">
+                <div class="db-loading">Đang tải...</div>
             </div>
         </div>
     </div>
@@ -243,10 +277,225 @@
         } catch (_) { return []; }
     }
 
+    async function fetchServerMetrics() {
+        const response = await fetch('/api/server-metrics');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+    }
+
+    const runtimeHistory = [];
+    const RUNTIME_HISTORY_LIMIT = 30;
+    let runtimeTimer = null;
+    let runtimeRequest = null;
+
     function fmtInt(n) {
         const v = Number(n);
         return Number.isFinite(v) ? v.toLocaleString('vi-VN') : '0';
     }
+
+    function fmtMemory(used, total) {
+        if (used === null || used === undefined || total === null || total === undefined) return '—';
+        const usedValue = Number(used);
+        const totalValue = Number(total);
+        if (!Number.isFinite(usedValue) || !Number.isFinite(totalValue)) return '—';
+        return `(${Math.round(usedValue).toLocaleString('vi-VN')}/${Math.round(totalValue).toLocaleString('vi-VN')}) MB`;
+    }
+
+    function renderServerMetrics(metrics) {
+        if (metrics) {
+            const values = {
+                'db-runtime-start': metrics.timeStart || '—',
+                'db-runtime-clients': fmtInt(metrics.clients),
+                'db-runtime-sessions': fmtInt(metrics.sessions),
+                'db-runtime-threads': fmtInt(metrics.threads),
+                'db-runtime-cpu': metrics.cpuUsagePercent !== null
+                    && metrics.cpuUsagePercent !== undefined
+                    && Number.isFinite(Number(metrics.cpuUsagePercent))
+                    ? `${Number(metrics.cpuUsagePercent).toFixed(1)}%`
+                    : '—',
+                'db-runtime-memory': fmtMemory(metrics.usedMemoryMB, metrics.totalMemoryMB),
+                'db-runtime-heap': fmtMemory(metrics.heapUsedMemoryMB, metrics.heapMaxMemoryMB),
+            };
+            Object.entries(values).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = value;
+            });
+        }
+        const updated = document.getElementById('db-runtime-updated');
+        if (updated) {
+            updated.textContent = metrics
+                ? `Cập nhật ${new Date().toLocaleTimeString('vi-VN')}`
+                : 'Không tải được thông tin máy chủ';
+            updated.classList.toggle('is-error', !metrics);
+        }
+    }
+
+    function renderMemoryChart() {
+        const canvas = document.getElementById('db-chart-memory');
+        if (!canvas) return;
+        const width = canvas.clientWidth;
+        if (!width) return;
+
+        const height = 220;
+        const scale = window.devicePixelRatio || 1;
+        canvas.width = Math.round(width * scale);
+        canvas.height = Math.round(height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+
+        const padding = { top: 12, right: 58, bottom: 30, left: 58 };
+        const chartWidth = width - padding.left - padding.right;
+        const chartHeight = height - padding.top - padding.bottom;
+        const samples = runtimeHistory;
+        const axisFor = key => {
+            const values = samples.map(sample => sample[key]).filter(Number.isFinite);
+            if (!values.length) return null;
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const spread = max - min;
+            const padding = Math.max(spread * .15, Math.max(Math.abs(max), 1) * .005, .5);
+            return {
+                min: Math.max(0, min - padding),
+                max: max + padding,
+            };
+        };
+        const axes = {
+            usedMemoryMB: axisFor('usedMemoryMB'),
+            heapUsedMemoryMB: axisFor('heapUsedMemoryMB'),
+        };
+
+        if (!axes.usedMemoryMB && !axes.heapUsedMemoryMB) {
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Đang chờ dữ liệu bộ nhớ...', width / 2, height / 2);
+            return;
+        }
+
+        ctx.font = '11px sans-serif';
+        ctx.textBaseline = 'middle';
+        for (let tick = 0; tick <= 4; tick++) {
+            const y = padding.top + chartHeight * tick / 4;
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+            Object.entries(axes).forEach(([key, axis]) => {
+                if (!axis) return;
+                const value = axis.max - (axis.max - axis.min) * tick / 4;
+                const decimals = axis.max - axis.min < 10 ? 1 : 0;
+                ctx.fillStyle = key === 'usedMemoryMB' ? '#2563eb' : '#e11d48';
+                ctx.textAlign = key === 'usedMemoryMB' ? 'right' : 'left';
+                ctx.fillText(value.toLocaleString('vi-VN', {
+                    minimumFractionDigits: decimals,
+                    maximumFractionDigits: decimals,
+                }), key === 'usedMemoryMB' ? padding.left - 8 : width - padding.right + 8, y);
+            });
+        }
+
+        const drawSeries = (key, color) => {
+            const axis = axes[key];
+            if (!axis) return;
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            let drawing = false;
+            samples.forEach((sample, index) => {
+                const value = sample[key];
+                if (!Number.isFinite(value)) {
+                    drawing = false;
+                    return;
+                }
+                const x = padding.left + (samples.length <= 1 ? chartWidth / 2 : chartWidth * index / (samples.length - 1));
+                const y = padding.top + chartHeight * (1 - (value - axis.min) / (axis.max - axis.min));
+                if (drawing) ctx.lineTo(x, y);
+                else {
+                    ctx.moveTo(x, y);
+                    drawing = true;
+                }
+            });
+            ctx.stroke();
+            samples.forEach((sample, index) => {
+                const value = sample[key];
+                if (!Number.isFinite(value)) return;
+                const x = padding.left + (samples.length <= 1 ? chartWidth / 2 : chartWidth * index / (samples.length - 1));
+                const y = padding.top + chartHeight * (1 - (value - axis.min) / (axis.max - axis.min));
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        };
+
+        drawSeries('usedMemoryMB', '#2563eb');
+        drawSeries('heapUsedMemoryMB', '#e11d48');
+
+        ctx.fillStyle = '#64748b';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const labelStep = Math.max(1, Math.ceil(samples.length / 6));
+        samples.forEach((sample, index) => {
+            if (index !== 0 && index !== samples.length - 1 && index % labelStep !== 0) return;
+            const x = padding.left + (samples.length <= 1 ? chartWidth / 2 : chartWidth * index / (samples.length - 1));
+            ctx.fillText(new Date(sample.time).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            }), x, height - padding.bottom + 8);
+        });
+    }
+
+    async function refreshServerMetrics() {
+        if (runtimeRequest) return runtimeRequest;
+        runtimeRequest = (async () => {
+            try {
+                const metrics = await fetchServerMetrics();
+                renderServerMetrics(metrics);
+                runtimeHistory.push({
+                    time: Date.now(),
+                    usedMemoryMB: metrics.usedMemoryMB !== null
+                        && metrics.usedMemoryMB !== undefined
+                        && Number.isFinite(Number(metrics.usedMemoryMB))
+                        ? Number(metrics.usedMemoryMB)
+                        : null,
+                    heapUsedMemoryMB: metrics.heapUsedMemoryMB !== null
+                        && metrics.heapUsedMemoryMB !== undefined
+                        && Number.isFinite(Number(metrics.heapUsedMemoryMB))
+                        ? Number(metrics.heapUsedMemoryMB)
+                        : null,
+                });
+                if (runtimeHistory.length > RUNTIME_HISTORY_LIMIT) runtimeHistory.shift();
+                renderMemoryChart();
+            } catch (error) {
+                console.error('Không tải được thông tin máy chủ:', error);
+                renderServerMetrics(null);
+                renderMemoryChart();
+            } finally {
+                runtimeRequest = null;
+            }
+        })();
+        return runtimeRequest;
+    }
+
+    function startServerMetricsPolling() {
+        refreshServerMetrics();
+        if (runtimeTimer !== null) return;
+        runtimeTimer = setInterval(() => {
+            if (document.getElementById('dashboard')?.classList.contains('active')) {
+                refreshServerMetrics();
+            }
+        }, 10_000);
+    }
+
+    window.dashboardRefresh = function () {
+        window.dashboardLoad();
+        refreshServerMetrics();
+    };
 
     function esc(s) {
         return String(s ?? '').replace(/[&<>"']/g, c =>
@@ -721,9 +970,15 @@
         });
     }
 
-    document.addEventListener('dashboardActivated', window.dashboardLoad, { once: false });
+    document.addEventListener('dashboardActivated', () => {
+        window.dashboardLoad();
+        startServerMetricsPolling();
+        renderMemoryChart();
+    }, { once: false });
+    window.addEventListener('resize', renderMemoryChart);
     if (document.getElementById('dashboard')?.classList.contains('active')) {
         window.dashboardLoad();
+        startServerMetricsPolling();
     }
 
 })();

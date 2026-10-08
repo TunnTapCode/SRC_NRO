@@ -174,13 +174,27 @@ public class DatabaseManager {
     private static HikariConfig createConfig(String poolName, String databaseName) {
         HikariConfig config = new HikariConfig();
         config.setDriverClassName(DRIVER);
-        config.setJdbcUrl(String.format("jdbc:mysql://%s:%s/%s?useUnicode=yes&characterEncoding=UTF-8",
-                DB_HOST, DB_PORT, databaseName));
+        // database.name co the kem query param (vd nro_src?sslMode=...) -> tach rieng de khong vo URL
+        String dbName = databaseName == null ? "" : databaseName;
+        String extraParams = "";
+        int q = dbName.indexOf('?');
+        if (q >= 0) {
+            extraParams = dbName.substring(q + 1);
+            dbName = dbName.substring(0, q);
+        }
+        String jdbcUrl = String.format("jdbc:mysql://%s:%s/%s?useUnicode=yes&characterEncoding=UTF-8",
+                DB_HOST, DB_PORT, dbName);
+        if (!extraParams.isEmpty()) jdbcUrl += "&" + extraParams;
+        config.setJdbcUrl(jdbcUrl);
         config.setUsername(DB_USER);
         config.setPassword(DB_PASSWORD);
         config.setMinimumIdle(MIN_CONN);
         config.setMaximumPoolSize(MAX_CONN);
         config.setMaxLifetime(MAX_LIFE_TIME);
+        config.setConnectionTimeout(10000);
+        config.setValidationTimeout(3000);
+        config.setIdleTimeout(60000);
+        config.setLeakDetectionThreshold(30000);
         config.setPoolName(poolName);
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");

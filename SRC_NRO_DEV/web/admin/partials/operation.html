@@ -76,7 +76,7 @@
             <div class="op-card-desc">Điều chỉnh xác suất quái vật rơi vật phẩm khi bị tiêu diệt</div>
             <div class="op-card-arrow">→</div>
         </div>
-        <div class="op-card op-card-cyan" data-feature="napthe">
+        <div class="op-card op-card-cyan" data-feature="history-transaction">
             <div class="op-card-icon">💰</div>
             <div class="op-card-title">Lịch Sử Giao Dịch</div>
             <div class="op-card-desc">Xem lại các giao dịch của nhân vật</div>
@@ -116,9 +116,16 @@
             <button type="button" id="op-gift-close" class="op-gift-close" aria-label="Đóng">✕</button>
         </header>
         <div class="op-gift-body">
-            <label for="op-gift-player">Người chơi (online hoặc offline)</label>
-            <div class="op-gift-player-row">
-                <select id="op-gift-player" required>
+            <label for="op-gift-player-search">Người chơi (online hoặc offline)</label>
+            <div class="op-gift-player-control">
+                <div class="op-gift-player-combobox">
+                    <input id="op-gift-player-search" type="search" placeholder="Tìm và chọn người chơi..." autocomplete="off"
+                        role="combobox" aria-autocomplete="list" aria-expanded="false"
+                        aria-controls="op-gift-player-list" aria-activedescendant="" required />
+                    <div id="op-gift-player-list" class="op-gift-player-list op-hidden" role="listbox"
+                        aria-label="Danh sách người chơi"></div>
+                </div>
+                <select id="op-gift-player" class="op-hidden" aria-hidden="true" tabindex="-1">
                     <option value="">Đang tải danh sách...</option>
                 </select>
                 <button type="button" id="op-gift-refresh" class="op-gift-refresh">Làm mới</button>
@@ -130,6 +137,10 @@
                 <input id="op-gift-item" type="text" placeholder="Chọn vật phẩm..." readonly required />
                 <button type="button" id="op-gift-item-pick" class="op-gift-pick">Chọn</button>
             </div>
+
+            <label>Tuỳ chọn vật phẩm (không bắt buộc)</label>
+            <div id="op-gift-options" class="op-gift-options"></div>
+            <button type="button" id="op-gift-option-add" class="op-gift-option-add">＋ Thêm tuỳ chọn</button>
 
             <label for="op-gift-quantity">Số lượng</label>
             <input id="op-gift-quantity" type="number" min="1" max="99999" value="1" required />
@@ -193,6 +204,51 @@
         </div>
     </div>
 </div>
+<template id="op-tpl-history-transaction">
+    <div class="op-feature">
+        <div class="op-feature-header">
+            <button class="op-back-btn" id="op-back-btn">← Trở về</button>
+            <h3 class="op-feature-title">💰 Lịch Sử Giao Dịch</h3>
+            <div class="op-feature-actions">
+                <button class="op-tool-btn op-btn-primary" id="op-tran-refresh">🔄 Tải lại</button>
+            </div>
+        </div>
+        <div class="op-tran-stats">
+            <div class="op-stat-chip op-stat-total">
+                <span class="op-stat-icon">🧾</span>
+                <div>
+                    <div class="op-stat-label">Tổng giao dịch</div>
+                    <div class="op-stat-val" id="op-tran-count">—</div>
+                </div>
+            </div>
+            <div class="op-stat-chip op-stat-revenue">
+                <span class="op-stat-icon">💰</span>
+                <div>
+                    <div class="op-stat-label">Vàng luân chuyển</div>
+                    <div class="op-stat-val" id="op-tran-gold">—</div>
+                </div>
+            </div>
+            <div class="op-stat-chip op-stat-success">
+                <span class="op-stat-icon">🎒</span>
+                <div>
+                    <div class="op-stat-label">Vật phẩm trao đổi</div>
+                    <div class="op-stat-val" id="op-tran-items">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="op-filter-row">
+            <input class="op-filter-input" type="text" id="op-tran-search" placeholder="🔍 Tìm tên nhân vật / vật phẩm..." />
+            <select class="op-filter-select" id="op-tran-limit">
+                <option value="100">100 mới nhất</option>
+                <option value="200" selected>200 mới nhất</option>
+                <option value="500">500 mới nhất</option>
+                <option value="1000">1000 mới nhất</option>
+            </select>
+        </div>
+        <div id="op-tran-list" class="op-tran-list"></div>
+    </div>
+</template>
+
 <template id="op-tpl-napthe">
     <div class="op-feature">
         <div class="op-feature-header">
@@ -406,6 +462,107 @@
         }
 
         /* ════════════════════════════
+           FEATURE: LICH SU GIAO DICH (history_transaction)
+        ════════════════════════════ */
+        let _tranAll = [];
+
+        async function openHistoryTransaction() {
+            showFeature(tplHTML('op-tpl-history-transaction'));
+            document.getElementById('op-tran-refresh')?.addEventListener('click', loadTran);
+            document.getElementById('op-tran-search')?.addEventListener('input', filterTran);
+            document.getElementById('op-tran-limit')?.addEventListener('change', loadTran);
+            await loadTran();
+        }
+
+        async function loadTran() {
+            const list = document.getElementById('op-tran-list');
+            if (list) list.innerHTML = '<div class="op-loading">⏳ Đang tải lịch sử giao dịch...</div>';
+            const limit = document.getElementById('op-tran-limit')?.value || '200';
+            _tranAll = await api('history-transactions?limit=' + encodeURIComponent(limit));
+            if (!Array.isArray(_tranAll)) _tranAll = [];
+            filterTran();
+        }
+
+        function filterTran() {
+            const q = (document.getElementById('op-tran-search')?.value || '').toLowerCase().trim();
+            if (!q) { renderTran(_tranAll); return; }
+            const filtered = _tranAll.filter(r => {
+                const hay = [r.player_1, r.player_2, r.item_player_1, r.item_player_2]
+                    .map(v => String(v || '').toLowerCase()).join(' | ');
+                return hay.includes(q);
+            });
+            renderTran(filtered);
+        }
+
+        function tranAvatar(p) {
+            if (!p) return '<div class="op-tran-avatar op-tran-no-avatar">?</div>';
+            const avatarId = p.avatar_id ?? p.avatarId;
+            if (avatarId !== null && avatarId !== undefined && String(avatarId) !== '') {
+                const url = '/data/icon/x4/' + avatarId + '.png';
+                const nm = (p.name || '?').replace(/"/g, '');
+                return '<img class="op-tran-avatar" src="' + url + '" alt="' + nm
+                    + '" onerror="this.outerHTML=\'<div class=&quot;op-tran-avatar op-tran-no-avatar&quot;>?</div>\'" />';
+            }
+            return '<div class="op-tran-avatar op-tran-no-avatar">?</div>';
+        }
+
+        function tranItems(items) {
+            const list = Array.isArray(items) ? items : [];
+            if (!list.length) return '<span class="op-tran-no-item">Không có vật phẩm</span>';
+            return list.map(it => {
+                const name = it.name || ('Vật phẩm ' + (it.template_id ?? '?'));
+                const qty = it.quantity ?? it.count ?? 1;
+                const icon = it.icon_id ?? it.iconId ?? it.template_id;
+                const img = (icon !== null && icon !== undefined && String(icon) !== '')
+                    ? '<img src="/data/icon/x4/' + icon + '.png" alt="" onerror="this.style.display=\'none\'" />'
+                    : '<span class="op-tran-item-fallback">🎒</span>';
+                return '<span class="op-tran-item" title="' + String(name).replace(/"/g, '') + ' x' + qty + '">'
+                    + img + '<span class="op-tran-item-qty">x' + qty + '</span>'
+                    + '<span class="op-tran-item-name">' + String(name) + '</span></span>';
+            }).join('');
+        }
+
+        function renderTran(rows) {
+            setText('op-tran-count', rows.length);
+            let gold = 0; let itemCount = 0;
+            rows.forEach(r => {
+                (r.items1 || []).concat(r.items2 || []).forEach(it => {
+                    if (it.is_gold || it.isGold) gold += Number(it.quantity || 0);
+                    else itemCount += Number(it.quantity || 0);
+                });
+            });
+            setText('op-tran-gold', fmtNum(gold) + ' vàng');
+            setText('op-tran-items', fmtNum(itemCount));
+            const list = document.getElementById('op-tran-list');
+            if (!list) return;
+            if (!rows.length) {
+                list.innerHTML = '<div class="op-empty">Không có dữ liệu giao dịch</div>';
+                return;
+            }
+            list.innerHTML = rows.map(r => {
+                const p1 = r.player1 || {}; const p2 = r.player2 || {};
+                return '<div class="op-tran-card">'
+                    + '<div class="op-tran-head"><span class="op-tran-id">#' + r.id + '</span>'
+                    + '<span class="op-tran-time">🕒 ' + fmtDate(r.time_tran) + '</span></div>'
+                    + '<div class="op-tran-sides">'
+                    + '<div class="op-tran-side"><div class="op-tran-player">'
+                    + tranAvatar(p1)
+                    + '<div><div class="op-tran-name">' + (p1.name || r.player_1 || '?') + '</div>'
+                    + '<div class="op-tran-sub">ID: ' + (p1.id ?? '—') + '</div></div></div>'
+                    + '<div class="op-tran-give"><div class="op-tran-give-label">Đưa ra</div>'
+                    + tranItems(r.items1) + '</div></div>'
+                    + '<div class="op-tran-swap">⇄</div>'
+                    + '<div class="op-tran-side"><div class="op-tran-player">'
+                    + tranAvatar(p2)
+                    + '<div><div class="op-tran-name">' + (p2.name || r.player_2 || '?') + '</div>'
+                    + '<div class="op-tran-sub">ID: ' + (p2.id ?? '—') + '</div></div></div>'
+                    + '<div class="op-tran-give"><div class="op-tran-give-label">Đưa ra</div>'
+                    + tranItems(r.items2) + '</div></div>'
+                    + '</div></div>';
+            }).join('');
+        }
+
+        /* ════════════════════════════
            FEATURE: RANK
         ════════════════════════════ */
         async function openRank() {
@@ -498,6 +655,7 @@
 
             const f = card.dataset.feature;
             if (f === 'napthe') openNapthe();
+            else if (f === 'history-transaction') openHistoryTransaction();
             else if (f === 'rank') openRank();
             else if (f === 'chinhboss') openBossModal();
             else if (f === 'tileexp') openExpModal();
@@ -517,9 +675,13 @@
     const modal = document.getElementById('op-gift-modal');
     const form = document.getElementById('op-gift-form');
     const playerSelect = document.getElementById('op-gift-player');
+    const playerSearch = document.getElementById('op-gift-player-search');
+    const playerList = document.getElementById('op-gift-player-list');
     const itemInput = document.getElementById('op-gift-item');
     const itemIcon = document.getElementById('op-gift-item-icon');
     const quantityInput = document.getElementById('op-gift-quantity');
+    const giftOptions = document.getElementById('op-gift-options');
+    const addGiftOptionButton = document.getElementById('op-gift-option-add');
     const status = document.getElementById('op-gift-status');
     const submitButton = document.getElementById('op-gift-submit');
     const picker = document.getElementById('op-gift-picker');
@@ -527,11 +689,14 @@
     const pickerSearch = document.getElementById('op-gift-picker-search');
     const pickerCount = document.getElementById('op-gift-picker-count');
 
+    let playerRows = [];
     let itemRows = [];
+    let itemOptionRows = [];
     let onlineIds = new Set();
     let selectedItemId = null;
     let pickerTimer = null;
     let isSubmitting = false;
+    let giftOptionRowId = 0;
 
     function setStatus(message, isError) {
         status.textContent = message;
@@ -540,16 +705,94 @@
 
     function closeModal() {
         closePicker();
+        closePlayerList();
         modal.classList.add('op-hidden');
         document.body.style.overflow = '';
     }
 
+    function closePlayerList() {
+        playerList.classList.add('op-hidden');
+        playerSearch.setAttribute('aria-expanded', 'false');
+        playerSearch.setAttribute('aria-activedescendant', '');
+        activePlayerIndex = -1;
+    }
+
+    let activePlayerIndex = -1;
+
+    function selectPlayer(player) {
+        const id = String(player.id);
+        const option = Array.from(playerSelect.options).find(entry => entry.value === id);
+        if (!option) return;
+        playerSelect.value = id;
+        playerSearch.value = option.textContent;
+        closePlayerList();
+    }
+
+    function renderPlayers(query = '', openList = true) {
+        const q = query.trim().toLocaleLowerCase();
+        const selectedId = playerSelect.value;
+        const filteredPlayers = q
+            ? playerRows.filter(player => `${player.name || ''} ${player.id}`.toLocaleLowerCase().includes(q))
+            : playerRows;
+
+        playerSelect.replaceChildren(new Option('Chọn người chơi...', ''));
+        playerRows.forEach(player => {
+            const id = Number(player.id);
+            const label = onlineIds.has(id)
+                ? `🟢 ${player.name} (#${id}) — online`
+                : `⚫ ${player.name} (#${id}) — offline`;
+            playerSelect.add(new Option(label, id));
+        });
+        playerSelect.value = playerRows.some(player => String(player.id) === selectedId) ? selectedId : '';
+        const selectedOption = Array.from(playerSelect.options).find(option => option.value === selectedId);
+        if (selectedOption && playerSelect.value) playerSearch.value = selectedOption.textContent;
+
+        playerList.replaceChildren();
+        if (filteredPlayers.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'op-gift-player-empty';
+            empty.textContent = q ? 'Không tìm thấy người chơi' : 'Chưa có người chơi';
+            playerList.appendChild(empty);
+            activePlayerIndex = -1;
+        } else {
+            filteredPlayers.forEach((player, index) => {
+                const option = document.createElement('div');
+                option.id = `op-gift-player-option-${player.id}`;
+                option.className = 'op-gift-player-option';
+                option.setAttribute('role', 'option');
+                option.setAttribute('aria-selected', 'false');
+                const id = Number(player.id);
+                option.textContent = onlineIds.has(id)
+                    ? `🟢 ${player.name} (#${id}) — online`
+                    : `⚫ ${player.name} (#${id}) — offline`;
+                option.addEventListener('pointerdown', event => event.preventDefault());
+                option.addEventListener('click', () => selectPlayer(player));
+                playerList.appendChild(option);
+                if (index === 0) activePlayerIndex = 0;
+            });
+        }
+        playerSearch.setAttribute('aria-expanded', String(openList));
+        playerList.classList.toggle('op-hidden', !openList);
+        updateActivePlayerOption();
+    }
+
+    function updateActivePlayerOption() {
+        const options = playerList.querySelectorAll('[role="option"]');
+        options.forEach((option, index) => {
+            const isActive = index === activePlayerIndex;
+            option.classList.toggle('is-active', isActive);
+            option.setAttribute('aria-selected', String(isActive));
+        });
+        const active = options[activePlayerIndex];
+        playerSearch.setAttribute('aria-activedescendant', active ? active.id : '');
+    }
+
     /** Tải TẤT CẢ người chơi trong DB (không chỉ người đang online) */
     async function loadPlayers() {
-        playerSelect.innerHTML = '<option value="">Đang tải danh sách...</option>';
-        playerSelect.disabled = true;
+        playerRows = [];
+        playerSelect.replaceChildren(new Option('Đang tải danh sách...', ''));
         const players = await window.apiRequest('players', { method: 'GET' });
-        const rows = Array.isArray(players) ? players : [];
+        playerRows = Array.isArray(players) ? players : [];
 
         // Đánh dấu người đang online — best effort, endpoint lỗi thì bỏ qua
         onlineIds = new Set();
@@ -558,22 +801,188 @@
             (Array.isArray(online) ? online : []).forEach(p => onlineIds.add(Number(p.id)));
         } catch (_) { /* server chưa có endpoint này cũng không sao */ }
 
-        playerSelect.replaceChildren(new Option('Chọn người chơi...', ''));
-        rows.forEach(player => {
-            const id = Number(player.id);
-            const label = onlineIds.has(id)
-                ? `🟢 ${player.name} (#${id}) — đang online`
-                : `${player.name} (#${id})`;
-            playerSelect.add(new Option(label, id));
-        });
-        playerSelect.disabled = rows.length === 0;
-        return rows.length;
+        renderPlayers(playerSearch.value, false);
+        return playerRows.length;
     }
 
     async function loadItems() {
         const rows = await window.apiRequest('items', { method: 'GET' });
         itemRows = Array.isArray(rows) ? rows : [];
         itemRows.sort((a, b) => Number(a.id) - Number(b.id));
+    }
+
+    async function loadItemOptions() {
+        const rows = await window.apiRequest('item-options', { method: 'GET' });
+        itemOptionRows = Array.isArray(rows) ? rows : [];
+        itemOptionRows.sort((a, b) => Number(a.id) - Number(b.id));
+    }
+
+    function addGiftOptionRow() {
+        const row = document.createElement('div');
+        row.className = 'op-gift-option-row';
+
+        const optionPicker = document.createElement('div');
+        optionPicker.className = 'op-gift-option-picker';
+
+        const search = document.createElement('input');
+        search.className = 'op-gift-option-search';
+        search.type = 'search';
+        search.placeholder = 'Tìm tuỳ chọn...';
+        search.autocomplete = 'off';
+        search.required = true;
+        search.setAttribute('role', 'combobox');
+        search.setAttribute('aria-autocomplete', 'list');
+        search.setAttribute('aria-expanded', 'false');
+        search.setAttribute('aria-label', 'Tìm và chọn loại tuỳ chọn');
+
+        const list = document.createElement('div');
+        list.className = 'op-gift-option-list op-hidden';
+        list.id = `op-gift-option-list-${++giftOptionRowId}`;
+        list.setAttribute('role', 'listbox');
+        search.setAttribute('aria-controls', list.id);
+
+        const select = document.createElement('select');
+        select.className = 'op-gift-option-select';
+        select.classList.add('op-hidden');
+        select.setAttribute('aria-hidden', 'true');
+        select.tabIndex = -1;
+        select.add(new Option('Chọn tuỳ chọn...', ''));
+        itemOptionRows.forEach(option => {
+            const id = Number(option.id);
+            select.add(new Option(`${option.NAME || option.name} (#${id})`, id));
+        });
+
+        let activeIndex = -1;
+        const closeList = () => {
+            list.classList.add('op-hidden');
+            search.setAttribute('aria-expanded', 'false');
+            search.setAttribute('aria-activedescendant', '');
+            activeIndex = -1;
+        };
+        const updateActiveOption = () => {
+            const options = list.querySelectorAll('[role="option"]');
+            options.forEach((option, index) => {
+                const isActive = index === activeIndex;
+                option.classList.toggle('is-active', isActive);
+                option.setAttribute('aria-selected', String(isActive));
+            });
+            search.setAttribute('aria-activedescendant', options[activeIndex]?.id || '');
+        };
+        const renderOptions = (query = '', openList = true) => {
+            const q = query.trim().toLocaleLowerCase();
+            const matches = itemOptionRows.filter(option =>
+                `${option.NAME || option.name || ''} ${option.id}`.toLocaleLowerCase().includes(q)
+            );
+            list.replaceChildren();
+            if (matches.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'op-gift-player-empty';
+                empty.textContent = q ? 'Không tìm thấy tuỳ chọn' : 'Chưa có tuỳ chọn';
+                list.appendChild(empty);
+                activeIndex = -1;
+            } else {
+                matches.forEach((option, index) => {
+                    const id = Number(option.id);
+                    const entry = document.createElement('div');
+                    entry.id = `${list.id}-option-${id}`;
+                    entry.className = 'op-gift-option-choice';
+                    entry.setAttribute('role', 'option');
+                    entry.setAttribute('aria-selected', 'false');
+                    entry.textContent = `${option.NAME || option.name} (#${id})`;
+                    entry.addEventListener('pointerdown', event => event.preventDefault());
+                    entry.addEventListener('click', () => {
+                        select.value = String(id);
+                        search.value = entry.textContent;
+                        closeList();
+                    });
+                    list.appendChild(entry);
+                    if (index === 0) activeIndex = 0;
+                });
+            }
+            search.setAttribute('aria-expanded', String(openList));
+            list.classList.toggle('op-hidden', !openList);
+            updateActiveOption();
+        };
+
+        search.addEventListener('focus', () => {
+            if (select.value) search.select();
+            renderOptions(search.value);
+        });
+        search.addEventListener('click', () => {
+            if (list.classList.contains('op-hidden')) renderOptions(search.value);
+        });
+        search.addEventListener('input', () => {
+            select.value = '';
+            renderOptions(search.value);
+        });
+        search.addEventListener('keydown', event => {
+            const options = list.querySelectorAll('[role="option"]');
+            if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && options.length) {
+                event.preventDefault();
+                activeIndex = event.key === 'ArrowDown'
+                    ? (activeIndex + 1) % options.length
+                    : (activeIndex <= 0 ? options.length - 1 : activeIndex - 1);
+                updateActiveOption();
+            } else if (event.key === 'Enter' && !list.classList.contains('op-hidden') && activeIndex >= 0) {
+                event.preventDefault();
+                options[activeIndex].click();
+            } else if (event.key === 'Escape' && !list.classList.contains('op-hidden')) {
+                event.stopPropagation();
+                closeList();
+            }
+        });
+        search.addEventListener('blur', () => {
+            if (!select.value) search.value = '';
+            closeList();
+        });
+
+        optionPicker.append(search, list, select);
+
+        const param = document.createElement('input');
+        param.className = 'op-gift-option-param';
+        param.type = 'number';
+        param.step = '1';
+        param.value = '1';
+        param.required = true;
+        param.setAttribute('aria-label', 'Giá trị tuỳ chọn');
+        param.placeholder = 'Giá trị';
+
+        const remove = document.createElement('button');
+        remove.className = 'op-gift-option-remove';
+        remove.type = 'button';
+        remove.textContent = '×';
+        remove.setAttribute('aria-label', 'Xoá tuỳ chọn');
+        remove.addEventListener('click', () => {
+            row.remove();
+            addGiftOptionButton.disabled = giftOptions.children.length >= 10;
+        });
+
+        row.append(optionPicker, param, remove);
+        giftOptions.appendChild(row);
+        addGiftOptionButton.disabled = giftOptions.children.length >= 10;
+    }
+
+    function getGiftOptions() {
+        const rows = Array.from(giftOptions.querySelectorAll('.op-gift-option-row'));
+        const options = rows.map(row => {
+            const optionId = row.querySelector('.op-gift-option-select').value;
+            const param = row.querySelector('.op-gift-option-param').value;
+            if (optionId === '' || param === '') {
+                throw new Error('Hãy chọn loại và nhập giá trị cho từng tuỳ chọn.');
+            }
+            return { optionId: Number(optionId), param: Number(param) };
+        });
+        const seenOptionIds = new Set();
+        for (const option of options) {
+            if (!Number.isInteger(option.optionId) || !Number.isInteger(option.param)) {
+                throw new Error('Hãy chọn loại và nhập giá trị nguyên cho từng tuỳ chọn.');
+            }
+            if (seenOptionIds.has(option.optionId)) {
+                throw new Error('Không thể chọn trùng loại tuỳ chọn.');
+            }
+            seenOptionIds.add(option.optionId);
+        }
+        return options;
     }
 
     function itemIconUrl(item) {
@@ -655,10 +1064,13 @@
     window.openGiveItemModal = async function () {
         modal.classList.remove('op-hidden');
         document.body.style.overflow = 'hidden';
+        playerSearch.value = '';
+        playerSelect.value = '';
+        closePlayerList();
         setStatus('Đang tải danh sách người chơi và vật phẩm...');
         submitButton.disabled = true;
         try {
-            const results = await Promise.all([loadPlayers(), loadItems()]);
+            const results = await Promise.all([loadPlayers(), loadItems(), loadItemOptions()]);
             const playerCount = results[0];
             if (playerCount === 0) {
                 setStatus('Không tìm thấy người chơi nào trong dữ liệu.', true);
@@ -672,6 +1084,41 @@
         }
     };
 
+    playerSearch.addEventListener('focus', () => {
+        if (playerSelect.value) playerSearch.select();
+        renderPlayers(playerSearch.value);
+    });
+    playerSearch.addEventListener('click', () => {
+        if (playerList.classList.contains('op-hidden')) renderPlayers(playerSearch.value);
+    });
+    playerSearch.addEventListener('input', () => {
+        playerSelect.value = '';
+        renderPlayers(playerSearch.value);
+    });
+    playerSearch.addEventListener('keydown', event => {
+        const options = playerList.querySelectorAll('[role="option"]');
+        if (event.key === 'ArrowDown' && options.length) {
+            event.preventDefault();
+            activePlayerIndex = (activePlayerIndex + 1) % options.length;
+            updateActivePlayerOption();
+        } else if (event.key === 'ArrowUp' && options.length) {
+            event.preventDefault();
+            activePlayerIndex = activePlayerIndex <= 0 ? options.length - 1 : activePlayerIndex - 1;
+            updateActivePlayerOption();
+        } else if (event.key === 'Enter' && !playerList.classList.contains('op-hidden') && activePlayerIndex >= 0) {
+            event.preventDefault();
+            const player = playerRows.find(entry => `op-gift-player-option-${entry.id}` === options[activePlayerIndex].id);
+            if (player) selectPlayer(player);
+        } else if (event.key === 'Escape' && !playerList.classList.contains('op-hidden')) {
+            event.stopPropagation();
+            closePlayerList();
+        }
+    });
+    playerSearch.addEventListener('blur', () => {
+        if (!playerSelect.value) playerSearch.value = '';
+        closePlayerList();
+    });
+    addGiftOptionButton.addEventListener('click', addGiftOptionRow);
     document.getElementById('op-gift-close').addEventListener('click', closeModal);
     document.getElementById('op-gift-cancel').addEventListener('click', closeModal);
     modal.addEventListener('click', event => {
@@ -679,6 +1126,7 @@
     });
     document.addEventListener('keydown', event => {
         if (event.key !== 'Escape') return;
+        if (!playerList.classList.contains('op-hidden')) { closePlayerList(); return; }
         if (!picker.classList.contains('op-hidden')) { closePicker(); return; }
         if (!modal.classList.contains('op-hidden')) closeModal();
     });
@@ -718,10 +1166,17 @@
             setStatus('Vui lòng chọn người chơi, vật phẩm hợp lệ và số lượng từ 1 đến 99.999.', true);
             return;
         }
+        let options;
+        try {
+            options = getGiftOptions();
+        } catch (error) {
+            setStatus(error.message, true);
+            return;
+        }
         const itemName = selectedItem.NAME || selectedItem.name || `#${selectedItem.id}`;
         const confirmMessage = onlineIds.has(playerId)
-            ? `Tặng ${quantity} × ${itemName} cho ${selectedPlayer.textContent} (đang online).`
-            : `Tặng ${quantity} × ${itemName} cho ${selectedPlayer.textContent} (offline — vật phẩm sẽ được lưu vào hành trang).`;
+            ? `Tặng ${quantity} × ${itemName}${options.length ? ` kèm ${options.length} tuỳ chọn` : ''} cho ${selectedPlayer.textContent} (đang online).`
+            : `Tặng ${quantity} × ${itemName}${options.length ? ` kèm ${options.length} tuỳ chọn` : ''} cho ${selectedPlayer.textContent} (offline — vật phẩm sẽ được lưu vào hành trang).`;
 
         // Popup xác nhận của admin (thay cho confirm() của trình duyệt)
         isSubmitting = true;
@@ -751,7 +1206,12 @@
         try {
             const result = await window.apiRequest('give-item', {
                 method: 'POST',
-                body: JSON.stringify({ playerId, itemId: Number(selectedItem.id), quantity })
+                body: JSON.stringify({
+                    playerId,
+                    itemId: Number(selectedItem.id),
+                    quantity,
+                    options: JSON.stringify(options)
+                })
             });
             setStatus(result.message || 'Đã tặng vật phẩm.');
             if (typeof window.toast === 'function') window.toast(result.message || 'Đã tặng vật phẩm.', 'success');

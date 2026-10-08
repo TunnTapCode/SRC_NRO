@@ -39,7 +39,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import managers.DropRateManager;
 import managers.CombineRateManager;
+import network.SessionManager;
 import utils.Logger;
+import utils.SystemMetrics;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 // Runtime server references
 import static server.Maintenance.isRunning;
@@ -260,6 +266,7 @@ public final class AdminApiServer {
                     "/api/accounts",
                     "/api/players",
                     "/api/online-players",
+                    "/api/server-metrics",
                     "/api/give-item",
                     "/api/giftcodes",
                     "/api/items",
@@ -306,6 +313,19 @@ public final class AdminApiServer {
                 return;
             case "online-players":
                 handleOnlinePlayers(exchange, method);
+                return;
+            case "server-metrics":
+                if ("GET".equalsIgnoreCase(method)) {
+                    Map<String, Object> metrics = SystemMetrics.getMetrics();
+                    metrics.put("timeStart", ServerManager.timeStart);
+                    metrics.put("clients", Client.gI().getPlayers().size());
+                    metrics.put("sessions", SessionManager.gI().getNumSession());
+                    metrics.put("threads", Thread.activeCount());
+                    sendJson(exchange, 200, metrics);
+                } else {
+                    exchange.getResponseHeaders().set("Allow", "GET");
+                    sendText(exchange, 405, "Method Not Allowed");
+                }
                 return;
             case "give-item":
                 handleGiveItem(exchange, method, payload);
@@ -438,6 +458,9 @@ public final class AdminApiServer {
             case "napthe":
                 handleCrud(exchange, method, idParam, payload, "napthe", "id", "user_nap", "telco", "serial", "code",
                         "amount", "status", "request_id");
+                return;
+            case "history-transactions":
+                handleHistoryTransactions(exchange, method);
                 return;
             case "settings":
                 handleSettings(exchange, method, payload);
@@ -862,6 +885,262 @@ public final class AdminApiServer {
         sendJson(exchange, 200, players);
     }
 
+    /**
+     * GET /api/history-transactions?q=...&limit=200
+     * Tra ve lich su giao dich player-player (bang history_transaction),
+     * enrich san avatar nhan vat + icon vat pham de frontend hien thi ngay.
+     */
+    private static void handleHistoryTransactions(HttpExchange exchange, String method) throws IOException {
+        if (!"GET".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().set("Allow", "GET");
+            sendJson(exchange, 405, mapOf("success", false, "message", "Method Not Allowed"));
+            return;
+        }
+        String query = exchange.getRequestURI().getQuery();
+        String keyword = queryParam(query, "q");
+        int limit = 200;
+        try {
+            String rawLimit = queryParam(query, "limit");
+            if (rawLimit != null && !rawLimit.isEmpty()) {
+                limit = Math.max(1, Math.min(1000, Integer.parseInt(rawLimit.trim())));
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        sendJson(exchange, 200, queryHistoryTransactions(keyword, limit));
+    }
+
+    private static List<Map<String, Object>> queryHistoryTransactions(String keyword, int limit) {
+        List<Map<String, Object>> rawRows = new ArrayList<>();
+        String sql = "SELECT id, player_1, player_2, item_player_1, item_player_2,"
+                + " time_tran"
+                + " FROM history_transaction ORDER BY time_tran DESC, id DESC LIMIT ?";
+        // Phase 1: chi lay raw, dong connection ngay — khong enrich trong ResultSet
+        // (ko SELECT bag_* vi TEXT nang, khong dung den -> giam tai TiDB cloud)
+        try (Connection connection = DatabaseManager.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setQueryTimeout(15);
+            statement.setInt(1, limit);
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", rs.getObject("id"));
+                    row.put("player_1", rs.getString("player_1"));
+                    row.put("player_2", rs.getString("player_2"));
+                    row.put("item_player_1", rs.getString("item_player_1"));
+                    row.put("item_player_2", rs.getString("item_player_2"));
+                    Object time = rs.getObject("time_tran");
+                    row.put("time_tran", time == null ? null : String.valueOf(time));
+                    rawRows.add(row);
+                }
+            }
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+            return rawRows;
+        }
+        if (rawRows.isEmpty()) {
+            return rawRows;
+        }
+        // Phase 2+3: bulk enrich bang connection rieng, tuan tu (pool da tang max)
+        Map<String, Map<String, Object>> playerMap;
+        Map<String, Map<String, Object>> itemMap;
+        try {
+            playerMap = bulkHistoryPlayers(rawRows);
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+            playerMap = new HashMap<>();
+        }
+        try {
+            itemMap = bulkHistoryItemTemplates(rawRows);
+        } catch (Exception e) {
+            Logger.logException(AdminApiServer.class, e);
+            itemMap = new HashMap<>();
+        }
+        List<Map<String, Object>> rows = new ArrayList<>(rawRows.size());
+        for (Map<String, Object> raw : rawRows) {
+            String p1 = (String) raw.get("player_1");
+            String p2 = (String) raw.get("player_2");
+            String ip1 = (String) raw.get("item_player_1");
+            String ip2 = (String) raw.get("item_player_2");
+            Map<String, Object> row = new LinkedHashMap<>(raw);
+            row.put("player1", resolveHistoryPlayer(p1, playerMap));
+            row.put("player2", resolveHistoryPlayer(p2, playerMap));
+            row.put("items1", resolveHistoryItems(ip1, itemMap));
+            row.put("items2", resolveHistoryItems(ip2, itemMap));
+            rows.add(row);
+        }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            String q = keyword.trim().toLowerCase(Locale.ROOT);
+            rows.removeIf(row -> !historyRowMatches(row, q));
+        }
+        return rows;
+    }
+
+    private static boolean historyRowMatches(Map<String, Object> row, String q) {
+        for (String key : new String[] { "player_1", "player_2", "item_player_1", "item_player_2" }) {
+            Object v = row.get(key);
+            if (v != null && String.valueOf(v).toLowerCase(Locale.ROOT).contains(q)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static long parseHistoryPlayerId(String raw) {
+        if (raw == null) return -1;
+        Matcher m = Pattern.compile("\\((\\d+)\\)\\s*$").matcher(raw);
+        if (m.find()) {
+            try { return Long.parseLong(m.group(1)); } catch (NumberFormatException ignored) { }
+        }
+        return -1;
+    }
+
+    private static Map<String, Map<String, Object>> bulkHistoryPlayers(List<Map<String, Object>> rawRows) {
+        Map<String, Map<String, Object>> result = new HashMap<>();
+        java.util.Set<Long> ids = new java.util.LinkedHashSet<>();
+        for (Map<String, Object> r : rawRows) {
+            long a = parseHistoryPlayerId((String) r.get("player_1"));
+            long b = parseHistoryPlayerId((String) r.get("player_2"));
+            if (a >= 0) ids.add(a);
+            if (b >= 0) ids.add(b);
+        }
+        if (ids.isEmpty()) return result;
+        // Chia batch 200 id/lan de khong giu connection lau tren TiDB cloud
+        java.util.List<Long> idList = new ArrayList<>(ids);
+        for (int from = 0; from < idList.size(); from += 200) {
+            java.util.List<Long> batch = idList.subList(from, Math.min(from + 200, idList.size()));
+            StringBuilder sb = new StringBuilder("SELECT p.id,p.name,p.head,ha.avatar_id FROM player p"
+                    + " LEFT JOIN head_avatar ha ON p.head=ha.head_id WHERE p.id IN (");
+            boolean f = true;
+            for (int i = 0; i < batch.size(); i++) { if (!f) sb.append(","); sb.append("?"); f = false; }
+            sb.append(")");
+            try (Connection c = DatabaseManager.getConnection();
+                    PreparedStatement ps = c.prepareStatement(sb.toString())) {
+                ps.setQueryTimeout(15);
+                int idx = 1;
+                for (Long id : batch) ps.setLong(idx++, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> info = new LinkedHashMap<>();
+                        info.put("id", rs.getObject("id"));
+                        info.put("name", rs.getString("name"));
+                        info.put("head", rs.getObject("head"));
+                        info.put("avatar_id", rs.getObject("avatar_id"));
+                        result.put("id:" + rs.getLong("id"), info);
+                    }
+                }
+            } catch (Exception e) { Logger.logException(AdminApiServer.class, e); }
+        }
+        return result;
+    }
+
+    private static Map<String, Object> resolveHistoryPlayer(String raw,
+            Map<String, Map<String, Object>> bulk) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        String name = raw == null ? "" : raw.trim();
+        long playerId = parseHistoryPlayerId(raw);
+        if (playerId >= 0 && raw != null) {
+            Matcher m = Pattern.compile("\\((\\d+)\\)\\s*$").matcher(raw);
+            if (m.find()) name = raw.substring(0, m.start()).trim();
+        }
+        info.put("name", name);
+        info.put("id", playerId >= 0 ? playerId : null);
+        info.put("head", null);
+        info.put("avatar_id", null);
+        if (playerId >= 0) {
+            Map<String, Object> found = bulk.get("id:" + playerId);
+            if (found != null) return found;
+        }
+        return info;
+    }
+
+    private static java.util.List<String> parseHistoryItemNames(String raw) {
+        java.util.List<String> names = new ArrayList<>();
+        if (raw == null || raw.trim().isEmpty()) return names;
+        Matcher m = Pattern.compile("(.+?)\\(x\\s*(\\d+)\\s*\\)").matcher(raw);
+        while (m.find()) {
+            String n = m.group(1).trim().replaceAll("^[,;]+", "").trim();
+            n = n.replaceFirst("(?i)^Gold\\s*:\\s*\\d+\\s*,?\\s*", "").trim();
+            if (!n.isEmpty() && !n.equalsIgnoreCase("Gold")) names.add(n);
+        }
+        return names;
+    }
+
+    private static Map<String, Map<String, Object>> bulkHistoryItemTemplates(List<Map<String, Object>> rawRows) {
+        java.util.Set<String> names = new java.util.LinkedHashSet<>();
+        for (Map<String, Object> r : rawRows) {
+            names.addAll(parseHistoryItemNames((String) r.get("item_player_1")));
+            names.addAll(parseHistoryItemNames((String) r.get("item_player_2")));
+        }
+        Map<String, Map<String, Object>> result = new HashMap<>();
+        if (names.isEmpty()) return result;
+        java.util.List<String> nameList = new ArrayList<>(names);
+        for (int from = 0; from < nameList.size(); from += 200) {
+            java.util.List<String> batch = nameList.subList(from, Math.min(from + 200, nameList.size()));
+            StringBuilder sb = new StringBuilder("SELECT NAME,id,icon_id FROM item_template WHERE NAME IN (");
+            boolean f = true;
+            for (int i = 0; i < batch.size(); i++) { if (!f) sb.append(","); sb.append("?"); f = false; }
+            sb.append(")");
+            try (Connection c = DatabaseManager.getConnection();
+                    PreparedStatement ps = c.prepareStatement(sb.toString())) {
+                ps.setQueryTimeout(15);
+                int idx = 1;
+                for (String n : batch) ps.setString(idx++, n);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> found = new LinkedHashMap<>();
+                        found.put("template_id", rs.getObject("id"));
+                        found.put("icon_id", rs.getObject("icon_id"));
+                        result.put(String.valueOf(rs.getString("NAME")).toLowerCase(Locale.ROOT), found);
+                    }
+                }
+            } catch (Exception e) { Logger.logException(AdminApiServer.class, e); }
+        }
+        return result;
+    }
+
+    private static List<Map<String, Object>> resolveHistoryItems(String raw,
+            Map<String, Map<String, Object>> bulk) {
+        List<Map<String, Object>> items = new ArrayList<>();
+        if (raw == null || raw.trim().isEmpty()) {
+            return items;
+        }
+        Matcher gold = Pattern.compile("Gold\\s*:\\s*(\\d+)").matcher(raw);
+        if (gold.find()) {
+            try {
+                Map<String, Object> goldRow = new LinkedHashMap<>();
+                goldRow.put("name", "Vang");
+                goldRow.put("quantity", Long.parseLong(gold.group(1)));
+                goldRow.put("template_id", null);
+                goldRow.put("icon_id", 457);
+                goldRow.put("is_gold", true);
+                items.add(goldRow);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        Matcher m = Pattern.compile("(.+?)\\(x\\s*(\\d+)\\s*\\)").matcher(raw);
+        while (m.find()) {
+            String itemName = m.group(1).trim().replaceAll("^[,;]+", "").trim();
+            itemName = itemName.replaceFirst("(?i)^Gold\\s*:\\s*\\d+\\s*,?\\s*", "").trim();
+            if (itemName.isEmpty() || itemName.equalsIgnoreCase("Gold")) {
+                continue;
+            }
+            long qty = 1;
+            try {
+                qty = Long.parseLong(m.group(2));
+            } catch (NumberFormatException ignored) {
+            }
+            Map<String, Object> tpl = bulk.get(itemName.toLowerCase(Locale.ROOT));
+            Map<String, Object> one = new LinkedHashMap<>();
+            one.put("name", itemName);
+            one.put("quantity", qty);
+            one.put("template_id", tpl == null ? null : tpl.get("template_id"));
+            one.put("icon_id", tpl == null ? null : tpl.get("icon_id"));
+            one.put("is_gold", false);
+            items.add(one);
+        }
+        return items;
+    }
+
     private static void handleGiveItem(HttpExchange exchange, String method, Map<String, String> payload)
             throws IOException {
         if (!"POST".equalsIgnoreCase(method)) {
@@ -873,6 +1152,7 @@ public final class AdminApiServer {
         final long playerId;
         final int itemId;
         final int quantity;
+        final List<int[]> itemOptions = new ArrayList<>();
         try {
             playerId = Long.parseLong(payload.getOrDefault("playerId", ""));
             itemId = Integer.parseInt(payload.getOrDefault("itemId", ""));
@@ -883,6 +1163,34 @@ public final class AdminApiServer {
         }
         if (playerId <= 0 || itemId < 0 || itemId > Short.MAX_VALUE || quantity < 1 || quantity > 99_999) {
             sendJson(exchange, 400, mapOf("success", false, "message", "Số lượng phải từ 1 đến 99.999."));
+            return;
+        }
+
+        try {
+            Object parsedOptions = new JSONParser().parse(payload.getOrDefault("options", "[]"));
+            if (!(parsedOptions instanceof JSONArray options) || options.size() > 10) {
+                sendJson(exchange, 400, mapOf("success", false,
+                        "message", "Danh sách tuỳ chọn không hợp lệ (tối đa 10 tuỳ chọn)."));
+                return;
+            }
+            for (Object value : options) {
+                if (!(value instanceof JSONObject option)) {
+                    sendJson(exchange, 400, mapOf("success", false, "message", "Tuỳ chọn vật phẩm không hợp lệ."));
+                    return;
+                }
+                int optionId = Integer.parseInt(String.valueOf(option.get("optionId")));
+                int param = Integer.parseInt(String.valueOf(option.get("param")));
+                if (optionId < 0 || optionId >= Manager.ITEM_OPTION_TEMPLATES.size()
+                        || ItemService.gI().getItemOptionTemplate(optionId) == null
+                        || itemOptions.stream().anyMatch(existing -> existing[0] == optionId)) {
+                    sendJson(exchange, 400, mapOf("success", false,
+                            "message", "Tuỳ chọn không tồn tại hoặc bị trùng."));
+                    return;
+                }
+                itemOptions.add(new int[] { optionId, param });
+            }
+        } catch (ParseException | NumberFormatException e) {
+            sendJson(exchange, 400, mapOf("success", false, "message", "Danh sách tuỳ chọn không hợp lệ."));
             return;
         }
 
@@ -904,6 +1212,9 @@ public final class AdminApiServer {
         if (item == null || item.template == null) {
             sendJson(exchange, 404, mapOf("success", false, "message", "Không thể tạo vật phẩm."));
             return;
+        }
+        for (int[] option : itemOptions) {
+            item.itemOptions.add(new Item.ItemOption(option[0], option[1]));
         }
         if (!InventoryService.gI().addItemBag(player, item)) {
             sendJson(exchange, 409, mapOf("success", false, "message", "Hành trang người chơi không đủ chỗ."));
