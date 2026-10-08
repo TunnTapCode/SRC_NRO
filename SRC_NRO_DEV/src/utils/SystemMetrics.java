@@ -4,6 +4,8 @@ import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class SystemMetrics {
 
@@ -44,6 +46,17 @@ public class SystemMetrics {
     private static double getHeapMaxMemoryMB() {
         MemoryUsage heapUsage = memoryBean.getHeapMemoryUsage();
         return bytesToMB(heapUsage.getMax());
+    }
+
+    public static Map<String, Object> getMetrics() {
+        double cpuUsage = getCPUUsage();
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("usedMemoryMB", getUsedMemoryMB());
+        metrics.put("totalMemoryMB", getTotalMemoryMB());
+        metrics.put("cpuUsagePercent", cpuUsage >= 0 ? cpuUsage * 100 : null);
+        metrics.put("heapUsedMemoryMB", getHeapUsedMemoryMB());
+        metrics.put("heapMaxMemoryMB", getHeapMaxMemoryMB());
+        return metrics;
     }
 
     public static String ToString() {

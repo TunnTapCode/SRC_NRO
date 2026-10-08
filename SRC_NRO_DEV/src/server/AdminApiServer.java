@@ -39,7 +39,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import managers.DropRateManager;
 import managers.CombineRateManager;
+import network.SessionManager;
 import utils.Logger;
+import utils.SystemMetrics;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 // Runtime server references
 import static server.Maintenance.isRunning;
@@ -260,6 +266,7 @@ public final class AdminApiServer {
                     "/api/accounts",
                     "/api/players",
                     "/api/online-players",
+                    "/api/server-metrics",
                     "/api/give-item",
                     "/api/giftcodes",
                     "/api/items",
@@ -306,6 +313,19 @@ public final class AdminApiServer {
                 return;
             case "online-players":
                 handleOnlinePlayers(exchange, method);
+                return;
+            case "server-metrics":
+                if ("GET".equalsIgnoreCase(method)) {
+                    Map<String, Object> metrics = SystemMetrics.getMetrics();
+                    metrics.put("timeStart", ServerManager.timeStart);
+                    metrics.put("clients", Client.gI().getPlayers().size());
+                    metrics.put("sessions", SessionManager.gI().getNumSession());
+                    metrics.put("threads", Thread.activeCount());
+                    sendJson(exchange, 200, metrics);
+                } else {
+                    exchange.getResponseHeaders().set("Allow", "GET");
+                    sendText(exchange, 405, "Method Not Allowed");
+                }
                 return;
             case "give-item":
                 handleGiveItem(exchange, method, payload);
@@ -873,6 +893,7 @@ public final class AdminApiServer {
         final long playerId;
         final int itemId;
         final int quantity;
+        final List<int[]> itemOptions = new ArrayList<>();
         try {
             playerId = Long.parseLong(payload.getOrDefault("playerId", ""));
             itemId = Integer.parseInt(payload.getOrDefault("itemId", ""));
@@ -883,6 +904,34 @@ public final class AdminApiServer {
         }
         if (playerId <= 0 || itemId < 0 || itemId > Short.MAX_VALUE || quantity < 1 || quantity > 99_999) {
             sendJson(exchange, 400, mapOf("success", false, "message", "Số lượng phải từ 1 đến 99.999."));
+            return;
+        }
+
+        try {
+            Object parsedOptions = new JSONParser().parse(payload.getOrDefault("options", "[]"));
+            if (!(parsedOptions instanceof JSONArray options) || options.size() > 10) {
+                sendJson(exchange, 400, mapOf("success", false,
+                        "message", "Danh sách tuỳ chọn không hợp lệ (tối đa 10 tuỳ chọn)."));
+                return;
+            }
+            for (Object value : options) {
+                if (!(value instanceof JSONObject option)) {
+                    sendJson(exchange, 400, mapOf("success", false, "message", "Tuỳ chọn vật phẩm không hợp lệ."));
+                    return;
+                }
+                int optionId = Integer.parseInt(String.valueOf(option.get("optionId")));
+                int param = Integer.parseInt(String.valueOf(option.get("param")));
+                if (optionId < 0 || optionId >= Manager.ITEM_OPTION_TEMPLATES.size()
+                        || ItemService.gI().getItemOptionTemplate(optionId) == null
+                        || itemOptions.stream().anyMatch(existing -> existing[0] == optionId)) {
+                    sendJson(exchange, 400, mapOf("success", false,
+                            "message", "Tuỳ chọn không tồn tại hoặc bị trùng."));
+                    return;
+                }
+                itemOptions.add(new int[] { optionId, param });
+            }
+        } catch (ParseException | NumberFormatException e) {
+            sendJson(exchange, 400, mapOf("success", false, "message", "Danh sách tuỳ chọn không hợp lệ."));
             return;
         }
 
@@ -904,6 +953,9 @@ public final class AdminApiServer {
         if (item == null || item.template == null) {
             sendJson(exchange, 404, mapOf("success", false, "message", "Không thể tạo vật phẩm."));
             return;
+        }
+        for (int[] option : itemOptions) {
+            item.itemOptions.add(new Item.ItemOption(option[0], option[1]));
         }
         if (!InventoryService.gI().addItemBag(player, item)) {
             sendJson(exchange, 409, mapOf("success", false, "message", "Hành trang người chơi không đủ chỗ."));

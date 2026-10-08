@@ -136,6 +136,9 @@
     margin-bottom: 20px;
 }
 
+.db-top-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.db-revenue-row { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+
 .db-panel {
     background: #fff;
     border-radius: 18px;
@@ -162,6 +165,102 @@
     font-weight: 700;
     color: #1e40af;
 }
+
+.db-runtime-panel { margin-bottom: 20px; }
+
+.db-runtime-panel .db-panel-head { flex-wrap: wrap; }
+
+.db-runtime-updated {
+    margin-left: auto;
+    color: #94a3b8;
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.db-runtime-updated.is-error { color: #dc2626; }
+
+.db-runtime-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.db-runtime-item {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    min-width: 0;
+    min-height: 64px;
+    padding: 11px 13px;
+    border: 1px solid #e0ecff;
+    border-radius: 12px;
+    background: #f8fbff;
+}
+
+.db-runtime-item span {
+    color: #64748b;
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.db-runtime-item b {
+    overflow-wrap: anywhere;
+    color: #1e293b;
+    font-size: .95rem;
+    font-weight: 800;
+}
+
+.db-runtime-start { grid-column: span 2; }
+
+.db-runtime-chart {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #f0f6ff;
+}
+
+.db-runtime-chart-title {
+    margin-bottom: 8px;
+    color: #475569;
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.db-runtime-chart-wrap {
+    width: 100%;
+    min-height: 180px;
+}
+
+.db-runtime-chart-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 220px;
+}
+
+.db-memory-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: .72rem;
+    font-weight: 600;
+}
+
+.db-memory-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.db-memory-legend i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+
+.db-memory-legend-system { background: #2563eb; }
+.db-memory-legend-heap { background: #e11d48; }
 
 /* Top players list */
 .db-loading {
@@ -287,11 +386,18 @@
     .db-cards            { grid-template-columns: 1fr 1fr; }
     .db-quick-links      { grid-template-columns: 1fr; }
     .db-card-value       { font-size: 1.5rem; }
+    .db-runtime-start    { grid-column: auto; }
+    .db-runtime-grid     { grid-template-columns: 1fr 1fr; }
 }
 
 /* ── Responsive rows ── */
 @media (max-width: 1100px) { .db-row2 { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 960px)  { .db-row2 { grid-template-columns: 1fr; } }
+@media (max-width: 960px)  {
+    .db-row2 { grid-template-columns: 1fr; }
+    .db-top-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .db-revenue-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px)  { .db-top-pair { grid-template-columns: 1fr; } }
 
 /* ═══════════════════════════════════════════════════════
    Lượng người chơi — range tabs + summary
@@ -379,4 +485,3 @@
     font-size: 0.70rem;
     color: #94a3b8;
 }
-

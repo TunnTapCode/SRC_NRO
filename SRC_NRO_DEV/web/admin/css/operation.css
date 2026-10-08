@@ -875,6 +875,9 @@
 
 .op-gift-dialog {
     width: min(480px, 100%);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
     border-radius: 20px;
     background: #fff;
@@ -921,6 +924,8 @@
 .op-gift-body {
     display: grid;
     gap: 9px;
+    min-height: 0;
+    overflow-y: auto;
     padding: 20px 22px;
 }
 
@@ -950,10 +955,127 @@
     border-color: #db2777;
 }
 
-.op-gift-player-row {
+.op-gift-player-control {
     display: flex;
+    align-items: flex-start;
     gap: 8px;
 }
+
+.op-gift-player-combobox {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.op-gift-player-list {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .14);
+}
+
+.op-gift-player-option {
+    padding: 10px 12px;
+    color: #1e293b;
+    font-size: .86rem;
+    cursor: pointer;
+}
+
+.op-gift-player-option + .op-gift-player-option {
+    border-top: 1px solid #f1f5f9;
+}
+
+.op-gift-player-option:hover,
+.op-gift-player-option.is-active {
+    background: #fdf2f8;
+}
+
+.op-gift-player-empty {
+    padding: 10px 12px;
+    color: #64748b;
+    font-size: .84rem;
+}
+
+.op-gift-options {
+    display: grid;
+    gap: 8px;
+}
+
+.op-gift-option-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 110px 38px;
+    gap: 8px;
+    align-items: center;
+}
+
+.op-gift-option-picker {
+    position: relative;
+    min-width: 0;
+}
+
+.op-gift-option-list {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .14);
+}
+
+.op-gift-option-choice {
+    padding: 10px 12px;
+    color: #1e293b;
+    font-size: .84rem;
+    cursor: pointer;
+}
+
+.op-gift-option-choice + .op-gift-option-choice {
+    border-top: 1px solid #f1f5f9;
+}
+
+.op-gift-option-choice:hover,
+.op-gift-option-choice.is-active {
+    background: #fdf2f8;
+}
+
+.op-gift-option-remove {
+    min-height: 40px;
+    border: 0;
+    border-radius: 10px;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.op-gift-option-add {
+    justify-self: start;
+    min-height: 36px;
+    border: 1px dashed #f9a8d4;
+    border-radius: 9px;
+    padding: 7px 12px;
+    background: #fdf2f8;
+    color: #be185d;
+    font: inherit;
+    font-size: .82rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.op-gift-option-add:disabled { opacity: .55; cursor: not-allowed; }
 
 .op-gift-refresh,
 .op-gift-cancel,
@@ -1004,7 +1126,9 @@
     .op-gift-header,
     .op-gift-footer { padding: 15px 16px; }
     .op-gift-body { padding: 16px; }
-    .op-gift-player-row { flex-direction: column; }
+    .op-gift-player-control { align-items: stretch; }
+    .op-gift-refresh { padding-right: 10px; padding-left: 10px; }
+    .op-gift-option-row { grid-template-columns: minmax(0, 1fr) 84px 38px; }
 }
 
 /* ── Tặng vật phẩm: ô chọn có icon + popup picker ── */
