@@ -844,6 +844,19 @@ public class Mob {
         // MAP TƯƠNG LAI & MAP COLD
         if (MapService.gI().isMapTuongLai(mapid) || MapService.gI().isMapCold(mapid)) {
 
+            String divineItemKey = MapService.gI().isMapTuongLai(mapid)
+                    ? "item_divine_map_tuonglai"
+                    : "item_divine_map_cold";
+            if (DropRateManager.roll(divineItemKey)) {
+                ItemMap divineItem = ItemService.gI().randDoTL(zone, 1, x, yEnd, player.id);
+                list.add(divineItem);
+                ChatGlobalService.gI().ThongBaoRoiDo(
+                        player,
+                        "[Hệ Thống] " + player.name
+                                + " vừa nhặt được đồ Thần Linh: "
+                                + divineItem.itemTemplate.name);
+            }
+
             // Tỉ lệ rơi (chỉnh trong Admin > Vận hành > Tỉ Lệ Rơi Đồ)
             boolean drop = MapService.gI().isMapTuongLai(mapid)
                     ? DropRateManager.roll("item_set_star_map_tuonglai")

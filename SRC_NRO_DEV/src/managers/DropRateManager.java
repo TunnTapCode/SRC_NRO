@@ -86,6 +86,7 @@ public final class DropRateManager {
         int[] STONES = { 220, 221, 222, 223, 224 };
         int[] STARS = { 441, 442, 443 ,447 };
         int[] SET_ITEMS = { 233, 241, 237, 245, 253, 249, 265, 261, 257, 277, 273, 269, 281 };
+        int[] DIVINE_ITEMS = { 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 567 };
 
         // ── Vàng theo bản đồ ──
         add("gold_map_3planets", "Vàng theo bản đồ", "Map 3 hành tinh", "Mọi quái", GOLD_LOW, 10);
@@ -113,6 +114,10 @@ public final class DropRateManager {
                 "Ngẫu nhiên 1 trong 13 món + random 1-3 sao · có thông báo chat", SET_ITEMS, 1);
         add("item_set_star_map_cold", "Vật phẩm theo bản đồ", "Map Cold",
                 "Ngẫu nhiên 1 trong 13 món + random 1-3 sao · có thông báo chat", SET_ITEMS, 5);
+        add("item_divine_map_tuonglai", "Vật phẩm theo bản đồ", "Map Tương lai",
+                "Đồ Thần Linh", DIVINE_ITEMS, 1);
+        add("item_divine_map_cold", "Vật phẩm theo bản đồ", "Map Cold",
+                "Đồ Thần Linh", DIVINE_ITEMS, 5);
 
         // ── Máy dò & Porata ──
         add("item_380_use_maydo", "Máy dò & Porata", "Map 58-65", "Chỉ khi bật máy dò", new int[] { 380 }, 10);
