@@ -920,6 +920,11 @@ public class Mob {
 
         // MAP NAPPA
 
+        if ((MapService.gI().isMapCold(mapid) || MapService.gI().isMapTuongLai(mapid))
+                && DropRateManager.roll("item_16_map_cold_tuonglai")) {
+            list.add(new ItemMap(zone, 16, 1, x, yEnd, player.id));
+        }
+
         // Rơi item 17 - mặc định 1/400
         if (DropRateManager.roll("item_18_any_map")) {
             list.add(new ItemMap(

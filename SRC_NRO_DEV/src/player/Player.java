@@ -1438,7 +1438,7 @@ public class Player implements Runnable {
         MapService.gI().sendPlayerMove(this);
     }
 
-    public void dispose() {
+    public synchronized void dispose() {
         if (itemsTradeWVP != null) {
             if (!itemsTradeWVP.isEmpty()) {
                 for (Item item : itemsTradeWVP) {

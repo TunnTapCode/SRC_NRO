@@ -105,12 +105,14 @@ public final class DropRateManager {
         add("item_441_443_map_nappa", "Vật phẩm theo bản đồ", "Map Nappa", "Ngẫu nhiên 1 trong 3", STARS, 1.5);
         add("item_441_443_map_tuonglai", "Vật phẩm theo bản đồ", "Map Tương lai", "Ngẫu nhiên 1 trong 3", STARS, 2);
         add("item_441_443_map_cold", "Vật phẩm theo bản đồ", "Map Cold", "Ngẫu nhiên 1 trong 3", STARS, 2.5);
+        add("item_16_map_cold_tuonglai", "Vật phẩm theo bản đồ", "Map Cold & Tương lai",
+                "Ngọc Rồng 3 sao", new int[] { 16 }, 5);
         add("item_220_224_map_cold", "Vật phẩm theo bản đồ", "Map Cold", "Kèm option", STONES, 1);
         add("item_225_map_doanhtrai", "Vật phẩm theo bản đồ", "Map Doanh trại", "Kèm option 74", new int[] { 225 }, 10);
         add("item_set_star_map_tuonglai", "Vật phẩm theo bản đồ", "Map Tương lai",
-                "Ngẫu nhiên 1 trong 13 món + random 1-3 sao · có thông báo chat", SET_ITEMS, 100.0 / 14000);
+                "Ngẫu nhiên 1 trong 13 món + random 1-3 sao · có thông báo chat", SET_ITEMS, 1);
         add("item_set_star_map_cold", "Vật phẩm theo bản đồ", "Map Cold",
-                "Ngẫu nhiên 1 trong 13 món + random 1-3 sao · có thông báo chat", SET_ITEMS, 100.0 / 18000);
+                "Ngẫu nhiên 1 trong 13 món + random 1-3 sao · có thông báo chat", SET_ITEMS, 5);
 
         // ── Máy dò & Porata ──
         add("item_380_use_maydo", "Máy dò & Porata", "Map 58-65", "Chỉ khi bật máy dò", new int[] { 380 }, 10);

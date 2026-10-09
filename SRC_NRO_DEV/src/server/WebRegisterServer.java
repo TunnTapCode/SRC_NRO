@@ -39,6 +39,7 @@ public final class WebRegisterServer {
                 ServerManager.DOMAIN = "http://127.0.0.1:" + port + "/register";
                 server.createContext("/register", WebRegisterServer::handleRegister);
                 server.createContext("/admin", WebRegisterServer::handleAdmin);
+                server.createContext("/", WebRegisterServer::handleAdmin);
                 server.setExecutor(Executors.newCachedThreadPool(runnable -> {
                     Thread thread = new Thread(runnable, "Web-register");
                     return thread;

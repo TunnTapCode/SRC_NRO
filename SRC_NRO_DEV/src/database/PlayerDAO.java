@@ -333,7 +333,16 @@ private static final ScheduledExecutorService scheduler = Executors.newScheduled
     }
 
     public static void updatePlayer(Player player) {
-        if (player != null && player.idMark.isLoadedAllDataPlayer()) {
+        if (player == null) {
+            return;
+        }
+        synchronized (player) {
+            updatePlayerLocked(player);
+        }
+    }
+
+    private static void updatePlayerLocked(Player player) {
+        if (player.idMark != null && player.idMark.isLoadedAllDataPlayer()) {
             long st = System.currentTimeMillis();
             try {
                 JSONArray dataArray = new JSONArray();
