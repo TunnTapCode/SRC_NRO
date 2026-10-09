@@ -194,7 +194,7 @@ public class DatabaseManager {
         config.setConnectionTimeout(10000);
         config.setValidationTimeout(3000);
         config.setIdleTimeout(60000);
-        config.setLeakDetectionThreshold(30000);
+        config.setLeakDetectionThreshold(120000);
         config.setPoolName(poolName);
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");

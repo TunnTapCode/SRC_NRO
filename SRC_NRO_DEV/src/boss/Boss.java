@@ -712,18 +712,18 @@ public class Boss extends Player implements IBoss {
     private static final int[] BOSS_DROP_THOI_VANG_ID = {
         // Tiểu đội sát thủ + Tiểu đội trưởng (bản Xayda và bản Namek)
         BossID.SO_4, BossID.SO_3, BossID.SO_2, BossID.SO_1, BossID.TIEU_DOI_TRUONG,
-        BossID.SO_4_NM, BossID.SO_3_NM, BossID.SO_2_NM, BossID.SO_1_NM, BossID.TIEU_DOI_TRUONG_NM,
+        // BossID.SO_4_NM, BossID.SO_3_NM, BossID.SO_2_NM, BossID.SO_1_NM, BossID.TIEU_DOI_TRUONG_NM,
         // Fide đại ca, Cooler, Android 19 / Dr.Kôrê / 15 / 14 / 13, Poc / Pic / King Kong
         BossID.FIDE, BossID.COOLER,
         BossID.ANDROID_19, BossID.DR_KORE, BossID.ANDROID_15, BossID.ANDROID_14, BossID.ANDROID_13,
         BossID.POC, BossID.PIC, BossID.KING_KONG,
         // Siêu Frieza + đội Xên (Xen bọ hùng, Siêu bọ hùng, 7 Xên con)
-        BossID.GOLDEN_FRIEZA,
+        // BossID.GOLDEN_FRIEZA,
         BossID.XEN_BO_HUNG, BossID.SIEU_BO_HUNG,
-        BossID.XEN_CON_1, BossID.XEN_CON_2, BossID.XEN_CON_3, BossID.XEN_CON_4,
-        BossID.XEN_CON_5, BossID.XEN_CON_6, BossID.XEN_CON_7,
+        // BossID.XEN_CON_1, BossID.XEN_CON_2, BossID.XEN_CON_3, BossID.XEN_CON_4,
+        // BossID.XEN_CON_5, BossID.XEN_CON_6, BossID.XEN_CON_7,
         // Majin Buu 12H: Drabura, Bui Bui, Yacon, Mabu
-        BossID.DRABURA, BossID.DRABURA_2, BossID.BUI_BUI, BossID.BUI_BUI_2, BossID.YA_CON, BossID.MABU,
+        // BossID.DRABURA, BossID.DRABURA_2, BossID.BUI_BUI, BossID.BUI_BUI_2, BossID.YA_CON, BossID.MABU,
     };
 
     // TODO: bổ sung 5% rơi đồ VIP (số lượng 1-3) — chờ chốt item id

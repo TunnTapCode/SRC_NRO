@@ -219,6 +219,7 @@ public final class Manager {
         PreparedStatement ps = null;
         ResultSet rs = null;
         try (Connection ConnectionDatabase = DatabaseManager.getConnection()) {
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from part");
             rs = ps.executeQuery();
             List<Part> parts = new ArrayList<>();
@@ -237,17 +238,19 @@ public final class Manager {
                 parts.add(part);
                 dataArray.clear();
             }
-            DataOutputStream dos = new DataOutputStream(new FileOutputStream("data/update_data/part"));
-            dos.writeShort(parts.size());
-            for (Part part : parts) {
-                dos.writeByte(part.type);
-                for (PartDetail partDetail : part.partDetails) {
-                    dos.writeShort(partDetail.iconId);
-                    dos.writeByte(partDetail.dx);
-                    dos.writeByte(partDetail.dy);
+            try (DataOutputStream dos = new DataOutputStream(new FileOutputStream("data/update_data/part"))) {
+                dos.writeShort(parts.size());
+                for (Part part : parts) {
+                    dos.writeByte(part.type);
+                    for (PartDetail partDetail : part.partDetails) {
+                        dos.writeShort(partDetail.iconId);
+                        dos.writeByte(partDetail.dx);
+                        dos.writeByte(partDetail.dy);
+                    }
                 }
+                dos.flush();
             }
-            dos.flush();
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from bg_item_template");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -260,6 +263,7 @@ public final class Manager {
                 BG_ITEMS.add(bgItem);
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from array_head_2_frames");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -270,6 +274,7 @@ public final class Manager {
                 }
                 ARR_HEAD_2_FRAMES.add(arrHead2Frames);
             }
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from clan");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -314,11 +319,13 @@ public final class Manager {
                 CLANS.add(clan);
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select id from clan order by id desc limit 1");
             rs = ps.executeQuery();
             if (rs.next()) {
                 Clan.NEXT_ID = rs.getInt("id") + 1;
             }
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from skill_template order by nclass_id, slot");
             rs = ps.executeQuery();
             byte nClassId = -1;
@@ -369,6 +376,7 @@ public final class Manager {
                 }
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from head_avatar");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -376,6 +384,7 @@ public final class Manager {
                 HEAD_AVATARS.add(headAvatar);
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from flag_bag");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -392,6 +401,7 @@ public final class Manager {
                 }
                 FLAGS_BAGS.add(flagBag);
             }
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from intrinsic");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -420,6 +430,7 @@ public final class Manager {
                 INTRINSICS.add(intrinsic);
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("SELECT id, task_main_template.name, detail, "
                     + "task_sub_template.name AS 'sub_name', max_count, notify, npc_id, map "
                     + "FROM task_main_template JOIN task_sub_template ON task_main_template.id = "
@@ -446,6 +457,7 @@ public final class Manager {
                 subTask.mapId = rs.getShort("map");
                 task.subTasks.add(subTask);
             }
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from side_task_template");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -469,6 +481,7 @@ public final class Manager {
                 sideTask.count[4][1] = Integer.parseInt(mc5[1]);
                 SIDE_TASKS_TEMPLATE.add(sideTask);
             }
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from task_badges_template");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -480,6 +493,7 @@ public final class Manager {
                 TASKS_BADGES_TEMPLATE.add(badgesTaskTemplate);
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from clan_task_template");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -504,6 +518,7 @@ public final class Manager {
                 CLAN_TASKS_TEMPLATE.add(clanTask);
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from achievement_template");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -515,6 +530,7 @@ public final class Manager {
 
             try {
                 while (true) {
+                    closeQueryResources(rs, ps);
                     ps = ConnectionDatabase.prepareStatement("SELECT * FROM item_template LIMIT ? OFFSET ?");
                     ps.setInt(1, batchSize);
                     ps.setInt(2, offset);
@@ -560,6 +576,7 @@ public final class Manager {
                 }
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select id, name from item_option_template");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -571,12 +588,14 @@ public final class Manager {
 
             SHOPS = ShopDAO.getShops(ConnectionDatabase);
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from notify order by id desc");
             rs = ps.executeQuery();
             while (rs.next()) {
                 NOTIFY.add(rs.getString("name") + "<>" + rs.getString("text"));
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select name, n_frame from img_by_name");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -588,6 +607,7 @@ public final class Manager {
                 }
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("SELECT * FROM shop_ky_gui");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -612,6 +632,7 @@ public final class Manager {
                         .add(new ConsignItem(i, itemId, idPl, tab, gold, gem, quantity, isUp, op, isBuy));
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from mob_template");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -628,6 +649,7 @@ public final class Manager {
                 MOB_TEMPLATES.add(mobTemp);
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from npc_template order by id asc");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -640,6 +662,7 @@ public final class Manager {
                 npcTemp.avatar = rs.getInt("avatar");
                 NPC_TEMPLATES.add(npcTemp);
             }
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from data_badges");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -661,11 +684,13 @@ public final class Manager {
                 }
                 BAGES_TEMPLATES.add(template);
             }
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select count(id) from map_template");
             rs = ps.executeQuery();
             if (rs.next()) {
                 int countRow = rs.getShort(1);
                 MAP_TEMPLATES = new MapTemplate[countRow];
+                closeQueryResources(rs, ps);
                 ps = ConnectionDatabase.prepareStatement("select * from map_template");
                 rs = ps.executeQuery();
                 short i = 0;
@@ -735,6 +760,7 @@ public final class Manager {
                 }
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("select * from radar");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -773,6 +799,7 @@ public final class Manager {
                 RadarService.gI().RADAR_TEMPLATE.add(rd);
             }
 
+            closeQueryResources(rs, ps);
             ps = ConnectionDatabase.prepareStatement("SELECT * FROM giftcode");
             rs = ps.executeQuery();
             while (rs.next()) {
@@ -820,18 +847,26 @@ public final class Manager {
             System.exit(0);
         } finally {
             try {
-                if (rs != null) {
-                    rs.close();
-                }
-                if (ps != null) {
-                    ps.close();
-                }
+                closeQueryResources(rs, ps);
             } catch (SQLException e) {
+                Logger.logException(Manager.class, e, "Error closing database resources");
             }
         }
         Logger.success("Successfully loaded all database " + DatabaseManager.DB_NAME + "\n");
         Logger.success("Total database loading time -> " + (System.currentTimeMillis() - st) + " (ms)\n");
 
+    }
+
+    private static void closeQueryResources(ResultSet rs, PreparedStatement ps) throws SQLException {
+        try {
+            if (rs != null) {
+                rs.close();
+            }
+        } finally {
+            if (ps != null) {
+                ps.close();
+            }
+        }
     }
 
     public void loadProperties() throws IOException {
